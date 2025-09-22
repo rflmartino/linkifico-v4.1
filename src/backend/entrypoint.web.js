@@ -19,6 +19,13 @@ export const processUserRequest = webMethod(Permissions.Anyone, async (requestDa
         return { success: false, message: 'Invalid request' };
     }
     
+    if (op === 'startProcessing') {
+        return await startProcessing(projectId, userId, sessionId, payload?.message || '');
+    }
+    if (op === 'getProcessingStatus') {
+        return await getProcessingStatus(payload?.processingId);
+    }
+
     if (op === 'sendMessage') {
         const message = (payload && payload.message) || '';
         return await processChatMessage(projectId, userId, message, sessionId);
@@ -137,6 +144,30 @@ async function processIntelligenceLoop(projectId, userId, message, projectData, 
     Logger.info('entrypoint.web', 'processIntelligenceLoop:end', { action: actionPlan?.action });
     
     return execution;
+}
+
+// Lightweight polling: start async processing and return processingId immediately
+async function startProcessing(projectId, userId, sessionId, message) {
+    const processingId = `proc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    await projectData.saveProcessing(processingId, { status: 'processing', startedAt: Date.now() });
+    
+    // Kick off in background (no await)
+    (async () => {
+        const result = await processChatMessage(projectId, userId, message, sessionId);
+        const payload = result.success
+            ? { status: 'complete', conversation: [{ type: 'assistant', content: result.message, timestamp: new Date().toISOString() }], projectData: result.projectData, analysis: result.analysis }
+            : { status: 'error', error: result.error || 'processing failed' };
+        await projectData.saveProcessing(processingId, payload);
+    })();
+    
+    return { success: true, processingId, status: 'processing' };
+}
+
+async function getProcessingStatus(processingId) {
+    if (!processingId) return { success: false, status: 'error', error: 'missing processingId' };
+    const payload = await projectData.getProcessing(processingId);
+    if (!payload) return { success: true, status: 'processing' };
+    return { success: true, ...payload };
 }
 
 // Initialize new project

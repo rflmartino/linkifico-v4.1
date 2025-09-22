@@ -57,22 +57,63 @@ $w.onReady(async function () {
 
             chatEl.postMessage({ action: 'updateStatus', status: 'processing' });
 
-            const result = await processUserRequest({
-                op: 'sendMessage',
-                projectId,
-                userId,
-                sessionId,
-                payload: { message: userMessage }
-            }).catch((e) => ({ success: false, message: 'Sorry, something went wrong.' }));
+        // Start processing (immediate return) and poll for completion
+        const start = await processUserRequest({
+            op: 'startProcessing',
+            projectId,
+            userId,
+            sessionId,
+            payload: { message: userMessage }
+        }).catch(() => ({ success: false }));
 
-            chatEl.postMessage({
-                action: 'displayMessage',
-                type: 'assistant',
-                content: (result && result.message) || 'Sorry, something went wrong.',
-                timestamp: new Date().toISOString()
+        if (!start || !start.success) {
+            chatEl.postMessage({ action: 'displayMessage', type: 'assistant', content: 'Sorry, something went wrong.', timestamp: new Date().toISOString() });
+            chatEl.postMessage({ action: 'updateStatus', status: 'error' });
+            return;
+        }
+
+        const processingId = start.processingId;
+        const startedAt = Date.now();
+        const intervalMs = 2000;
+        const timeoutMs = 90000;
+
+        const poll = async () => {
+            const status = await processUserRequest({ op: 'getProcessingStatus', projectId, userId, sessionId, payload: { processingId } }).catch(() => null);
+            if (!status) {
+                if (Date.now() - startedAt > timeoutMs) {
+                    chatEl.postMessage({ action: 'displayMessage', type: 'system', content: 'Processing timed out. Please try again.', timestamp: new Date().toISOString() });
+                    chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
+                    return;
+                }
+                setTimeout(poll, intervalMs);
+                return;
+            }
+            if (status.status === 'processing') {
+                // Optional: progress updates could be posted here
+                if (Date.now() - startedAt > timeoutMs) {
+                    chatEl.postMessage({ action: 'displayMessage', type: 'system', content: 'Processing timed out. Please try again.', timestamp: new Date().toISOString() });
+                    chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
+                    return;
+                }
+                setTimeout(poll, intervalMs);
+                return;
+            }
+            if (status.status === 'error') {
+                chatEl.postMessage({ action: 'displayMessage', type: 'assistant', content: 'Sorry, something went wrong.', timestamp: new Date().toISOString() });
+                chatEl.postMessage({ action: 'updateStatus', status: 'error' });
+                return;
+            }
+            // complete
+            const msgs = status.conversation?.messages || status.conversation || [];
+            (msgs || []).forEach((m) => {
+                if (!m || !m.content) return;
+                const type = m.type === 'system' ? 'system' : 'assistant';
+                chatEl.postMessage({ action: 'displayMessage', type, content: m.content, timestamp: m.timestamp || new Date().toISOString() });
             });
+            chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
+        };
 
-            chatEl.postMessage({ action: 'updateStatus', status: (result && result.success) ? 'ready' : 'error' });
+        setTimeout(poll, intervalMs);
         }
     });
 });

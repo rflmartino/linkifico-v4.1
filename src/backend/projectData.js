@@ -31,7 +31,8 @@ export const REDIS_KEYS = {
     GAPS: (projectId) => `gaps:${projectId}`,
     LEARNING: (userId) => `learning:${userId}`,
     REFLECTION: (projectId) => `reflection:${projectId}`,
-    CHAT_HISTORY: (projectId) => `chat:${projectId}`
+    CHAT_HISTORY: (projectId) => `chat:${projectId}`,
+    PROCESSING: (processingId) => `processing:${processingId}`
 };
 
 // Project Data Structure
@@ -177,6 +178,20 @@ export async function getChatHistory(projectId) {
     const key = REDIS_KEYS.CHAT_HISTORY(projectId);
     const data = await client.get(key);
     return data ? JSON.parse(data) : [];
+}
+
+// Processing storage for polling
+export async function saveProcessing(processingId, payload) {
+    const client = await getRedisClient();
+    const key = REDIS_KEYS.PROCESSING(processingId);
+    await client.set(key, JSON.stringify(payload));
+}
+
+export async function getProcessing(processingId) {
+    const client = await getRedisClient();
+    const key = REDIS_KEYS.PROCESSING(processingId);
+    const data = await client.get(key);
+    return data ? JSON.parse(data) : null;
 }
 
 // Utility Functions
