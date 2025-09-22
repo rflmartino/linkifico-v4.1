@@ -3,6 +3,7 @@
 
 import { getSecret } from 'wix-secrets-backend';
 import { askClaude, askClaudeJSON } from 'backend/aiClient';
+import { Logger } from 'backend/logger';
 import { 
     getLearningData,
     saveLearningData,
@@ -26,6 +27,7 @@ export const learningController = {
     // Main learning function
     async learnFromInteraction(projectId, userId, userMessage, execution, chatHistory) {
         try {
+            Logger.info('learningController', 'learnFromInteraction:start', { projectId, userId });
             // Get existing learning data
             let learningData = await getLearningData(userId);
             if (!learningData) {
@@ -56,14 +58,16 @@ export const learningController = {
             // Update reflection log
             await this.updateReflectionLog(projectId, learningInsights, interactionAnalysis);
             
-            return {
+            const result = {
                 learningInsights: learningInsights,
                 updatedPatterns: updatedPatterns,
                 effectivenessUpdate: effectivenessUpdate
             };
+            Logger.info('learningController', 'learnFromInteraction:end', { ok: true });
+            return result;
             
         } catch (error) {
-            console.error('Error in learning:', error);
+            Logger.error('learningController', 'learnFromInteraction:error', error);
             return {
                 learningInsights: null,
                 updatedPatterns: null,

@@ -3,6 +3,7 @@
 
 import { getSecret } from 'wix-secrets-backend';
 import { askClaude, askClaudeJSON } from 'backend/aiClient';
+import { Logger } from 'backend/logger';
 import { 
     createKnowledgeData, 
     saveKnowledgeData, 
@@ -27,6 +28,7 @@ export const selfAnalysisController = {
     // Main analysis function
     async analyzeProject(projectId, projectData, chatHistory) {
         try {
+            Logger.info('selfAnalysisController', 'analyzeProject:start', { projectId });
             // Calculate basic completeness metrics
             const completeness = calculateProjectCompleteness(projectData);
             const missingFields = identifyMissingFields(projectData);
@@ -56,6 +58,7 @@ export const selfAnalysisController = {
             // Save knowledge data
             await saveKnowledgeData(projectId, knowledgeData);
             
+            Logger.info('selfAnalysisController', 'analyzeProject:end', { confidence, completeness });
             return {
                 confidence: confidence,
                 completeness: completeness,
@@ -66,7 +69,7 @@ export const selfAnalysisController = {
             };
             
         } catch (error) {
-            console.error('Error in self analysis:', error);
+            Logger.error('selfAnalysisController', 'analyzeProject:error', error);
             return {
                 confidence: 0.0,
                 completeness: 0.0,

@@ -3,6 +3,7 @@
 
 import { getSecret } from 'wix-secrets-backend';
 import { askClaude, askClaudeJSON } from 'backend/aiClient';
+import { Logger } from 'backend/logger';
 import { 
     getLearningData,
     saveLearningData,
@@ -23,6 +24,7 @@ export const actionPlanningController = {
     // Main action planning function
     async planAction(projectId, userId, gaps, analysis, chatHistory) {
         try {
+            Logger.info('actionPlanningController', 'planAction:start', { projectId, userId });
             // Get user learning patterns
             const learningData = await getLearningData(userId);
             
@@ -35,10 +37,11 @@ export const actionPlanningController = {
             // Update learning data with planning decision
             await this.updateLearningFromPlanning(userId, actionPlan, learningData);
             
+            Logger.info('actionPlanningController', 'planAction:end', { action: actionPlan?.action });
             return actionPlan;
             
         } catch (error) {
-            console.error('Error in action planning:', error);
+            Logger.error('actionPlanningController', 'planAction:error', error);
             return {
                 action: 'ask_about_scope',
                 question: 'What exactly are you trying to accomplish with this project?',

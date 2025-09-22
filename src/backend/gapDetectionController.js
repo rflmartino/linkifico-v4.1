@@ -3,6 +3,7 @@
 
 import { getSecret } from 'wix-secrets-backend';
 import { askClaude, askClaudeJSON } from 'backend/aiClient';
+import { Logger } from 'backend/logger';
 import { 
     createGapData, 
     saveGapData, 
@@ -25,6 +26,7 @@ export const gapDetectionController = {
     // Main gap identification function
     async identifyGaps(projectId, analysis, projectData) {
         try {
+            Logger.info('gapDetectionController', 'identifyGaps:start', { projectId });
             // Get basic missing fields
             const missingFields = identifyMissingFields(projectData);
             
@@ -52,6 +54,7 @@ export const gapDetectionController = {
             // Save gap data
             await saveGapData(projectId, gapData);
             
+            Logger.info('gapDetectionController', 'identifyGaps:end', { next: nextAction.action, gaps: prioritizedGaps.length });
             return {
                 criticalGaps: prioritizedGaps,
                 priorityScore: gapData.priorityScore,
@@ -62,7 +65,7 @@ export const gapDetectionController = {
             };
             
         } catch (error) {
-            console.error('Error in gap detection:', error);
+            Logger.error('gapDetectionController', 'identifyGaps:error', error);
             return {
                 criticalGaps: Object.values(PROJECT_FIELDS),
                 priorityScore: 1.0,

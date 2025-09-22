@@ -9,9 +9,11 @@ import { actionPlanningController } from 'backend/actionPlanningController';
 import { executionController } from 'backend/executionController';
 import { learningController } from 'backend/learningController';
 import { Permissions, webMethod } from 'wix-web-module';
+import { Logger } from 'backend/logger';
 
 // Main chat processing function
 export const processUserRequest = webMethod(Permissions.Anyone, async (requestData) => {
+    Logger.info('entrypoint.web', 'processUserRequest:start', { op: requestData?.op, projectId: requestData?.projectId });
     const { op, projectId, userId, sessionId, payload = {} } = requestData || {};
     if (!op || !projectId) {
         return { success: false, message: 'Invalid request' };
@@ -39,11 +41,13 @@ export const processUserRequest = webMethod(Permissions.Anyone, async (requestDa
         return await triggerAnalysis(projectId);
     }
     
+    Logger.warn('entrypoint.web', 'processUserRequest:unknownOp', op);
     return { success: false, message: 'Unknown op' };
 });
 
 async function processChatMessage(projectId, userId, message, sessionId) {
     try {
+        Logger.info('entrypoint.web', 'processChatMessage:input', { projectId, userId, sessionId });
         // Get or create project data
         let pData = await projectData.getProjectData(projectId);
         if (!pData) {
@@ -90,16 +94,18 @@ async function processChatMessage(projectId, userId, message, sessionId) {
         // Save final chat history
         await projectData.saveChatHistory(projectId, chatHistory);
 
-        return {
+        const result = {
             success: true,
             message: finalMessage,
             analysis: response.analysis,
             todos: (response.analysis && response.analysis.gaps && response.analysis.gaps.todos) ? response.analysis.gaps.todos : [],
             projectData: pData
         };
+        Logger.info('entrypoint.web', 'processChatMessage:result', { ok: true, todos: result.todos?.length || 0 });
+        return result;
 
     } catch (error) {
-        console.error('Error processing chat message:', error);
+        Logger.error('entrypoint.web', 'processChatMessage:error', error);
         return {
             success: false,
             message: "I encountered an error processing your message. Please try again.",
@@ -110,6 +116,7 @@ async function processChatMessage(projectId, userId, message, sessionId) {
 
 // Intelligence processing loop
 async function processIntelligenceLoop(projectId, userId, message, projectData, chatHistory) {
+    Logger.info('entrypoint.web', 'processIntelligenceLoop:start', { projectId });
     // 1. Self Analysis - Analyze current project knowledge
     const analysis = await selfAnalysisController.analyzeProject(projectId, projectData, chatHistory);
     
@@ -127,6 +134,7 @@ async function processIntelligenceLoop(projectId, userId, message, projectData, 
     
     // 5. Learning - Learn from interaction and adapt
     await learningController.learnFromInteraction(projectId, userId, message, execution, chatHistory);
+    Logger.info('entrypoint.web', 'processIntelligenceLoop:end', { action: actionPlan?.action });
     
     return execution;
 }

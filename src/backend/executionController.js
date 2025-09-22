@@ -8,6 +8,7 @@ import {
     saveProjectData,
     PROJECT_FIELDS 
 } from 'backend/projectData';
+import { Logger } from 'backend/logger';
 
 async function callClaude(prompt, systemPrompt = null) {
     return await askClaude({
@@ -23,6 +24,7 @@ export const executionController = {
     // Main execution function
     async executeAction(projectId, userId, userMessage, actionPlan, projectData) {
         try {
+            Logger.info('executionController', 'executeAction:start', { projectId, action: actionPlan?.action });
             // Process user response to extract information
             const extractedInfo = await this.extractProjectInformation(userMessage, actionPlan, projectData);
             
@@ -35,7 +37,7 @@ export const executionController = {
             // Determine if we should continue or wait
             const shouldContinue = this.shouldContinueConversation(extractedInfo, updatedProjectData);
             
-            return {
+            const result = {
                 message: responseMessage,
                 analysis: {
                     extractedInfo: extractedInfo,
@@ -45,9 +47,11 @@ export const executionController = {
                     confidence: actionPlan.confidence
                 }
             };
+            Logger.info('executionController', 'executeAction:end', { ok: true });
+            return result;
             
         } catch (error) {
-            console.error('Error in execution:', error);
+            Logger.error('executionController', 'executeAction:error', error);
             return {
                 message: "I understand. Let me help you with that. Could you tell me more about your project?",
                 analysis: {
