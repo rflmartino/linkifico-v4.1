@@ -85,15 +85,17 @@ Extract relevant information and respond in JSON format:
     "needsClarification": ["what needs clarification"]
 }`;
 
-            const response = await callClaude(prompt);
-            
-            // Parse JSON response
-            const jsonMatch = response.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                return JSON.parse(jsonMatch[0]);
+            const parsed = await askClaudeJSON({
+                user: prompt,
+                system: "You are an information extraction assistant. Return ONLY valid JSON with the requested fields.",
+                model: 'claude-3-5-haiku-latest',
+                maxTokens: 1000
+            });
+
+            if (parsed && parsed.extractedFields) {
+                return parsed;
             }
-            
-            // Fallback extraction
+
             return this.fallbackExtraction(userMessage, actionPlan);
             
         } catch (error) {
@@ -223,8 +225,13 @@ Generate a response that:
 
 Keep it concise and natural.`;
 
-            const response = await callClaude(prompt);
-            return response.trim();
+            const text = await askClaude({
+                user: prompt,
+                system: "Generate a concise acknowledgment for the user.",
+                model: 'claude-3-5-haiku-latest',
+                maxTokens: 300
+            });
+            return (text || '').trim();
             
         } catch (error) {
             console.error('Error generating acknowledgment message:', error);
@@ -248,8 +255,13 @@ Generate a response that:
 
 Keep it concise and natural.`;
 
-            const response = await callClaude(prompt);
-            return response.trim();
+            const text = await askClaude({
+                user: prompt,
+                system: "Generate a concise clarification request for the user.",
+                model: 'claude-3-5-haiku-latest',
+                maxTokens: 300
+            });
+            return (text || '').trim();
             
         } catch (error) {
             console.error('Error generating clarification message:', error);
@@ -273,8 +285,13 @@ Generate a response that:
 
 Keep it concise and natural.`;
 
-            const response = await callClaudeHaiku(prompt);
-            return response.trim();
+            const text = await askClaude({
+                user: prompt,
+                system: "Generate a concise helpful default response.",
+                model: 'claude-3-5-haiku-latest',
+                maxTokens: 300
+            });
+            return (text || '').trim();
             
         } catch (error) {
             console.error('Error generating default response:', error);

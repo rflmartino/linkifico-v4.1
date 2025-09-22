@@ -134,15 +134,17 @@ Respond in JSON format:
     ]
 }`;
 
-            const response = await callClaude(prompt);
-            
-            // Parse JSON response
-            const jsonMatch = response.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                return JSON.parse(jsonMatch[0]);
+            const parsed = await askClaudeJSON({
+                user: prompt,
+                system: "You are an expert project management analyst. Return ONLY valid JSON with the requested structure.",
+                model: 'claude-3-5-haiku-latest',
+                maxTokens: 1000
+            });
+
+            if (parsed && parsed.gaps) {
+                return parsed;
             }
-            
-            // Fallback analysis
+
             return this.getFallbackGapAnalysis(missingFields);
             
         } catch (error) {
@@ -286,15 +288,17 @@ Respond with JSON:
     "reasoning": "Why this question is most important now"
 }`;
 
-            const response = await callClaude(prompt);
-            
-            // Parse JSON response
-            const jsonMatch = response.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                return JSON.parse(jsonMatch[0]);
+            const parsed = await askClaudeJSON({
+                user: prompt,
+                system: "Return ONLY valid JSON with fields: action, question, reasoning.",
+                model: 'claude-3-5-haiku-latest',
+                maxTokens: 800
+            });
+
+            if (parsed && parsed.action && parsed.question) {
+                return parsed;
             }
-            
-            // Fallback actions
+
             return this.getFallbackAction(gap);
             
         } catch (error) {

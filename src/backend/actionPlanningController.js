@@ -163,20 +163,22 @@ Generate an action plan in JSON format:
     "alternativeActions": ["alternative1", "alternative2"],
     "expectedResponse": "What kind of response we expect"
 }`;
+            const parsed = await askClaudeJSON({
+                user: prompt,
+                system: "You are an expert project management strategist. Return ONLY valid JSON with the requested fields.",
+                model: 'claude-3-5-haiku-latest',
+                maxTokens: 1000
+            });
 
-            const response = await callClaude(prompt);
-            
-            // Parse JSON response
-            const jsonMatch = response.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                return JSON.parse(jsonMatch[0]);
+            if (parsed && parsed.action && parsed.question) {
+                return parsed;
             }
-            
-            // Fallback action plan
+
+            // Fallback action plan if parsing failed
             return this.getFallbackActionPlan(gaps, learningData, conversationContext);
             
         } catch (error) {
-            console.error('Error generating action plan:', error);
+            // Soft-fail to fallback without noisy logs
             return this.getFallbackActionPlan(gaps, learningData, conversationContext);
         }
     },
