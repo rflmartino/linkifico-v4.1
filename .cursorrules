@@ -1,0 +1,5 @@
+# Confirmation Required
+- Tell me what files you'll change and get my approval first.
+- Only implement the exact requirements we discussed.
+- Maintain MVC structure (separate data, controller, view).
+- Rewrite code as needed. Do not apply patches.
