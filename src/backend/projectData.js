@@ -8,7 +8,7 @@ import { getSecret } from 'wix-secrets-backend';
 let redisClient = null;
 async function getRedisClient() {
     if (!redisClient) {
-        const redisUrl = await getSecret('REDIS_URL');
+        const redisUrl = await getSecret('REDIS_CONNECTION_URL');
         redisClient = createClient({ url: redisUrl });
         await redisClient.connect();
     }
