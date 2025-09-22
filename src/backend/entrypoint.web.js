@@ -1,14 +1,7 @@
 // entrypoint.web.js - Main entry point for intelligent project management chat
 // Integrates with chat UI and orchestrates the 5-controller intelligence system
 
-import { 
-    createProjectData, 
-    getProjectData, 
-    saveProjectData,
-    getChatHistory,
-    saveChatHistory,
-    REDIS_KEYS 
-} from 'backend/projectData';
+import * as projectData from 'backend/projectData';
 
 import { selfAnalysisController } from 'backend/selfAnalysisController';
 import { gapDetectionController } from 'backend/gapDetectionController';
@@ -52,14 +45,14 @@ export const processUserRequest = webMethod(Permissions.Anyone, async (requestDa
 async function processChatMessage(projectId, userId, message, sessionId) {
     try {
         // Get or create project data
-        let projectData = await getProjectData(projectId);
-        if (!projectData) {
-            projectData = createProjectData(projectId);
-            await saveProjectData(projectId, projectData);
+        let pData = await projectData.getProjectData(projectId);
+        if (!pData) {
+            pData = projectData.createProjectData(projectId);
+            await projectData.saveProjectData(projectId, pData);
         }
 
         // Get chat history
-        let chatHistory = await getChatHistory(projectId);
+        let chatHistory = await projectData.getChatHistory(projectId);
         
         // Add user message to history
         chatHistory.push({
@@ -70,10 +63,10 @@ async function processChatMessage(projectId, userId, message, sessionId) {
         });
 
         // Save updated chat history
-        await saveChatHistory(projectId, chatHistory);
+        await projectData.saveChatHistory(projectId, chatHistory);
 
         // Process through intelligence controllers
-        const response = await processIntelligenceLoop(projectId, userId, message, projectData, chatHistory);
+        const response = await processIntelligenceLoop(projectId, userId, message, pData, chatHistory);
 
         // Optionally append inline TODO checklist to assistant message
         let finalMessage = response.message;
@@ -95,14 +88,14 @@ async function processChatMessage(projectId, userId, message, sessionId) {
         });
 
         // Save final chat history
-        await saveChatHistory(projectId, chatHistory);
+        await projectData.saveChatHistory(projectId, chatHistory);
 
         return {
             success: true,
             message: finalMessage,
             analysis: response.analysis,
             todos: (response.analysis && response.analysis.gaps && response.analysis.gaps.todos) ? response.analysis.gaps.todos : [],
-            projectData: projectData
+            projectData: pData
         };
 
     } catch (error) {
@@ -141,11 +134,11 @@ async function processIntelligenceLoop(projectId, userId, message, projectData, 
 // Initialize new project
 export async function initializeProject(projectId, userId, initialMessage) {
     try {
-        const projectData = createProjectData(projectId, {});
-        await saveProjectData(projectId, projectData);
+        const pData = projectData.createProjectData(projectId, {});
+        await projectData.saveProjectData(projectId, pData);
         
         // Initialize empty chat history
-        await saveChatHistory(projectId, []);
+        await projectData.saveChatHistory(projectId, []);
         
         // Process initial message
         return await processChatMessage(projectId, userId, initialMessage, `session_${Date.now()}`);
@@ -163,10 +156,10 @@ export async function initializeProject(projectId, userId, initialMessage) {
 // Get project status
 export async function getProjectStatus(projectId) {
     try {
-        const projectData = await getProjectData(projectId);
-        const chatHistory = await getChatHistory(projectId);
+        const pData = await projectData.getProjectData(projectId);
+        const chatHistory = await projectData.getChatHistory(projectId);
         
-        if (!projectData) {
+        if (!pData) {
             return {
                 success: false,
                 message: "Project not found"
@@ -175,7 +168,7 @@ export async function getProjectStatus(projectId) {
         
         return {
             success: true,
-            projectData: projectData,
+            projectData: pData,
             chatHistory: chatHistory,
             messageCount: chatHistory.length
         };
@@ -193,7 +186,7 @@ export async function getProjectStatus(projectId) {
 // Get chat history
 export async function getProjectChatHistory(projectId) {
     try {
-        const chatHistory = await getChatHistory(projectId);
+        const chatHistory = await projectData.getChatHistory(projectId);
         return {
             success: true,
             chatHistory: chatHistory
@@ -211,8 +204,8 @@ export async function getProjectChatHistory(projectId) {
 // Update project data manually
 export async function updateProjectData(projectId, updates) {
     try {
-        const projectData = await getProjectData(projectId);
-        if (!projectData) {
+        const pData = await projectData.getProjectData(projectId);
+        if (!pData) {
             return {
                 success: false,
                 message: "Project not found"
@@ -220,14 +213,14 @@ export async function updateProjectData(projectId, updates) {
         }
         
         // Update project data
-        Object.assign(projectData, updates);
-        projectData.updatedAt = new Date().toISOString();
+        Object.assign(pData, updates);
+        pData.updatedAt = new Date().toISOString();
         
-        await saveProjectData(projectId, projectData);
+        await projectData.saveProjectData(projectId, pData);
         
         return {
             success: true,
-            projectData: projectData,
+            projectData: pData,
             message: "Project data updated successfully"
         };
         
@@ -244,10 +237,10 @@ export async function updateProjectData(projectId, updates) {
 // Trigger intelligence analysis
 export async function triggerAnalysis(projectId) {
     try {
-        const projectData = await getProjectData(projectId);
-        const chatHistory = await getChatHistory(projectId);
+        const pData = await projectData.getProjectData(projectId);
+        const chatHistory = await projectData.getChatHistory(projectId);
         
-        if (!projectData) {
+        if (!pData) {
             return {
                 success: false,
                 message: "Project not found"
@@ -255,8 +248,8 @@ export async function triggerAnalysis(projectId) {
         }
         
         // Run analysis without user input
-        const analysis = await selfAnalysisController.analyzeProject(projectId, projectData, chatHistory);
-        const gaps = await gapDetectionController.identifyGaps(projectId, analysis, projectData);
+        const analysis = await selfAnalysisController.analyzeProject(projectId, pData, chatHistory);
+        const gaps = await gapDetectionController.identifyGaps(projectId, analysis, pData);
         
         return {
             success: true,
