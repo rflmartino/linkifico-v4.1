@@ -3,8 +3,8 @@
 const { NlpManager } = require('node-nlp');
 import { createClient } from 'redis';
 import { getSecret } from 'wix-secrets-backend';
-import { sentimentTraining, SENTIMENT_LABELS, sentimentToGuidance } from 'backend/nlp/nlpTrainingData';
-import { Logger } from 'backend/logger';
+import { sentimentTraining, SENTIMENT_LABELS, sentimentToGuidance } from './nlpTrainingData.js';
+import { Logger } from '../logger.js';
 
 class SentimentNLP {
     constructor() {

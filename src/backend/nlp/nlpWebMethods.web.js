@@ -1,13 +1,16 @@
 import { Permissions, webMethod } from 'wix-web-module';
-import { Logger } from 'backend/logger';
+import { Logger } from '../logger.js';
 import { 
     performNLPTraining,
     initializeNLPSystem,
     testNLPSystem,
     getModelStatus,
     processSingleInput,
-    performHealthCheck
-} from 'backend/nlp/nlpTrainingHelpers';
+    performHealthCheck,
+    testNLPFeatures as testNLPFeaturesHelper,
+    forceRetrainNLP as forceRetrainNLPHelper,
+    getNLPModelInfo as getNLPModelInfoHelper
+} from './nlpTrainingHelpers.js';
 
 export const trainNLPModel = webMethod(Permissions.Anyone, async () => {
     try {
@@ -59,4 +62,27 @@ export const nlpHealthCheck = webMethod(Permissions.Anyone, async () => {
     }
 });
 
+export const testNLPFeatures = webMethod(Permissions.Anyone, async (feature = 'all') => {
+    try {
+        return await testNLPFeaturesHelper(feature);
+    } catch (e) {
+        return { success: false, error: e.message, results: [] };
+    }
+});
+
+export const forceRetrainNLP = webMethod(Permissions.Anyone, async () => {
+    try {
+        return await forceRetrainNLPHelper();
+    } catch (e) {
+        return { success: false, message: 'Force retrain failed', error: e.message };
+    }
+});
+
+export const getNLPModelInfo = webMethod(Permissions.Anyone, async () => {
+    try {
+        return await getNLPModelInfoHelper();
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
 
