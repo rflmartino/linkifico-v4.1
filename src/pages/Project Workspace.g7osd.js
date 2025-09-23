@@ -89,7 +89,10 @@ $w.onReady(async function () {
                 return;
             }
             if (status.status === 'processing') {
-                // Optional: progress updates could be posted here
+                // Update progress from backend stage if available
+                if (status.stage) {
+                    chatEl.postMessage({ action: 'updateStatus', status: 'processing' });
+                }
                 if (Date.now() - startedAt > timeoutMs) {
                     chatEl.postMessage({ action: 'displayMessage', type: 'system', content: 'Processing timed out. Please try again.', timestamp: new Date().toISOString() });
                     chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
@@ -110,6 +113,11 @@ $w.onReady(async function () {
                 const type = m.type === 'system' ? 'system' : 'assistant';
                 chatEl.postMessage({ action: 'displayMessage', type, content: m.content, timestamp: m.timestamp || new Date().toISOString() });
             });
+            // If todos present, append quick checklist line
+            if (Array.isArray(status.todos) && status.todos.length) {
+                const checklist = status.todos.slice(0, 5).map(t => `• ${t.title} (${t.priority})`).join('\n');
+                chatEl.postMessage({ action: 'displayMessage', type: 'assistant', content: `Next steps:\n${checklist}`, timestamp: new Date().toISOString() });
+            }
             chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
         };
 

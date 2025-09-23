@@ -13,7 +13,9 @@ import { Logger } from 'backend/logger';
 
 // Main chat processing function
 export const processUserRequest = webMethod(Permissions.Anyone, async (requestData) => {
-    Logger.info('entrypoint.web', 'processUserRequest:start', { op: requestData?.op, projectId: requestData?.projectId });
+    if (requestData?.op === 'startProcessing') {
+        Logger.info('entrypoint.web', 'processUserRequest:start', { op: requestData?.op, projectId: requestData?.projectId });
+    }
     const { op, projectId, userId, sessionId, payload = {} } = requestData || {};
     if (!op || !projectId) {
         return { success: false, message: 'Invalid request' };
@@ -126,18 +128,22 @@ async function processIntelligenceLoop(projectId, userId, message, projectData, 
     Logger.info('entrypoint.web', 'processIntelligenceLoop:start', { projectId });
     // 1. Self Analysis - Analyze current project knowledge
     const analysis = await selfAnalysisController.analyzeProject(projectId, projectData, chatHistory);
+    await projectData.saveProcessing(currentProcessingId, { status: 'processing', stage: 'analyzing', updatedAt: Date.now() });
     
     // 2. Gap Detection - Identify critical missing information
     const gaps = await gapDetectionController.identifyGaps(projectId, analysis, projectData);
+    await projectData.saveProcessing(currentProcessingId, { status: 'processing', stage: 'gap_detection', updatedAt: Date.now() });
     
     // 3. Action Planning - Plan optimal next action
     const actionPlan = await actionPlanningController.planAction(projectId, userId, gaps, analysis, chatHistory);
+    await projectData.saveProcessing(currentProcessingId, { status: 'processing', stage: 'planning', updatedAt: Date.now() });
     
     // 4. Execution - Execute planned action and process user response
     const execution = await executionController.executeAction(projectId, userId, message, actionPlan, projectData);
     // Attach gaps (including todos) into analysis for rendering inline checklist
     execution.analysis = execution.analysis || {};
     execution.analysis.gaps = gaps;
+    await projectData.saveProcessing(currentProcessingId, { status: 'processing', stage: 'execution', updatedAt: Date.now() });
     
     // 5. Learning - Learn from interaction and adapt
     await learningController.learnFromInteraction(projectId, userId, message, execution, chatHistory);
@@ -149,13 +155,15 @@ async function processIntelligenceLoop(projectId, userId, message, projectData, 
 // Lightweight polling: start async processing and return processingId immediately
 async function startProcessing(projectId, userId, sessionId, message) {
     const processingId = `proc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    await projectData.saveProcessing(processingId, { status: 'processing', startedAt: Date.now() });
+    await projectData.saveProcessing(processingId, { status: 'processing', stage: 'queued', startedAt: Date.now() });
+    // expose to loop for stage writes
+    currentProcessingId = processingId;
     
     // Kick off in background (no await)
     (async () => {
         const result = await processChatMessage(projectId, userId, message, sessionId);
         const payload = result.success
-            ? { status: 'complete', conversation: [{ type: 'assistant', content: result.message, timestamp: new Date().toISOString() }], projectData: result.projectData, analysis: result.analysis }
+            ? { status: 'complete', conversation: [{ type: 'assistant', content: result.message, timestamp: new Date().toISOString() }], projectData: result.projectData, analysis: result.analysis, todos: (result.analysis && result.analysis.gaps && result.analysis.gaps.todos) ? result.analysis.gaps.todos : [] }
             : { status: 'error', error: result.error || 'processing failed' };
         await projectData.saveProcessing(processingId, payload);
     })();
