@@ -24,8 +24,12 @@ export const trainNLPModel = webMethod(Permissions.Anyone, async () => {
 
 export const getNLPModelStatus = webMethod(Permissions.Anyone, async () => {
     try {
-        return await getModelStatus();
+        Logger.log('nlpWebMethods', 'getNLPModelStatus', 'start');
+        const result = await getModelStatus();
+        Logger.log('nlpWebMethods', 'getNLPModelStatus', 'success', result);
+        return result;
     } catch (e) {
+        Logger.error('nlpWebMethods', 'getNLPModelStatus', e);
         return { success: false, error: e.message, stats: { isReady: false } };
     }
 });

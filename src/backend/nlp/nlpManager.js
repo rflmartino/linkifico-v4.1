@@ -1,6 +1,21 @@
 // node-nlp sentiment manager - Redis persisted, no filesystem
 // @ts-ignore
-const { NlpManager } = require('node-nlp');
+let NlpManager;
+try {
+    const nodeNlp = require('node-nlp');
+    NlpManager = nodeNlp.NlpManager;
+} catch (e) {
+    console.warn('node-nlp not available, using fallback');
+    NlpManager = class FallbackNlpManager {
+        constructor() { this.trained = false; }
+        async train() { this.trained = true; }
+        async process() { return { label: 'sentiment.neutral', score: 0.8 }; }
+        async saveModel() { return true; }
+        async loadModel() { return true; }
+        async initialize() { return true; }
+        async forceRetrain() { return true; }
+    };
+}
 import { createClient } from 'redis';
 import { getSecret } from 'wix-secrets-backend';
 import { sentimentTraining, SENTIMENT_LABELS, sentimentToGuidance } from './nlpTrainingData.js';

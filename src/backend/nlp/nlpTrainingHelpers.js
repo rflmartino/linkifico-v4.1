@@ -3,8 +3,9 @@ import sentimentNLP from './nlpManager.js';
 
 export async function getModelStatus() {
     try {
+        Logger.log('nlpTrainingHelpers', 'getModelStatus', 'start');
         // Quick status check without full initialization to avoid timeouts
-        return {
+        const result = {
             success: true,
             stats: {
                 isReady: true,
@@ -15,6 +16,8 @@ export async function getModelStatus() {
                 lastTrainingTime: new Date().toISOString()
             }
         };
+        Logger.log('nlpTrainingHelpers', 'getModelStatus', 'success', result);
+        return result;
     } catch (e) {
         Logger.error('nlpTrainingHelpers', 'getModelStatus', e);
         return { success: false, error: e.message, stats: { isReady: false } };
@@ -23,11 +26,12 @@ export async function getModelStatus() {
 
 export async function performNLPTraining() {
     try {
+        Logger.log('nlpTrainingHelpers', 'performNLPTraining', 'start');
         await sentimentNLP.train();
         await sentimentNLP.saveModel();
         return {
             success: true,
-            message: 'Sentiment model trained',
+            message: 'Sentiment model trained successfully',
             stats: {
                 isReady: true,
                 version: 's1.0.0',
@@ -45,9 +49,11 @@ export async function performNLPTraining() {
 
 export async function initializeNLPSystem() {
     try {
+        Logger.log('nlpTrainingHelpers', 'initializeNLPSystem', 'start');
         await sentimentNLP.initialize();
         return {
             success: true,
+            message: 'NLP system initialized successfully',
             wasTraining: false,
             stats: {
                 isReady: true,
@@ -66,6 +72,7 @@ export async function initializeNLPSystem() {
 
 export async function testNLPSystem(testInputs = null) {
     try {
+        Logger.log('nlpTrainingHelpers', 'testNLPSystem', 'start');
         await sentimentNLP.initialize();
         const tests = testInputs || [
             'this is not working',
@@ -96,6 +103,7 @@ export async function testNLPSystem(testInputs = null) {
 
 export async function processSingleInput(input) {
     try {
+        Logger.log('nlpTrainingHelpers', 'processSingleInput', 'start', input);
         const r = await sentimentNLP.process(input);
         return { success: true, result: { intent: r.label, confidence: r.score } };
     } catch (e) {
@@ -134,6 +142,7 @@ export async function performHealthCheck() {
 
 export async function testNLPFeatures(feature = 'all') {
     try {
+        Logger.log('nlpTrainingHelpers', 'testNLPFeatures', 'start', feature);
         await sentimentNLP.initialize();
         const testCases = feature === 'sentiment' ? [
             'yes perfect lets do that',
@@ -178,10 +187,11 @@ export async function testNLPFeatures(feature = 'all') {
 
 export async function forceRetrainNLP() {
     try {
+        Logger.log('nlpTrainingHelpers', 'forceRetrainNLP', 'start');
         await sentimentNLP.forceRetrain();
         return {
             success: true,
-            message: 'Model retrained from scratch',
+            message: 'Model retrained from scratch successfully',
             stats: {
                 isReady: true,
                 version: 's1.0.0',
@@ -199,6 +209,7 @@ export async function forceRetrainNLP() {
 
 export async function getNLPModelInfo() {
     try {
+        Logger.log('nlpTrainingHelpers', 'getNLPModelInfo', 'start');
         await sentimentNLP.initialize();
         return {
             success: true,
