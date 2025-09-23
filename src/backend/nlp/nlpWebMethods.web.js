@@ -4,13 +4,12 @@ import {
     performNLPTraining,
     initializeNLPSystem,
     testNLPSystem,
-    getModelStatus,
     processSingleInput,
-    performHealthCheck,
     testNLPFeatures as testNLPFeaturesHelper,
     forceRetrainNLP as forceRetrainNLPHelper,
     getNLPModelInfo as getNLPModelInfoHelper
 } from './nlpTrainingHelpers.js';
+import { getModelStatus, performHealthCheck } from './nlpStatusOnly.js';
 
 export const trainNLPModel = webMethod(Permissions.Anyone, async () => {
     try {

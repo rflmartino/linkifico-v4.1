@@ -1,28 +1,7 @@
 import { Logger } from '../logger.js';
 import sentimentNLP from './nlpManager.js';
 
-export async function getModelStatus() {
-    try {
-        Logger.log('nlpTrainingHelpers', 'getModelStatus', 'start');
-        // Quick status check without full initialization to avoid timeouts
-        const result = {
-            success: true,
-            stats: {
-                isReady: true,
-                version: 's1.0.0',
-                totalExamples: 50,
-                totalIntents: 10,
-                confidenceThreshold: 0.7,
-                lastTrainingTime: new Date().toISOString()
-            }
-        };
-        Logger.log('nlpTrainingHelpers', 'getModelStatus', 'success', result);
-        return result;
-    } catch (e) {
-        Logger.error('nlpTrainingHelpers', 'getModelStatus', e);
-        return { success: false, error: e.message, stats: { isReady: false } };
-    }
-}
+// getModelStatus moved to nlpStatusOnly.js to avoid import issues
 
 export async function performNLPTraining() {
     try {
@@ -112,33 +91,7 @@ export async function processSingleInput(input) {
     }
 }
 
-export async function performHealthCheck() {
-    try {
-        return { 
-            success: true, 
-            health: { 
-                overall: 'HEALTHY', 
-                timestamp: new Date().toISOString(),
-                checks: {
-                    system: { status: 'PASS', message: 'NLP system operational' },
-                    features: { 
-                        sentimentAnalysis: { status: 'PASS', message: 'Sentiment detection ready' }
-                    }
-                }
-            } 
-        };
-    } catch (e) {
-        Logger.error('nlpTrainingHelpers', 'performHealthCheck', e);
-        return { 
-            success: false, 
-            error: e.message, 
-            health: { 
-                overall: 'ERROR', 
-                timestamp: new Date().toISOString() 
-            } 
-        };
-    }
-}
+// performHealthCheck moved to nlpStatusOnly.js to avoid import issues
 
 export async function testNLPFeatures(feature = 'all') {
     try {
