@@ -76,40 +76,29 @@ export const executionController = {
     async extractAndGenerateResponse(userMessage, actionPlan, projectData, sentimentAnalysis) {
         try {
             const verbosityInstruction = sentimentAnalysis?.verbosityInstruction || 'normal';
-            const prompt = `Extract project information from this user response and generate a response:
+            const prompt = `User: "${userMessage}"
+Action: ${actionPlan.action}
+Verbosity: ${verbosityInstruction} (${verbosityInstruction === 'terse' ? 'max 50 words' : verbosityInstruction === 'normal' ? 'max 150 words' : 'max 300 words'})
 
-User Message: "${userMessage}"
-Action Plan: ${JSON.stringify(actionPlan, null, 2)}
-Current Project Data: ${JSON.stringify(projectData, null, 2)}
-
-VERBOSITY INSTRUCTION: ${verbosityInstruction}
-- If "terse": Keep response very brief and direct (max 50 words)
-- If "normal": Use standard professional length (max 150 words)
-- If "detailed": Provide comprehensive explanation (max 300 words)
-
-User sentiment: ${sentimentAnalysis?.sentiment || 'neutral'} (confidence: ${sentimentAnalysis?.confidence || 0.5})
-
-Please respond in this exact JSON format:
+Respond in JSON:
 {
   "extractedInfo": {
     "confidence": 0.8,
-    "scope": "extracted scope information or null",
-    "timeline": "extracted timeline information or null", 
-    "budget": "extracted budget information or null",
-    "deliverables": ["extracted deliverables or empty array"],
-    "dependencies": ["extracted dependencies or empty array"],
-    "needsClarification": ["any unclear items or empty array"]
+    "scope": "extracted scope or null",
+    "timeline": "extracted timeline or null", 
+    "budget": "extracted budget or null",
+    "deliverables": [],
+    "dependencies": [],
+    "needsClarification": []
   },
-  "responseMessage": "Your response message here following verbosity instructions"
-}
-
-Extract information and generate response following the verbosity instruction.`;
+  "responseMessage": "Your response following verbosity limits"
+}`;
 
             const response = await askClaude({
                 user: prompt,
-                system: "You are an expert project management assistant. Extract project information and generate responses with precise verbosity control.",
+                system: "Extract project info and generate responses with verbosity control.",
                 model: 'claude-3-5-haiku-latest',
-                maxTokens: 1500
+                maxTokens: 800
             });
 
             // Parse the JSON response

@@ -93,6 +93,15 @@ $w.onReady(async function () {
                 if (status.stage) {
                     chatEl.postMessage({ action: 'updateStatus', status: 'processing' });
                 }
+                // Display progress message if available
+                if (status.message) {
+                    chatEl.postMessage({ 
+                        action: 'displayMessage', 
+                        type: 'system', 
+                        content: status.message, 
+                        timestamp: new Date().toISOString() 
+                    });
+                }
                 if (Date.now() - startedAt > timeoutMs) {
                     chatEl.postMessage({ action: 'displayMessage', type: 'system', content: 'Processing timed out. Please try again.', timestamp: new Date().toISOString() });
                     chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
