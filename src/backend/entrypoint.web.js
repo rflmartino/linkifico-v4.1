@@ -126,24 +126,40 @@ async function processChatMessage(projectId, userId, message, sessionId, process
 // Intelligence processing loop
 async function processIntelligenceLoop(projectId, userId, message, projectData, chatHistory, processingId) {
     Logger.info('entrypoint.web', 'processIntelligenceLoop:start', { projectId });
+    
+    // Debug: Check available methods
+    Logger.info('entrypoint.web', 'processIntelligenceLoop:debug', { 
+        availableMethods: Object.keys(projectData),
+        hasSaveProcessing: typeof projectData.saveProcessing === 'function'
+    });
+    
     // 1. Self Analysis - Analyze current project knowledge
     const analysis = await selfAnalysisController.analyzeProject(projectId, projectData, chatHistory);
-    await projectData.saveProcessing(processingId, { status: 'processing', stage: 'analyzing', updatedAt: Date.now() });
+    
+    if (processingId && typeof projectData.saveProcessing === 'function') {
+        await projectData.saveProcessing(processingId, { status: 'processing', stage: 'analyzing', updatedAt: Date.now() });
+    }
     
     // 2. Gap Detection - Identify critical missing information
     const gaps = await gapDetectionController.identifyGaps(projectId, analysis, projectData);
-    await projectData.saveProcessing(processingId, { status: 'processing', stage: 'gap_detection', updatedAt: Date.now() });
+    if (processingId && typeof projectData.saveProcessing === 'function') {
+        await projectData.saveProcessing(processingId, { status: 'processing', stage: 'gap_detection', updatedAt: Date.now() });
+    }
     
     // 3. Action Planning - Plan optimal next action
     const actionPlan = await actionPlanningController.planAction(projectId, userId, gaps, analysis, chatHistory);
-    await projectData.saveProcessing(processingId, { status: 'processing', stage: 'planning', updatedAt: Date.now() });
+    if (processingId && typeof projectData.saveProcessing === 'function') {
+        await projectData.saveProcessing(processingId, { status: 'processing', stage: 'planning', updatedAt: Date.now() });
+    }
     
     // 4. Execution - Execute planned action and process user response
     const execution = await executionController.executeAction(projectId, userId, message, actionPlan, projectData);
     // Attach gaps (including todos) into analysis for rendering inline checklist
     execution.analysis = execution.analysis || {};
     execution.analysis.gaps = gaps;
-    await projectData.saveProcessing(processingId, { status: 'processing', stage: 'execution', updatedAt: Date.now() });
+    if (processingId && typeof projectData.saveProcessing === 'function') {
+        await projectData.saveProcessing(processingId, { status: 'processing', stage: 'execution', updatedAt: Date.now() });
+    }
     
     // 5. Learning - Learn from interaction and adapt
     await learningController.learnFromInteraction(projectId, userId, message, execution, chatHistory);
@@ -155,7 +171,16 @@ async function processIntelligenceLoop(projectId, userId, message, projectData, 
 // Lightweight polling: start async processing and return processingId immediately
 async function startProcessing(projectId, userId, sessionId, message) {
     const processingId = `proc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    await projectData.saveProcessing(processingId, { status: 'processing', stage: 'queued', startedAt: Date.now() });
+    
+    // Debug: Check if saveProcessing exists
+    Logger.info('entrypoint.web', 'startProcessing:debug', { 
+        hasSaveProcessing: typeof projectData.saveProcessing === 'function',
+        availableMethods: Object.keys(projectData)
+    });
+    
+    if (typeof projectData.saveProcessing === 'function') {
+        await projectData.saveProcessing(processingId, { status: 'processing', stage: 'queued', startedAt: Date.now() });
+    }
     
     // Kick off in background (no await)
     (async () => {
@@ -163,7 +188,10 @@ async function startProcessing(projectId, userId, sessionId, message) {
         const payload = result.success
             ? { status: 'complete', conversation: [{ type: 'assistant', content: result.message, timestamp: new Date().toISOString() }], projectData: result.projectData, analysis: result.analysis, todos: (result.analysis && result.analysis.gaps && result.analysis.gaps.todos) ? result.analysis.gaps.todos : [] }
             : { status: 'error', error: result.error || 'processing failed' };
-        await projectData.saveProcessing(processingId, payload);
+        
+        if (typeof projectData.saveProcessing === 'function') {
+            await projectData.saveProcessing(processingId, payload);
+        }
     })();
     
     return { success: true, processingId, status: 'processing' };
