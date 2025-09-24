@@ -30,7 +30,7 @@ export const processUserRequest = webMethod(Permissions.Anyone, async (requestDa
 
     if (op === 'sendMessage') {
         const message = (payload && payload.message) || '';
-        return await processChatMessage(projectId, userId, message, sessionId);
+        return await processChatMessage(projectId, userId, message, sessionId, null);
     }
     if (op === 'init') {
         const initialMessage = (payload && payload.initialMessage) || 'Start';
@@ -54,7 +54,7 @@ export const processUserRequest = webMethod(Permissions.Anyone, async (requestDa
     return { success: false, message: 'Unknown op' };
 });
 
-async function processChatMessage(projectId, userId, message, sessionId) {
+async function processChatMessage(projectId, userId, message, sessionId, processingId = null) {
     try {
         Logger.info('entrypoint.web', 'processChatMessage:input', { projectId, userId, sessionId });
         // Get or create project data
@@ -79,7 +79,7 @@ async function processChatMessage(projectId, userId, message, sessionId) {
         await projectData.saveChatHistory(projectId, chatHistory);
 
         // Process through intelligence controllers
-        const response = await processIntelligenceLoop(projectId, userId, message, pData, chatHistory);
+        const response = await processIntelligenceLoop(projectId, userId, message, pData, chatHistory, processingId);
 
         // Optionally append inline TODO checklist to assistant message
         let finalMessage = response.message;
@@ -124,26 +124,26 @@ async function processChatMessage(projectId, userId, message, sessionId) {
 }
 
 // Intelligence processing loop
-async function processIntelligenceLoop(projectId, userId, message, projectData, chatHistory) {
+async function processIntelligenceLoop(projectId, userId, message, projectData, chatHistory, processingId) {
     Logger.info('entrypoint.web', 'processIntelligenceLoop:start', { projectId });
     // 1. Self Analysis - Analyze current project knowledge
     const analysis = await selfAnalysisController.analyzeProject(projectId, projectData, chatHistory);
-    await projectData.saveProcessing(currentProcessingId, { status: 'processing', stage: 'analyzing', updatedAt: Date.now() });
+    await projectData.saveProcessing(processingId, { status: 'processing', stage: 'analyzing', updatedAt: Date.now() });
     
     // 2. Gap Detection - Identify critical missing information
     const gaps = await gapDetectionController.identifyGaps(projectId, analysis, projectData);
-    await projectData.saveProcessing(currentProcessingId, { status: 'processing', stage: 'gap_detection', updatedAt: Date.now() });
+    await projectData.saveProcessing(processingId, { status: 'processing', stage: 'gap_detection', updatedAt: Date.now() });
     
     // 3. Action Planning - Plan optimal next action
     const actionPlan = await actionPlanningController.planAction(projectId, userId, gaps, analysis, chatHistory);
-    await projectData.saveProcessing(currentProcessingId, { status: 'processing', stage: 'planning', updatedAt: Date.now() });
+    await projectData.saveProcessing(processingId, { status: 'processing', stage: 'planning', updatedAt: Date.now() });
     
     // 4. Execution - Execute planned action and process user response
     const execution = await executionController.executeAction(projectId, userId, message, actionPlan, projectData);
     // Attach gaps (including todos) into analysis for rendering inline checklist
     execution.analysis = execution.analysis || {};
     execution.analysis.gaps = gaps;
-    await projectData.saveProcessing(currentProcessingId, { status: 'processing', stage: 'execution', updatedAt: Date.now() });
+    await projectData.saveProcessing(processingId, { status: 'processing', stage: 'execution', updatedAt: Date.now() });
     
     // 5. Learning - Learn from interaction and adapt
     await learningController.learnFromInteraction(projectId, userId, message, execution, chatHistory);
@@ -156,12 +156,10 @@ async function processIntelligenceLoop(projectId, userId, message, projectData, 
 async function startProcessing(projectId, userId, sessionId, message) {
     const processingId = `proc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     await projectData.saveProcessing(processingId, { status: 'processing', stage: 'queued', startedAt: Date.now() });
-    // expose to loop for stage writes
-    currentProcessingId = processingId;
     
     // Kick off in background (no await)
     (async () => {
-        const result = await processChatMessage(projectId, userId, message, sessionId);
+        const result = await processChatMessage(projectId, userId, message, sessionId, processingId);
         const payload = result.success
             ? { status: 'complete', conversation: [{ type: 'assistant', content: result.message, timestamp: new Date().toISOString() }], projectData: result.projectData, analysis: result.analysis, todos: (result.analysis && result.analysis.gaps && result.analysis.gaps.todos) ? result.analysis.gaps.todos : [] }
             : { status: 'error', error: result.error || 'processing failed' };
@@ -188,7 +186,7 @@ export async function initializeProject(projectId, userId, initialMessage) {
         await projectData.saveChatHistory(projectId, []);
         
         // Process initial message
-        return await processChatMessage(projectId, userId, initialMessage, `session_${Date.now()}`);
+        return await processChatMessage(projectId, userId, initialMessage, `session_${Date.now()}`, null);
         
     } catch (error) {
         console.error('Error initializing project:', error);
