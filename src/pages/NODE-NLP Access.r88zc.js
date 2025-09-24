@@ -1,17 +1,14 @@
-// NODE-NLP Access Page Controller
-// Frontend interface for training and managing the NLP sentiment analysis model
+// Compromise Sentiment Analysis Page Controller
+// Frontend interface for sentiment analysis using compromise library
 
 import { 
-    trainNLPModel, 
-    getNLPModelStatus, 
-    testNLPModel, 
-    testNLPFeatures, 
-    processNLPInput, 
-    initializeNLP, 
-    nlpHealthCheck, 
-    forceRetrainNLP, 
-    getNLPModelInfo 
-} from 'backend/nlp/nlpWebMethods.web.js';
+    getSentimentStatus, 
+    analyzeSentiment, 
+    testSentimentAnalysis, 
+    initializeSentiment, 
+    sentimentHealthCheck, 
+    getSentimentPatterns 
+} from 'backend/nlp/compromiseWebMethods.web.js';
 
 // Page-level variables
 let isInitialized = false;
@@ -33,9 +30,9 @@ async function initializeNLPConsole() {
         
         // Send initialization message to HTML console
         sendToNLPConsole('initialize', {
-            title: 'NODE-NLP Sentiment Analysis Console',
-            version: '1.0.5',
-            features: ['Sentiment Analysis', 'State Response Patterns', 'Original Intent Recognition']
+            title: 'Compromise Sentiment Analysis Console',
+            version: '1.0.0',
+            features: ['Sentiment Analysis', 'Emotional Guidance', 'Pattern Recognition']
         });
 
         // Get initial model status
@@ -85,12 +82,12 @@ async function handleNLPConsoleMessage(data) {
                 console.log('NLP Console UI is ready');
                 break;
                 
-            case 'trainModel':
-                await handleTrainModel();
+            case 'testSentiment':
+                await handleTestSentiment();
                 break;
                 
-            case 'testModel':
-                await handleTestModel(data.testType || 'all');
+            case 'analyzeSentiment':
+                await handleAnalyzeSentiment(data.input);
                 break;
                 
             case 'testFeatures':
@@ -430,23 +427,31 @@ async function handleGetModelInfo() {
  */
 async function refreshModelStatus() {
     try {
-        const result = await getNLPModelStatus();
+        console.log('Refreshing sentiment analysis status...');
+        console.log('Calling getSentimentStatus web method...');
+        const result = await getSentimentStatus();
+        console.log('getSentimentStatus result:', result);
         
         if (result.success) {
             currentModelStatus = result.stats;
+            console.log('Sending status update to console:', result.stats);
             sendToNLPConsole('statusUpdate', {
                 success: true,
                 stats: result.stats
             });
+            console.log('Sentiment analysis status updated successfully');
         } else {
+            console.error('Failed to get sentiment status:', result.error);
+            console.error('Full status result:', result);
             sendToNLPConsole('statusUpdate', {
                 success: false,
-                message: 'Failed to get model status',
+                message: 'Failed to get sentiment status',
                 error: result.error
             });
         }
     } catch (error) {
-        console.error('Error refreshing model status:', error);
+        console.error('Error refreshing sentiment status:', error);
+        console.error('Error stack:', error.stack);
         sendToNLPConsole('statusUpdate', {
             success: false,
             message: 'Failed to refresh status',
@@ -460,7 +465,7 @@ async function refreshModelStatus() {
  */
 async function performHealthCheck() {
     try {
-        const result = await nlpHealthCheck();
+        const result = await sentimentHealthCheck();
         
         if (result.success) {
             sendToNLPConsole('healthCheck', {

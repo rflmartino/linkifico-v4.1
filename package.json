@@ -21,7 +21,6 @@
     "compromise-numbers": "1.4.0",
     "redis": "5.8.2",
     "@wix/site-realtime": "1.19.0",
-    "node-nlp": "5.0.0-alpha.5",
     "@pinecone-database/pinecone": "6.1.2",
     "nodemailer": "7.0.5"
   },

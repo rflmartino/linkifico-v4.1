@@ -7,16 +7,21 @@ import {
     processSingleInput,
     testNLPFeatures as testNLPFeaturesHelper,
     forceRetrainNLP as forceRetrainNLPHelper,
-    getNLPModelInfo as getNLPModelInfoHelper
+    getNLPModelInfo as getNLPModelInfoHelper,
+    getModelStatus,
+    performHealthCheck
 } from './nlpTrainingHelpers.js';
-import { getModelStatus, performHealthCheck } from './nlpStatusOnly.js';
 
 export const trainNLPModel = webMethod(Permissions.Anyone, async () => {
     try {
-        Logger.info('nlpWebMethods', 'trainNLPModel');
-        return await performNLPTraining();
+        Logger.log('nlpWebMethods', 'trainNLPModel', 'start');
+        Logger.log('nlpWebMethods', 'trainNLPModel', 'Calling performNLPTraining...');
+        const result = await performNLPTraining();
+        Logger.log('nlpWebMethods', 'trainNLPModel', 'success', result);
+        return result;
     } catch (e) {
-        Logger.error('nlpWebMethods', 'trainNLPModel', e);
+        Logger.error('nlpWebMethods', 'trainNLPModel', 'ERROR:', e);
+        Logger.error('nlpWebMethods', 'trainNLPModel', `Error message: ${e.message}`);
         return { success: false, message: e.message };
     }
 });
@@ -24,11 +29,15 @@ export const trainNLPModel = webMethod(Permissions.Anyone, async () => {
 export const getNLPModelStatus = webMethod(Permissions.Anyone, async () => {
     try {
         Logger.log('nlpWebMethods', 'getNLPModelStatus', 'start');
+        Logger.log('nlpWebMethods', 'getNLPModelStatus', 'Calling getModelStatus from nlpStatusOnly.js...');
         const result = await getModelStatus();
         Logger.log('nlpWebMethods', 'getNLPModelStatus', 'success', result);
+        Logger.log('nlpWebMethods', 'getNLPModelStatus', `Result type: ${typeof result}, success: ${result.success}`);
         return result;
     } catch (e) {
-        Logger.error('nlpWebMethods', 'getNLPModelStatus', e);
+        Logger.error('nlpWebMethods', 'getNLPModelStatus', 'ERROR:', e);
+        Logger.error('nlpWebMethods', 'getNLPModelStatus', `Error message: ${e.message}`);
+        Logger.error('nlpWebMethods', 'getNLPModelStatus', `Error stack: ${e.stack}`);
         return { success: false, error: e.message, stats: { isReady: false } };
     }
 });
