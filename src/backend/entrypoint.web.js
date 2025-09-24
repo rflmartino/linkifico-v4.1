@@ -138,19 +138,37 @@ async function processIntelligenceLoop(projectId, userId, message, projectData, 
     const analysis = await selfAnalysisController.analyzeProject(projectId, projectData, chatHistory);
     
     if (processingId && projectDataModule && typeof projectDataModule.saveProcessing === 'function') {
-        await projectDataModule.saveProcessing(processingId, { status: 'processing', stage: 'analyzing', updatedAt: Date.now() });
+        await projectDataModule.saveProcessing(processingId, { 
+            status: 'processing', 
+            stage: 'analyzing', 
+            updatedAt: Date.now(),
+            message: "🔍 Analyzing project knowledge...",
+            progress: 20
+        });
     }
     
     // 2. Gap Detection - Identify critical missing information
     const gaps = await gapDetectionController.identifyGaps(projectId, analysis, projectData);
     if (processingId && projectDataModule && typeof projectDataModule.saveProcessing === 'function') {
-        await projectDataModule.saveProcessing(processingId, { status: 'processing', stage: 'gap_detection', updatedAt: Date.now() });
+        await projectDataModule.saveProcessing(processingId, { 
+            status: 'processing', 
+            stage: 'gap_detection', 
+            updatedAt: Date.now(),
+            message: "🎯 Identifying missing information...",
+            progress: 40
+        });
     }
     
     // 3. Action Planning - Plan optimal next action
     const actionPlan = await actionPlanningController.planAction(projectId, userId, gaps, analysis, chatHistory);
     if (processingId && projectDataModule && typeof projectDataModule.saveProcessing === 'function') {
-        await projectDataModule.saveProcessing(processingId, { status: 'processing', stage: 'planning', updatedAt: Date.now() });
+        await projectDataModule.saveProcessing(processingId, { 
+            status: 'processing', 
+            stage: 'planning', 
+            updatedAt: Date.now(),
+            message: "📋 Planning next steps...",
+            progress: 60
+        });
     }
     
     // 4. Execution - Execute planned action and process user response
@@ -159,7 +177,13 @@ async function processIntelligenceLoop(projectId, userId, message, projectData, 
     execution.analysis = execution.analysis || {};
     execution.analysis.gaps = gaps;
     if (processingId && projectDataModule && typeof projectDataModule.saveProcessing === 'function') {
-        await projectDataModule.saveProcessing(processingId, { status: 'processing', stage: 'execution', updatedAt: Date.now() });
+        await projectDataModule.saveProcessing(processingId, { 
+            status: 'processing', 
+            stage: 'execution', 
+            updatedAt: Date.now(),
+            message: "💬 Generating response...",
+            progress: 80
+        });
     }
     
     // 5. Learning - Learn from interaction and adapt
@@ -180,7 +204,13 @@ async function startProcessing(projectId, userId, sessionId, message) {
     });
     
     if (typeof projectData.saveProcessing === 'function') {
-        await projectData.saveProcessing(processingId, { status: 'processing', stage: 'queued', startedAt: Date.now() });
+        await projectData.saveProcessing(processingId, { 
+            status: 'processing', 
+            stage: 'queued', 
+            startedAt: Date.now(),
+            message: "🤔 Analyzing your project...",
+            progress: 10
+        });
     }
     
     // Kick off in background (no await)
@@ -195,7 +225,13 @@ async function startProcessing(projectId, userId, sessionId, message) {
         }
     })();
     
-    return { success: true, processingId, status: 'processing' };
+    return { 
+        success: true, 
+        processingId, 
+        status: 'processing',
+        message: "🤔 Analyzing your project...",
+        progress: 10
+    };
 }
 
 async function getProcessingStatus(processingId) {

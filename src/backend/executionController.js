@@ -35,14 +35,11 @@ export const executionController = {
                 confidence: sentimentAnalysis.confidence 
             });
             
-            // Process user response to extract information
-            const extractedInfo = await this.extractProjectInformation(userMessage, actionPlan, projectData);
+            // Process user response and generate response in single API call
+            const { extractedInfo, responseMessage } = await this.extractAndGenerateResponse(userMessage, actionPlan, projectData, sentimentAnalysis);
             
             // Update project data with extracted information
             const updatedProjectData = await this.updateProjectData(projectId, projectData, extractedInfo);
-            
-            // Generate response message with sentiment-controlled verbosity
-            const responseMessage = await this.generateResponseMessage(extractedInfo, actionPlan, updatedProjectData, sentimentAnalysis);
             
             // Determine if we should continue or wait
             const shouldContinue = this.shouldContinueConversation(extractedInfo, updatedProjectData);
@@ -71,6 +68,68 @@ export const executionController = {
                     actionExecuted: 'fallback',
                     confidence: 0.3
                 }
+            };
+        }
+    },
+    
+    // Combined extraction and response generation in single API call
+    async extractAndGenerateResponse(userMessage, actionPlan, projectData, sentimentAnalysis) {
+        try {
+            const verbosityInstruction = sentimentAnalysis?.verbosityInstruction || 'normal';
+            const prompt = `Extract project information from this user response and generate a response:
+
+User Message: "${userMessage}"
+Action Plan: ${JSON.stringify(actionPlan, null, 2)}
+Current Project Data: ${JSON.stringify(projectData, null, 2)}
+
+VERBOSITY INSTRUCTION: ${verbosityInstruction}
+- If "terse": Keep response very brief and direct (max 50 words)
+- If "normal": Use standard professional length (max 150 words)
+- If "detailed": Provide comprehensive explanation (max 300 words)
+
+User sentiment: ${sentimentAnalysis?.sentiment || 'neutral'} (confidence: ${sentimentAnalysis?.confidence || 0.5})
+
+Please respond in this exact JSON format:
+{
+  "extractedInfo": {
+    "confidence": 0.8,
+    "scope": "extracted scope information or null",
+    "timeline": "extracted timeline information or null", 
+    "budget": "extracted budget information or null",
+    "deliverables": ["extracted deliverables or empty array"],
+    "dependencies": ["extracted dependencies or empty array"],
+    "needsClarification": ["any unclear items or empty array"]
+  },
+  "responseMessage": "Your response message here following verbosity instructions"
+}
+
+Extract information and generate response following the verbosity instruction.`;
+
+            const response = await askClaude({
+                user: prompt,
+                system: "You are an expert project management assistant. Extract project information and generate responses with precise verbosity control.",
+                model: 'claude-3-5-haiku-latest',
+                maxTokens: 1500
+            });
+
+            // Parse the JSON response
+            const parsedResponse = JSON.parse(response);
+            
+            Logger.info('executionController', 'extractAndGenerateResponse:success', { 
+                extractedConfidence: parsedResponse.extractedInfo?.confidence,
+                responseLength: parsedResponse.responseMessage?.length
+            });
+            
+            return {
+                extractedInfo: parsedResponse.extractedInfo,
+                responseMessage: parsedResponse.responseMessage
+            };
+            
+        } catch (error) {
+            Logger.error('executionController', 'extractAndGenerateResponse:error', error);
+            return {
+                extractedInfo: { confidence: 0.3, needsClarification: ['Unable to parse response'] },
+                responseMessage: "I understand. Let me help you with that. Could you tell me more about your project?"
             };
         }
     },
