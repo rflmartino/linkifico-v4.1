@@ -9,6 +9,7 @@ import {
     PROJECT_FIELDS 
 } from 'backend/projectData';
 import { Logger } from 'backend/logger';
+import compromiseSentiment from 'backend/nlp/compromiseSentiment';
 
 async function callClaude(prompt, systemPrompt = null) {
     return await askClaude({
@@ -25,14 +26,23 @@ export const executionController = {
     async executeAction(projectId, userId, userMessage, actionPlan, projectData) {
         try {
             Logger.info('executionController', 'executeAction:start', { projectId, action: actionPlan?.action });
+            
+            // Analyze user sentiment to control verbosity
+            const sentimentAnalysis = compromiseSentiment.analyzeForHaiku(userMessage);
+            Logger.info('executionController', 'sentimentAnalysis', { 
+                sentiment: sentimentAnalysis.sentiment, 
+                verbosity: sentimentAnalysis.verbosityInstruction,
+                confidence: sentimentAnalysis.confidence 
+            });
+            
             // Process user response to extract information
             const extractedInfo = await this.extractProjectInformation(userMessage, actionPlan, projectData);
             
             // Update project data with extracted information
             const updatedProjectData = await this.updateProjectData(projectId, projectData, extractedInfo);
             
-            // Generate response message
-            const responseMessage = await this.generateResponseMessage(extractedInfo, actionPlan, updatedProjectData);
+            // Generate response message with sentiment-controlled verbosity
+            const responseMessage = await this.generateResponseMessage(extractedInfo, actionPlan, updatedProjectData, sentimentAnalysis);
             
             // Determine if we should continue or wait
             const shouldContinue = this.shouldContinueConversation(extractedInfo, updatedProjectData);
@@ -192,20 +202,20 @@ Extract relevant information and respond in JSON format:
     },
     
     // Generate response message
-    async generateResponseMessage(extractedInfo, actionPlan, updatedProjectData) {
+    async generateResponseMessage(extractedInfo, actionPlan, updatedProjectData, sentimentAnalysis) {
         try {
             // If we extracted good information, acknowledge and continue
             if (extractedInfo && extractedInfo.confidence > 0.6) {
-                return await this.generateAcknowledgmentMessage(extractedInfo, updatedProjectData);
+                return await this.generateAcknowledgmentMessage(extractedInfo, updatedProjectData, sentimentAnalysis);
             }
             
             // If extraction was poor, ask for clarification
             if (extractedInfo && extractedInfo.needsClarification && extractedInfo.needsClarification.length > 0) {
-                return await this.generateClarificationMessage(extractedInfo, actionPlan);
+                return await this.generateClarificationMessage(extractedInfo, actionPlan, sentimentAnalysis);
             }
             
             // Default response
-            return await this.generateDefaultResponse(actionPlan, updatedProjectData);
+            return await this.generateDefaultResponse(actionPlan, updatedProjectData, sentimentAnalysis);
             
         } catch (error) {
             console.error('Error generating response message:', error);
@@ -214,12 +224,20 @@ Extract relevant information and respond in JSON format:
     },
     
     // Generate acknowledgment message
-    async generateAcknowledgmentMessage(extractedInfo, updatedProjectData) {
+    async generateAcknowledgmentMessage(extractedInfo, updatedProjectData, sentimentAnalysis) {
         try {
+            const verbosityInstruction = sentimentAnalysis?.verbosityInstruction || 'normal';
             const prompt = `Generate an acknowledgment message for this extracted information:
 
 Extracted Info: ${JSON.stringify(extractedInfo, null, 2)}
 Updated Project Data: ${JSON.stringify(updatedProjectData, null, 2)}
+
+VERBOSITY INSTRUCTION: ${verbosityInstruction}
+- If "terse": Keep response very brief and direct
+- If "normal": Use standard professional length
+- If "detailed": Provide comprehensive explanation
+
+User sentiment: ${sentimentAnalysis?.sentiment || 'neutral'} (confidence: ${sentimentAnalysis?.confidence || 0.5})
 
 Generate a response that:
 1. Acknowledges what was provided
@@ -244,12 +262,20 @@ Keep it concise and natural.`;
     },
     
     // Generate clarification message
-    async generateClarificationMessage(extractedInfo, actionPlan) {
+    async generateClarificationMessage(extractedInfo, actionPlan, sentimentAnalysis) {
         try {
+            const verbosityInstruction = sentimentAnalysis?.verbosityInstruction || 'normal';
             const prompt = `Generate a clarification message for this situation:
 
 Extracted Info: ${JSON.stringify(extractedInfo, null, 2)}
 Action Plan: ${JSON.stringify(actionPlan, null, 2)}
+
+VERBOSITY INSTRUCTION: ${verbosityInstruction}
+- If "terse": Keep response very brief and direct
+- If "normal": Use standard professional length
+- If "detailed": Provide comprehensive explanation
+
+User sentiment: ${sentimentAnalysis?.sentiment || 'neutral'} (confidence: ${sentimentAnalysis?.confidence || 0.5})
 
 Generate a response that:
 1. Acknowledges the attempt to provide information
@@ -274,12 +300,20 @@ Keep it concise and natural.`;
     },
     
     // Generate default response
-    async generateDefaultResponse(actionPlan, updatedProjectData) {
+    async generateDefaultResponse(actionPlan, updatedProjectData, sentimentAnalysis) {
         try {
+            const verbosityInstruction = sentimentAnalysis?.verbosityInstruction || 'normal';
             const prompt = `Generate a default response for this project planning situation:
 
 Action Plan: ${JSON.stringify(actionPlan, null, 2)}
 Project Data: ${JSON.stringify(updatedProjectData, null, 2)}
+
+VERBOSITY INSTRUCTION: ${verbosityInstruction}
+- If "terse": Keep response very brief and direct
+- If "normal": Use standard professional length
+- If "detailed": Provide comprehensive explanation
+
+User sentiment: ${sentimentAnalysis?.sentiment || 'neutral'} (confidence: ${sentimentAnalysis?.confidence || 0.5})
 
 Generate a response that:
 1. Is helpful and encouraging

@@ -79,7 +79,7 @@ async function processChatMessage(projectId, userId, message, sessionId, process
         await projectData.saveChatHistory(projectId, chatHistory);
 
         // Process through intelligence controllers
-        const response = await processIntelligenceLoop(projectId, userId, message, pData, chatHistory, processingId);
+        const response = await processIntelligenceLoop(projectId, userId, message, pData, chatHistory, processingId, projectData);
 
         // Optionally append inline TODO checklist to assistant message
         let finalMessage = response.message;
@@ -124,32 +124,33 @@ async function processChatMessage(projectId, userId, message, sessionId, process
 }
 
 // Intelligence processing loop
-async function processIntelligenceLoop(projectId, userId, message, projectData, chatHistory, processingId) {
+async function processIntelligenceLoop(projectId, userId, message, projectData, chatHistory, processingId, projectDataModule) {
     Logger.info('entrypoint.web', 'processIntelligenceLoop:start', { projectId });
     
     // Debug: Check available methods
     Logger.info('entrypoint.web', 'processIntelligenceLoop:debug', { 
-        availableMethods: Object.keys(projectData),
-        hasSaveProcessing: typeof projectData.saveProcessing === 'function'
+        projectDataKeys: Object.keys(projectData),
+        projectDataModuleKeys: projectDataModule ? Object.keys(projectDataModule) : 'null',
+        hasSaveProcessing: projectDataModule ? typeof projectDataModule.saveProcessing === 'function' : false
     });
     
     // 1. Self Analysis - Analyze current project knowledge
     const analysis = await selfAnalysisController.analyzeProject(projectId, projectData, chatHistory);
     
-    if (processingId && typeof projectData.saveProcessing === 'function') {
-        await projectData.saveProcessing(processingId, { status: 'processing', stage: 'analyzing', updatedAt: Date.now() });
+    if (processingId && projectDataModule && typeof projectDataModule.saveProcessing === 'function') {
+        await projectDataModule.saveProcessing(processingId, { status: 'processing', stage: 'analyzing', updatedAt: Date.now() });
     }
     
     // 2. Gap Detection - Identify critical missing information
     const gaps = await gapDetectionController.identifyGaps(projectId, analysis, projectData);
-    if (processingId && typeof projectData.saveProcessing === 'function') {
-        await projectData.saveProcessing(processingId, { status: 'processing', stage: 'gap_detection', updatedAt: Date.now() });
+    if (processingId && projectDataModule && typeof projectDataModule.saveProcessing === 'function') {
+        await projectDataModule.saveProcessing(processingId, { status: 'processing', stage: 'gap_detection', updatedAt: Date.now() });
     }
     
     // 3. Action Planning - Plan optimal next action
     const actionPlan = await actionPlanningController.planAction(projectId, userId, gaps, analysis, chatHistory);
-    if (processingId && typeof projectData.saveProcessing === 'function') {
-        await projectData.saveProcessing(processingId, { status: 'processing', stage: 'planning', updatedAt: Date.now() });
+    if (processingId && projectDataModule && typeof projectDataModule.saveProcessing === 'function') {
+        await projectDataModule.saveProcessing(processingId, { status: 'processing', stage: 'planning', updatedAt: Date.now() });
     }
     
     // 4. Execution - Execute planned action and process user response
@@ -157,8 +158,8 @@ async function processIntelligenceLoop(projectId, userId, message, projectData, 
     // Attach gaps (including todos) into analysis for rendering inline checklist
     execution.analysis = execution.analysis || {};
     execution.analysis.gaps = gaps;
-    if (processingId && typeof projectData.saveProcessing === 'function') {
-        await projectData.saveProcessing(processingId, { status: 'processing', stage: 'execution', updatedAt: Date.now() });
+    if (processingId && projectDataModule && typeof projectDataModule.saveProcessing === 'function') {
+        await projectDataModule.saveProcessing(processingId, { status: 'processing', stage: 'execution', updatedAt: Date.now() });
     }
     
     // 5. Learning - Learn from interaction and adapt
