@@ -27,24 +27,35 @@ export const learningController = {
     // Main learning function
     async learnFromInteraction(projectId, userId, userMessage, execution, chatHistory) {
         try {
+            const totalStart = Date.now();
             Logger.info('learningController', 'learnFromInteraction:start', { projectId, userId });
+            
             // Get existing learning data
+            const t1 = Date.now();
             let learningData = await getLearningData(userId);
             if (!learningData) {
                 learningData = createLearningData(userId);
             }
+            Logger.info('learningController', 'timing:getLearningDataMs', { ms: Date.now() - t1 });
             
-            // Analyze interaction patterns
-            const interactionAnalysis = await this.analyzeInteractionPatterns(userMessage, execution, chatHistory);
+            // Analyze interaction patterns and generate learning insights in one API call
+            const t2 = Date.now();
+            const analysisAndInsights = await this.analyzeAndGenerateInsights(userMessage, execution, chatHistory, learningData);
+            Logger.info('learningController', 'timing:analyzeAndGenerateInsightsMs', { ms: Date.now() - t2 });
+            
+            // Extract results
+            const interactionAnalysis = analysisAndInsights.interactionAnalysis;
+            const learningInsights = analysisAndInsights.learningInsights;
             
             // Update user patterns
+            const t3 = Date.now();
             const updatedPatterns = await this.updateUserPatterns(learningData, interactionAnalysis);
+            Logger.info('learningController', 'timing:updateUserPatternsMs', { ms: Date.now() - t3 });
             
             // Track question effectiveness
+            const t4 = Date.now();
             const effectivenessUpdate = await this.trackQuestionEffectiveness(learningData, execution, interactionAnalysis);
-            
-            // Generate learning insights
-            const learningInsights = await this.generateLearningInsights(learningData, interactionAnalysis);
+            Logger.info('learningController', 'timing:trackQuestionEffectivenessMs', { ms: Date.now() - t4 });
             
             // Update learning data
             learningData.userPatterns = updatedPatterns;
@@ -53,10 +64,17 @@ export const learningController = {
             learningData.lastUpdated = new Date().toISOString();
             
             // Save updated learning data
+            const t6 = Date.now();
             await saveLearningData(userId, learningData);
+            Logger.info('learningController', 'timing:saveLearningDataMs', { ms: Date.now() - t6 });
             
             // Update reflection log
+            const t7 = Date.now();
             await this.updateReflectionLog(projectId, learningInsights, interactionAnalysis);
+            Logger.info('learningController', 'timing:updateReflectionLogMs', { ms: Date.now() - t7 });
+            
+            const totalTime = Date.now() - totalStart;
+            Logger.info('learningController', 'timing:totalLearningMs', { ms: totalTime });
             
             const result = {
                 learningInsights: learningInsights,
@@ -76,9 +94,95 @@ export const learningController = {
         }
     },
     
+    // Combined method: Analyze interaction patterns and generate learning insights in one API call
+    async analyzeAndGenerateInsights(userMessage, execution, chatHistory, learningData) {
+        try {
+            const methodStart = Date.now();
+            const prompt = `Analyze these interaction patterns and generate comprehensive learning insights:
+
+User Message: "${userMessage}"
+Execution Result: ${JSON.stringify(execution, null, 2)}
+Chat History Length: ${chatHistory ? chatHistory.length : 0}
+Learning Data: ${JSON.stringify(learningData, null, 2)}
+
+First, analyze the interaction patterns:
+- Response quality (high|medium|low)
+- Engagement level (high|medium|low) 
+- Communication style (detailed|brief|mixed)
+- Preferred question type (exploratory|direct|mixed)
+- Response time (immediate|delayed|contextual)
+- Information density (high|medium|low)
+- Clarity level (clear|unclear|mixed)
+- Cooperation level (high|medium|low)
+
+Then, generate learning insights including:
+- User profile analysis
+- System improvement recommendations
+- Adaptation recommendations
+- Effectiveness score
+
+Respond in JSON format:
+{
+    "interactionAnalysis": {
+        "responseQuality": "high|medium|low",
+        "engagementLevel": "high|medium|low",
+        "communicationStyle": "detailed|brief|mixed",
+        "preferredQuestionType": "exploratory|direct|mixed",
+        "responseTime": "immediate|delayed|contextual",
+        "informationDensity": "high|medium|low",
+        "clarityLevel": "clear|unclear|mixed",
+        "cooperationLevel": "high|medium|low"
+    },
+    "learningInsights": {
+        "userProfile": {
+            "communicationStyle": "detailed|brief|mixed",
+            "engagementPattern": "high|medium|low",
+            "preferredApproach": "exploratory|direct|mixed"
+        },
+        "systemImprovements": [
+            "recommendation1",
+            "recommendation2"
+        ],
+        "adaptationRecommendations": [
+            "adaptation1",
+            "adaptation2"
+        ],
+        "effectivenessScore": 0.0-1.0
+    }
+}`;
+
+            const response = await callClaude(prompt);
+            
+            // Parse JSON response
+            const jsonMatch = response.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                const result = JSON.parse(jsonMatch[0]);
+                Logger.info('learningController', 'timing:analyzeAndGenerateInsights:apiCallMs', { ms: Date.now() - methodStart });
+                return result;
+            }
+            
+            // Fallback to individual methods if combined call fails
+            const interactionAnalysis = await this.analyzeInteractionPatterns(userMessage, execution, chatHistory);
+            const learningInsights = await this.generateLearningInsights(learningData, interactionAnalysis);
+            
+            Logger.info('learningController', 'timing:analyzeAndGenerateInsights:fallbackMs', { ms: Date.now() - methodStart });
+            return { interactionAnalysis, learningInsights };
+            
+        } catch (error) {
+            console.error('Error in combined learning analysis:', error);
+            // Fallback to individual methods
+            const interactionAnalysis = await this.analyzeInteractionPatterns(userMessage, execution, chatHistory);
+            const learningInsights = await this.generateLearningInsights(learningData, interactionAnalysis);
+            
+            Logger.info('learningController', 'timing:analyzeAndGenerateInsights:errorMs', { ms: Date.now() - methodStart });
+            return { interactionAnalysis, learningInsights };
+        }
+    },
+    
     // Analyze interaction patterns
     async analyzeInteractionPatterns(userMessage, execution, chatHistory) {
         try {
+            const methodStart = Date.now();
             const prompt = `Analyze these interaction patterns for learning insights:
 
 User Message: "${userMessage}"
@@ -102,15 +206,21 @@ Analyze and provide insights in JSON format:
             // Parse JSON response
             const jsonMatch = response.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
-                return JSON.parse(jsonMatch[0]);
+                const result = JSON.parse(jsonMatch[0]);
+                Logger.info('learningController', 'timing:analyzeInteractionPatterns:apiCallMs', { ms: Date.now() - methodStart });
+                return result;
             }
             
             // Fallback analysis
-            return this.fallbackInteractionAnalysis(userMessage, execution);
+            const fallbackResult = this.fallbackInteractionAnalysis(userMessage, execution);
+            Logger.info('learningController', 'timing:analyzeInteractionPatterns:fallbackMs', { ms: Date.now() - methodStart });
+            return fallbackResult;
             
         } catch (error) {
             console.error('Error analyzing interaction patterns:', error);
-            return this.fallbackInteractionAnalysis(userMessage, execution);
+            const fallbackResult = this.fallbackInteractionAnalysis(userMessage, execution);
+            Logger.info('learningController', 'timing:analyzeInteractionPatterns:errorMs', { ms: Date.now() - methodStart });
+            return fallbackResult;
         }
     },
     
@@ -135,6 +245,7 @@ Analyze and provide insights in JSON format:
     // Update user patterns based on interaction analysis
     async updateUserPatterns(learningData, interactionAnalysis) {
         try {
+            const methodStart = Date.now();
             const patterns = learningData.userPatterns || {};
             
             // Update response time pattern
@@ -168,10 +279,12 @@ Analyze and provide insights in JSON format:
                 patterns.projectType = interactionAnalysis.projectType;
             }
             
+            Logger.info('learningController', 'timing:updateUserPatterns:successMs', { ms: Date.now() - methodStart });
             return patterns;
             
         } catch (error) {
             console.error('Error updating user patterns:', error);
+            Logger.info('learningController', 'timing:updateUserPatterns:errorMs', { ms: Date.now() - methodStart });
             return learningData.userPatterns || {};
         }
     },
@@ -257,6 +370,7 @@ Analyze and provide insights in JSON format:
     // Track question effectiveness
     async trackQuestionEffectiveness(learningData, execution, interactionAnalysis) {
         try {
+            const methodStart = Date.now();
             let questionEffectiveness = learningData.questionEffectiveness || {};
             let interactionHistory = learningData.interactionHistory || [];
             
@@ -294,6 +408,7 @@ Analyze and provide insights in JSON format:
                     questionEffectiveness[action].totalEffectiveness / questionEffectiveness[action].totalInteractions;
             }
             
+            Logger.info('learningController', 'timing:trackQuestionEffectiveness:successMs', { ms: Date.now() - methodStart });
             return {
                 questionEffectiveness: questionEffectiveness,
                 interactionHistory: interactionHistory
@@ -301,6 +416,7 @@ Analyze and provide insights in JSON format:
             
         } catch (error) {
             console.error('Error tracking question effectiveness:', error);
+            Logger.info('learningController', 'timing:trackQuestionEffectiveness:errorMs', { ms: Date.now() - methodStart });
             return {
                 questionEffectiveness: learningData.questionEffectiveness || {},
                 interactionHistory: learningData.interactionHistory || []
@@ -344,6 +460,7 @@ Analyze and provide insights in JSON format:
     // Generate learning insights
     async generateLearningInsights(learningData, interactionAnalysis) {
         try {
+            const methodStart = Date.now();
             const prompt = `Generate learning insights from this user interaction data:
 
 Learning Data: ${JSON.stringify(learningData, null, 2)}
@@ -372,15 +489,21 @@ Provide insights in JSON format:
             // Parse JSON response
             const jsonMatch = response.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
-                return JSON.parse(jsonMatch[0]);
+                const result = JSON.parse(jsonMatch[0]);
+                Logger.info('learningController', 'timing:generateLearningInsights:apiCallMs', { ms: Date.now() - methodStart });
+                return result;
             }
             
             // Fallback insights
-            return this.generateFallbackInsights(learningData, interactionAnalysis);
+            const fallbackResult = this.generateFallbackInsights(learningData, interactionAnalysis);
+            Logger.info('learningController', 'timing:generateLearningInsights:fallbackMs', { ms: Date.now() - methodStart });
+            return fallbackResult;
             
         } catch (error) {
             console.error('Error generating learning insights:', error);
-            return this.generateFallbackInsights(learningData, interactionAnalysis);
+            const fallbackResult = this.generateFallbackInsights(learningData, interactionAnalysis);
+            Logger.info('learningController', 'timing:generateLearningInsights:errorMs', { ms: Date.now() - methodStart });
+            return fallbackResult;
         }
     },
     
@@ -407,6 +530,7 @@ Provide insights in JSON format:
     // Update reflection log
     async updateReflectionLog(projectId, learningInsights, interactionAnalysis) {
         try {
+            const methodStart = Date.now();
             let reflectionData = await getReflectionData(projectId);
             if (!reflectionData) {
                 reflectionData = createReflectionData(projectId);
@@ -433,9 +557,11 @@ Provide insights in JSON format:
             
             // Save reflection data
             await saveReflectionData(projectId, reflectionData);
+            Logger.info('learningController', 'timing:updateReflectionLog:successMs', { ms: Date.now() - methodStart });
             
         } catch (error) {
             console.error('Error updating reflection log:', error);
+            Logger.info('learningController', 'timing:updateReflectionLog:errorMs', { ms: Date.now() - methodStart });
         }
     },
     

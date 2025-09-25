@@ -30,14 +30,13 @@ export const gapDetectionController = {
             // Get basic missing fields
             const missingFields = identifyMissingFields(projectData);
             
-            // Analyze gap criticality using AI
-            const gapAnalysis = await this.analyzeGapCriticality(projectData, analysis, missingFields);
+            // Analyze gaps and determine next action in one API call
+            const gapAnalysisAndAction = await this.analyzeGapsAndDetermineAction(projectData, analysis, missingFields);
             
-            // Prioritize gaps by impact
-            const prioritizedGaps = await this.prioritizeGaps(gapAnalysis, projectData, analysis);
-            
-            // Determine next action
-            const nextAction = await this.determineNextAction(prioritizedGaps, projectData, analysis);
+            // Extract results
+            const gapAnalysis = gapAnalysisAndAction.gapAnalysis;
+            const prioritizedGaps = gapAnalysisAndAction.prioritizedGaps;
+            const nextAction = gapAnalysisAndAction.nextAction;
             
             // Build todos from prioritized gaps
             const todos = this.buildTodosFromGaps(prioritizedGaps, gapAnalysis, nextAction);
@@ -107,6 +106,73 @@ export const gapDetectionController = {
                 isNext: nextAction && nextAction.action === action
             };
         });
+    },
+    
+    // Combined method: Analyze gaps and determine next action in one API call
+    async analyzeGapsAndDetermineAction(projectData, analysis, missingFields) {
+        try {
+            const prompt = `Analyze these project gaps, determine their criticality, prioritize them, and determine the next action:
+
+Project Data: ${JSON.stringify(projectData, null, 2)}
+Analysis: ${JSON.stringify(analysis, null, 2)}
+Missing Fields: ${JSON.stringify(missingFields, null, 2)}
+
+For each missing field, provide:
+1. Criticality level (critical|high|medium|low)
+2. Impact on project success (blocks_everything|blocks_planning|blocks_execution|minor_impact)
+3. Dependencies (what other gaps this depends on)
+4. Reasoning (why this gap matters)
+
+Then prioritize the gaps and determine the next action.
+
+Respond in JSON format:
+{
+    "gapAnalysis": {
+        "gaps": [
+            {
+                "field": "scope",
+                "criticality": "critical",
+                "impact": "blocks_everything",
+                "dependencies": [],
+                "reasoning": "Without scope, cannot plan timeline, budget, or deliverables"
+            }
+        ]
+    },
+    "prioritizedGaps": ["scope", "budget", "timeline"],
+    "nextAction": {
+        "action": "ask_about_scope",
+        "question": "What is the scope of your project?",
+        "reasoning": "Scope is critical and blocks all other planning"
+    }
+}`;
+
+            const parsed = await askClaudeJSON({
+                user: prompt,
+                system: "You are an expert project management analyst. Return ONLY valid JSON with the requested structure.",
+                model: 'claude-3-5-haiku-latest',
+                maxTokens: 1200
+            });
+
+            if (parsed && parsed.gapAnalysis && parsed.prioritizedGaps && parsed.nextAction) {
+                return parsed;
+            }
+
+            // Fallback to individual methods if combined call fails
+            const gapAnalysis = await this.analyzeGapCriticality(projectData, analysis, missingFields);
+            const prioritizedGaps = await this.prioritizeGaps(gapAnalysis, projectData, analysis);
+            const nextAction = await this.determineNextAction(prioritizedGaps, projectData, analysis);
+            
+            return { gapAnalysis, prioritizedGaps, nextAction };
+            
+        } catch (error) {
+            console.error('Error in combined gap analysis:', error);
+            // Fallback to individual methods
+            const gapAnalysis = await this.analyzeGapCriticality(projectData, analysis, missingFields);
+            const prioritizedGaps = await this.prioritizeGaps(gapAnalysis, projectData, analysis);
+            const nextAction = await this.determineNextAction(prioritizedGaps, projectData, analysis);
+            
+            return { gapAnalysis, prioritizedGaps, nextAction };
+        }
     },
     
     // Analyze gap criticality using AI
