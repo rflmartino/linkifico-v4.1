@@ -110,7 +110,7 @@ async function processChatMessage(projectId, userId, message, sessionId, process
             message: finalMessage,
             analysis: response.analysis,
             todos: (response.analysis && response.analysis.gaps && response.analysis.gaps.todos) ? response.analysis.gaps.todos : [],
-            projectData: pData
+            projectData: allData.projectData
         };
         Logger.info('entrypoint.web', 'processChatMessage:result', { ok: true, todos: result.todos?.length || 0 });
         return result;
