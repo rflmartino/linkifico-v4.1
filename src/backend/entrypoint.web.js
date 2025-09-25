@@ -1,7 +1,7 @@
 // entrypoint.web.js - Main entry point for intelligent project management chat
 // Integrates with chat UI and orchestrates the 5-controller intelligence system
 
-import * as projectData from 'backend/projectData';
+import { dataManager } from 'backend/dataManager';
 
 import { selfAnalysisController } from 'backend/selfAnalysisController';
 import { gapDetectionController } from 'backend/gapDetectionController';
@@ -58,15 +58,14 @@ async function processChatMessage(projectId, userId, message, sessionId, process
     try {
         const totalStart = Date.now();
         Logger.info('entrypoint.web', 'processChatMessage:input', { projectId, userId, sessionId });
-        // Get or create project data
-        let pData = await projectData.getProjectData(projectId);
-        if (!pData) {
-            pData = projectData.createProjectData(projectId);
-            await projectData.saveProjectData(projectId, pData);
+        // Get or create project data using data manager
+        let allData = await dataManager.loadAllData(projectId, userId);
+        if (!allData.projectData) {
+            allData.projectData = dataManager.createDefaultProjectData(projectId);
         }
-
+        
         // Get chat history
-        let chatHistory = await projectData.getChatHistory(projectId);
+        let chatHistory = allData.chatHistory || [];
         
         // Add user message to history
         chatHistory.push({
@@ -76,11 +75,11 @@ async function processChatMessage(projectId, userId, message, sessionId, process
             sessionId: sessionId
         });
 
-        // Save updated chat history
-        await projectData.saveChatHistory(projectId, chatHistory);
+        // Update chat history in allData
+        allData.chatHistory = chatHistory;
 
         // Process through intelligence controllers
-        const response = await processIntelligenceLoop(projectId, userId, message, pData, chatHistory, processingId, projectData);
+        const response = await processIntelligenceLoop(projectId, userId, message, processingId);
 
         // Optionally append inline TODO checklist to assistant message
         let finalMessage = response.message;
@@ -101,8 +100,8 @@ async function processChatMessage(projectId, userId, message, sessionId, process
             analysis: response.analysis
         });
 
-        // Save final chat history
-        await projectData.saveChatHistory(projectId, chatHistory);
+        // Save final chat history (will be saved by data manager in processIntelligenceLoop)
+        allData.chatHistory = chatHistory;
 
         const totalMs = Date.now() - totalStart;
         Logger.info('entrypoint.web', 'timing:processChatMessageMs', { ms: totalMs });
@@ -127,24 +126,44 @@ async function processChatMessage(projectId, userId, message, sessionId, process
 }
 
 // Intelligence processing loop
-async function processIntelligenceLoop(projectId, userId, message, projectData, chatHistory, processingId, projectDataModule) {
+async function processIntelligenceLoop(projectId, userId, message, processingId) {
     Logger.info('entrypoint.web', 'processIntelligenceLoop:start', { projectId });
     const loopStart = Date.now();
     
-    // Debug: Check available methods
-    Logger.info('entrypoint.web', 'processIntelligenceLoop:debug', { 
-        projectDataKeys: Object.keys(projectData),
-        projectDataModuleKeys: projectDataModule ? Object.keys(projectDataModule) : 'null',
-        hasSaveProcessing: projectDataModule ? typeof projectDataModule.saveProcessing === 'function' : false
-    });
+    // Load all data in a single Redis operation
+    const dataLoadStart = Date.now();
+    let allData = await dataManager.loadAllData(projectId, userId);
+    Logger.info('entrypoint.web', 'timing:dataLoadMs', { ms: Date.now() - dataLoadStart });
+    
+    // Initialize default data structures if needed
+    if (!allData.projectData) {
+        allData.projectData = dataManager.createDefaultProjectData(projectId);
+    }
+    if (!allData.learningData) {
+        allData.learningData = dataManager.createDefaultLearningData(userId);
+    }
+    if (!allData.knowledgeData) {
+        allData.knowledgeData = dataManager.createDefaultKnowledgeData(projectId);
+    }
+    if (!allData.gapData) {
+        allData.gapData = dataManager.createDefaultGapData(projectId);
+    }
+    if (!allData.reflectionData) {
+        allData.reflectionData = dataManager.createDefaultReflectionData(projectId);
+    }
     
     // 1. Self Analysis - Analyze current project knowledge
     const t1 = Date.now();
-    const analysis = await selfAnalysisController.analyzeProject(projectId, projectData, chatHistory);
+    const analysis = await selfAnalysisController.analyzeProject(projectId, allData.projectData, allData.chatHistory, allData.knowledgeData);
     Logger.info('entrypoint.web', 'timing:selfAnalysisMs', { ms: Date.now() - t1 });
     
-    if (processingId && projectDataModule && typeof projectDataModule.saveProcessing === 'function') {
-        await projectDataModule.saveProcessing(processingId, { 
+    // Update knowledge data from analysis
+    if (analysis.knowledgeData) {
+        allData.knowledgeData = analysis.knowledgeData;
+    }
+    
+    if (processingId) {
+        await dataManager.saveProcessing(processingId, { 
             status: 'processing', 
             stage: 'analyzing', 
             updatedAt: Date.now(),
@@ -155,10 +174,15 @@ async function processIntelligenceLoop(projectId, userId, message, projectData, 
     
     // 2. Gap Detection - Identify critical missing information
     const t2 = Date.now();
-    const gaps = await gapDetectionController.identifyGaps(projectId, analysis, projectData);
+    const gaps = await gapDetectionController.identifyGaps(projectId, analysis, allData.projectData, allData.gapData);
     Logger.info('entrypoint.web', 'timing:gapDetectionMs', { ms: Date.now() - t2 });
-    if (processingId && projectDataModule && typeof projectDataModule.saveProcessing === 'function') {
-        await projectDataModule.saveProcessing(processingId, { 
+    
+    // Update gap data from analysis
+    if (gaps.gapData) {
+        allData.gapData = gaps.gapData;
+    }
+    if (processingId) {
+        await dataManager.saveProcessing(processingId, { 
             status: 'processing', 
             stage: 'gap_detection', 
             updatedAt: Date.now(),
@@ -169,10 +193,15 @@ async function processIntelligenceLoop(projectId, userId, message, projectData, 
     
     // 3. Action Planning - Plan optimal next action
     const t3 = Date.now();
-    const actionPlan = await actionPlanningController.planAction(projectId, userId, gaps, analysis, chatHistory);
+    const actionPlan = await actionPlanningController.planAction(projectId, userId, gaps, analysis, allData.chatHistory, allData.learningData);
     Logger.info('entrypoint.web', 'timing:actionPlanningMs', { ms: Date.now() - t3 });
-    if (processingId && projectDataModule && typeof projectDataModule.saveProcessing === 'function') {
-        await projectDataModule.saveProcessing(processingId, { 
+    
+    // Update learning data from action planning
+    if (actionPlan.updatedLearningData) {
+        allData.learningData = actionPlan.updatedLearningData;
+    }
+    if (processingId) {
+        await dataManager.saveProcessing(processingId, { 
             status: 'processing', 
             stage: 'planning', 
             updatedAt: Date.now(),
@@ -183,25 +212,49 @@ async function processIntelligenceLoop(projectId, userId, message, projectData, 
     
     // 4. Execution - Execute planned action and process user response
     const t4 = Date.now();
-    const execution = await executionController.executeAction(projectId, userId, message, actionPlan, projectData);
+    const execution = await executionController.executeAction(projectId, userId, message, actionPlan, allData.projectData);
     Logger.info('entrypoint.web', 'timing:executionMs', { ms: Date.now() - t4 });
     // Attach gaps (including todos) into analysis for rendering inline checklist
     execution.analysis = execution.analysis || {};
     execution.analysis.gaps = gaps;
-    if (processingId && projectDataModule && typeof projectDataModule.saveProcessing === 'function') {
-        await projectDataModule.saveProcessing(processingId, { 
+    if (processingId) {
+        await dataManager.saveProcessing(processingId, { 
             status: 'processing', 
             stage: 'execution', 
             updatedAt: Date.now(),
             message: "💬 Generating response...",
-            progress: 80
+            progress: 90
         });
     }
     
-    // 5. Learning - Learn from interaction and adapt
+    // 5. Learning - Learn from interaction and adapt (run in background)
     const t5 = Date.now();
-    await learningController.learnFromInteraction(projectId, userId, message, execution, chatHistory);
-    Logger.info('entrypoint.web', 'timing:learningMs', { ms: Date.now() - t5 });
+    // Run learning in background - don't await, don't block response
+    learningController.learnFromInteraction(projectId, userId, message, execution, allData.chatHistory, allData.learningData, allData.reflectionData)
+        .then((result) => {
+            Logger.info('entrypoint.web', 'timing:learningMs:background', { ms: Date.now() - t5 });
+            Logger.info('entrypoint.web', 'backgroundLearning:completed', { projectId, userId });
+            
+            // Update data with learning results (for next interaction)
+            if (result.updatedLearningData) {
+                allData.learningData = result.updatedLearningData;
+            }
+            if (result.updatedReflectionData) {
+                allData.reflectionData = result.updatedReflectionData;
+            }
+            
+            // Save updated learning data in background
+            dataManager.saveAllData(projectId, userId, allData).catch(console.error);
+        })
+        .catch((error) => {
+            Logger.error('entrypoint.web', 'backgroundLearning:error', error);
+        });
+    
+    // Save all updated data in a single Redis operation
+    const dataSaveStart = Date.now();
+    await dataManager.saveAllData(projectId, userId, allData);
+    Logger.info('entrypoint.web', 'timing:dataSaveMs', { ms: Date.now() - dataSaveStart });
+    
     Logger.info('entrypoint.web', 'processIntelligenceLoop:end', { action: actionPlan?.action });
     Logger.info('entrypoint.web', 'timing:intelligenceLoopMs', { ms: Date.now() - loopStart });
     
@@ -212,21 +265,14 @@ async function processIntelligenceLoop(projectId, userId, message, projectData, 
 async function startProcessing(projectId, userId, sessionId, message) {
     const processingId = `proc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     
-    // Debug: Check if saveProcessing exists
-    Logger.info('entrypoint.web', 'startProcessing:debug', { 
-        hasSaveProcessing: typeof projectData.saveProcessing === 'function',
-        availableMethods: Object.keys(projectData)
+    // Save initial processing status
+    await dataManager.saveProcessing(processingId, { 
+        status: 'processing', 
+        stage: 'queued', 
+        startedAt: Date.now(),
+        message: "🤔 Analyzing your project...",
+        progress: 10
     });
-    
-    if (typeof projectData.saveProcessing === 'function') {
-        await projectData.saveProcessing(processingId, { 
-            status: 'processing', 
-            stage: 'queued', 
-            startedAt: Date.now(),
-            message: "🤔 Analyzing your project...",
-            progress: 10
-        });
-    }
     
     // Kick off in background (no await)
     (async () => {
@@ -235,9 +281,7 @@ async function startProcessing(projectId, userId, sessionId, message) {
             ? { status: 'complete', conversation: [{ type: 'assistant', content: result.message, timestamp: new Date().toISOString() }], projectData: result.projectData, analysis: result.analysis, todos: (result.analysis && result.analysis.gaps && result.analysis.gaps.todos) ? result.analysis.gaps.todos : [] }
             : { status: 'error', error: result.error || 'processing failed' };
         
-        if (typeof projectData.saveProcessing === 'function') {
-            await projectData.saveProcessing(processingId, payload);
-        }
+        await dataManager.saveProcessing(processingId, payload);
     })();
     
     return { 
@@ -251,7 +295,7 @@ async function startProcessing(projectId, userId, sessionId, message) {
 
 async function getProcessingStatus(processingId) {
     if (!processingId) return { success: false, status: 'error', error: 'missing processingId' };
-    const payload = await projectData.getProcessing(processingId);
+    const payload = await dataManager.getProcessing(processingId);
     if (!payload) return { success: true, status: 'processing' };
     return { success: true, ...payload };
 }
@@ -259,11 +303,16 @@ async function getProcessingStatus(processingId) {
 // Initialize new project
 export async function initializeProject(projectId, userId, initialMessage) {
     try {
-        const pData = projectData.createProjectData(projectId, {});
-        await projectData.saveProjectData(projectId, pData);
+        const allData = {
+            projectData: dataManager.createDefaultProjectData(projectId),
+            chatHistory: [],
+            knowledgeData: dataManager.createDefaultKnowledgeData(projectId),
+            gapData: dataManager.createDefaultGapData(projectId),
+            learningData: dataManager.createDefaultLearningData(userId),
+            reflectionData: dataManager.createDefaultReflectionData(projectId)
+        };
         
-        // Initialize empty chat history
-        await projectData.saveChatHistory(projectId, []);
+        await dataManager.saveAllData(projectId, userId, allData);
         
         // Process initial message
         return await processChatMessage(projectId, userId, initialMessage, `session_${Date.now()}`, null);
@@ -279,10 +328,11 @@ export async function initializeProject(projectId, userId, initialMessage) {
 }
 
 // Get project status
-export async function getProjectStatus(projectId) {
+export async function getProjectStatus(projectId, userId) {
     try {
-        const pData = await projectData.getProjectData(projectId);
-        const chatHistory = await projectData.getChatHistory(projectId);
+        const allData = await dataManager.loadAllData(projectId, userId);
+        const pData = allData.projectData;
+        const chatHistory = allData.chatHistory;
         
         if (!pData) {
             return {
@@ -309,9 +359,10 @@ export async function getProjectStatus(projectId) {
 }
 
 // Get chat history
-export async function getProjectChatHistory(projectId) {
+export async function getProjectChatHistory(projectId, userId) {
     try {
-        const chatHistory = await projectData.getChatHistory(projectId);
+        const allData = await dataManager.loadAllData(projectId, userId);
+        const chatHistory = allData.chatHistory;
         return {
             success: true,
             chatHistory: chatHistory
@@ -327,9 +378,10 @@ export async function getProjectChatHistory(projectId) {
 }
 
 // Update project data manually
-export async function updateProjectData(projectId, updates) {
+export async function updateProjectData(projectId, userId, updates) {
     try {
-        const pData = await projectData.getProjectData(projectId);
+        const allData = await dataManager.loadAllData(projectId, userId);
+        const pData = allData.projectData;
         if (!pData) {
             return {
                 success: false,
@@ -341,7 +393,7 @@ export async function updateProjectData(projectId, updates) {
         Object.assign(pData, updates);
         pData.updatedAt = new Date().toISOString();
         
-        await projectData.saveProjectData(projectId, pData);
+        await dataManager.saveAllData(projectId, userId, allData);
         
         return {
             success: true,
@@ -360,10 +412,11 @@ export async function updateProjectData(projectId, updates) {
 }
 
 // Trigger intelligence analysis
-export async function triggerAnalysis(projectId) {
+export async function triggerAnalysis(projectId, userId) {
     try {
-        const pData = await projectData.getProjectData(projectId);
-        const chatHistory = await projectData.getChatHistory(projectId);
+        const allData = await dataManager.loadAllData(projectId, userId);
+        const pData = allData.projectData;
+        const chatHistory = allData.chatHistory;
         
         if (!pData) {
             return {

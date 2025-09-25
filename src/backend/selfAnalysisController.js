@@ -26,7 +26,7 @@ async function callClaude(prompt, systemPrompt = null) {
 export const selfAnalysisController = {
     
     // Main analysis function
-    async analyzeProject(projectId, projectData, chatHistory) {
+    async analyzeProject(projectId, projectData, chatHistory, existingKnowledgeData = null) {
         try {
             Logger.info('selfAnalysisController', 'analyzeProject:start', { projectId });
             // Calculate basic completeness metrics
@@ -42,21 +42,30 @@ export const selfAnalysisController = {
             // Identify known facts and uncertainties
             const knowledgeAssessment = await this.assessKnowledge(projectData, contextAnalysis, missingFields);
             
-            // Create knowledge data structure
-            const knowledgeData = createKnowledgeData(projectId, {
+            // Create or update knowledge data structure
+            const knowledgeData = existingKnowledgeData || createKnowledgeData(projectId, {
                 confidence: confidence,
                 knownFacts: knowledgeAssessment.knownFacts,
                 uncertainties: knowledgeAssessment.uncertainties,
-                analysisHistory: [{
-                    timestamp: new Date().toISOString(),
-                    completeness: completeness,
-                    confidence: confidence,
-                    missingFields: missingFields
-                }]
+                analysisHistory: []
             });
             
-            // Save knowledge data
-            await saveKnowledgeData(projectId, knowledgeData);
+            // Update knowledge data with new analysis
+            knowledgeData.confidence = confidence;
+            knowledgeData.knownFacts = knowledgeAssessment.knownFacts;
+            knowledgeData.uncertainties = knowledgeAssessment.uncertainties;
+            knowledgeData.completeness = completeness;
+            knowledgeData.missingFields = missingFields;
+            knowledgeData.contextAnalysis = contextAnalysis;
+            knowledgeData.lastUpdated = new Date().toISOString();
+            
+            // Add to analysis history
+            knowledgeData.analysisHistory.push({
+                timestamp: new Date().toISOString(),
+                completeness: completeness,
+                confidence: confidence,
+                missingFields: missingFields
+            });
             
             Logger.info('selfAnalysisController', 'analyzeProject:end', { confidence, completeness });
             return {
@@ -65,7 +74,8 @@ export const selfAnalysisController = {
                 knownFacts: knowledgeAssessment.knownFacts,
                 uncertainties: knowledgeAssessment.uncertainties,
                 missingFields: missingFields,
-                contextAnalysis: contextAnalysis
+                contextAnalysis: contextAnalysis,
+                knowledgeData: knowledgeData
             };
             
         } catch (error) {

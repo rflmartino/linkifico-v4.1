@@ -24,7 +24,7 @@ async function callClaude(prompt, systemPrompt = null) {
 export const gapDetectionController = {
     
     // Main gap identification function
-    async identifyGaps(projectId, analysis, projectData) {
+    async identifyGaps(projectId, analysis, projectData, existingGapData = null) {
         try {
             Logger.info('gapDetectionController', 'identifyGaps:start', { projectId });
             // Get basic missing fields
@@ -41,8 +41,8 @@ export const gapDetectionController = {
             // Build todos from prioritized gaps
             const todos = this.buildTodosFromGaps(prioritizedGaps, gapAnalysis, nextAction);
 
-            // Create gap data structure
-            const gapData = createGapData(projectId, {
+            // Create or update gap data structure
+            const gapData = existingGapData || createGapData(projectId, {
                 criticalGaps: prioritizedGaps,
                 priorityScore: this.calculatePriorityScore(prioritizedGaps),
                 nextAction: nextAction.action,
@@ -50,8 +50,13 @@ export const gapDetectionController = {
                 todos: todos
             });
             
-            // Save gap data
-            await saveGapData(projectId, gapData);
+            // Update gap data with new analysis
+            gapData.criticalGaps = prioritizedGaps;
+            gapData.priorityScore = this.calculatePriorityScore(prioritizedGaps);
+            gapData.nextAction = nextAction.action;
+            gapData.reasoning = nextAction.reasoning;
+            gapData.todos = todos;
+            gapData.lastUpdated = new Date().toISOString();
             
             Logger.info('gapDetectionController', 'identifyGaps:end', { next: nextAction.action, gaps: prioritizedGaps.length });
             return {
@@ -60,7 +65,8 @@ export const gapDetectionController = {
                 nextAction: nextAction.action,
                 reasoning: nextAction.reasoning,
                 gapAnalysis: gapAnalysis,
-                todos: todos
+                todos: todos,
+                gapData: gapData
             };
             
         } catch (error) {

@@ -25,18 +25,15 @@ async function callClaude(prompt, systemPrompt = null) {
 export const learningController = {
     
     // Main learning function
-    async learnFromInteraction(projectId, userId, userMessage, execution, chatHistory) {
+    async learnFromInteraction(projectId, userId, userMessage, execution, chatHistory, learningData, reflectionData) {
         try {
             const totalStart = Date.now();
             Logger.info('learningController', 'learnFromInteraction:start', { projectId, userId });
             
-            // Get existing learning data
-            const t1 = Date.now();
-            let learningData = await getLearningData(userId);
+            // Use provided learning data instead of fetching
             if (!learningData) {
                 learningData = createLearningData(userId);
             }
-            Logger.info('learningController', 'timing:getLearningDataMs', { ms: Date.now() - t1 });
             
             // Analyze interaction patterns and generate learning insights in one API call
             const t2 = Date.now();
@@ -63,14 +60,9 @@ export const learningController = {
             learningData.interactionHistory = effectivenessUpdate.interactionHistory;
             learningData.lastUpdated = new Date().toISOString();
             
-            // Save updated learning data
-            const t6 = Date.now();
-            await saveLearningData(userId, learningData);
-            Logger.info('learningController', 'timing:saveLearningDataMs', { ms: Date.now() - t6 });
-            
-            // Update reflection log
+            // Update reflection log (don't save, just update in memory)
             const t7 = Date.now();
-            await this.updateReflectionLog(projectId, learningInsights, interactionAnalysis);
+            this.updateReflectionLog(projectId, learningInsights, interactionAnalysis, reflectionData);
             Logger.info('learningController', 'timing:updateReflectionLogMs', { ms: Date.now() - t7 });
             
             const totalTime = Date.now() - totalStart;
@@ -79,7 +71,9 @@ export const learningController = {
             const result = {
                 learningInsights: learningInsights,
                 updatedPatterns: updatedPatterns,
-                effectivenessUpdate: effectivenessUpdate
+                effectivenessUpdate: effectivenessUpdate,
+                updatedLearningData: learningData,
+                updatedReflectionData: reflectionData
             };
             Logger.info('learningController', 'learnFromInteraction:end', { ok: true });
             return result;
@@ -528,10 +522,9 @@ Provide insights in JSON format:
     },
     
     // Update reflection log
-    async updateReflectionLog(projectId, learningInsights, interactionAnalysis) {
+    updateReflectionLog(projectId, learningInsights, interactionAnalysis, reflectionData) {
         try {
             const methodStart = Date.now();
-            let reflectionData = await getReflectionData(projectId);
             if (!reflectionData) {
                 reflectionData = createReflectionData(projectId);
             }
@@ -555,8 +548,7 @@ Provide insights in JSON format:
             reflectionData.improvementSuggestions = learningInsights.systemImprovements;
             reflectionData.lastReflection = new Date().toISOString();
             
-            // Save reflection data
-            await saveReflectionData(projectId, reflectionData);
+            // Don't save reflection data - it will be saved by data manager
             Logger.info('learningController', 'timing:updateReflectionLog:successMs', { ms: Date.now() - methodStart });
             
         } catch (error) {

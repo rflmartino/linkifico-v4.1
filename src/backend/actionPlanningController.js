@@ -22,11 +22,10 @@ async function callClaude(prompt, systemPrompt = null) {
 export const actionPlanningController = {
     
     // Main action planning function
-    async planAction(projectId, userId, gaps, analysis, chatHistory) {
+    async planAction(projectId, userId, gaps, analysis, chatHistory, learningData) {
         try {
             Logger.info('actionPlanningController', 'planAction:start', { projectId, userId });
-            // Get user learning patterns
-            const learningData = await getLearningData(userId);
+            // Use provided learning data instead of fetching
             
             // Analyze conversation context
             const conversationContext = await this.analyzeConversationContext(chatHistory, analysis);
@@ -34,11 +33,14 @@ export const actionPlanningController = {
             // Plan optimal action based on gaps and user patterns
             const actionPlan = await this.generateActionPlan(gaps, learningData, conversationContext, analysis);
             
-            // Update learning data with planning decision
-            await this.updateLearningFromPlanning(userId, actionPlan, learningData);
+            // Update learning data with planning decision (don't save, just update in memory)
+            this.updateLearningFromPlanning(userId, actionPlan, learningData);
             
             Logger.info('actionPlanningController', 'planAction:end', { action: actionPlan?.action });
-            return actionPlan;
+            return {
+                ...actionPlan,
+                updatedLearningData: learningData
+            };
             
         } catch (error) {
             Logger.error('actionPlanningController', 'planAction:error', error);
