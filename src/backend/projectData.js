@@ -103,94 +103,136 @@ export const createReflectionData = (projectId, reflection = {}) => {
 
 // Redis Operations
 export async function saveProjectData(projectId, projectData) {
+    const t = Date.now();
     const client = await getRedisClient();
     const key = REDIS_KEYS.PROJECT(projectId);
     await client.set(key, JSON.stringify(projectData));
+    const ms = Date.now() - t;
+    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:saveProjectDataMs', { ms }); } catch {}
 }
 
 export async function getProjectData(projectId) {
+    const t = Date.now();
     const client = await getRedisClient();
     const key = REDIS_KEYS.PROJECT(projectId);
     const data = await client.get(key);
+    const ms = Date.now() - t;
+    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:getProjectDataMs', { ms }); } catch {}
     return data ? JSON.parse(data) : null;
 }
 
 export async function saveKnowledgeData(projectId, knowledgeData) {
+    const t = Date.now();
     const client = await getRedisClient();
     const key = REDIS_KEYS.KNOWLEDGE(projectId);
     await client.set(key, JSON.stringify(knowledgeData));
+    const ms = Date.now() - t;
+    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:saveKnowledgeDataMs', { ms }); } catch {}
 }
 
 export async function getKnowledgeData(projectId) {
+    const t = Date.now();
     const client = await getRedisClient();
     const key = REDIS_KEYS.KNOWLEDGE(projectId);
     const data = await client.get(key);
+    const ms = Date.now() - t;
+    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:getKnowledgeDataMs', { ms }); } catch {}
     return data ? JSON.parse(data) : null;
 }
 
 export async function saveGapData(projectId, gapData) {
+    const t = Date.now();
     const client = await getRedisClient();
     const key = REDIS_KEYS.GAPS(projectId);
     await client.set(key, JSON.stringify(gapData));
+    const ms = Date.now() - t;
+    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:saveGapDataMs', { ms }); } catch {}
 }
 
 export async function getGapData(projectId) {
+    const t = Date.now();
     const client = await getRedisClient();
     const key = REDIS_KEYS.GAPS(projectId);
     const data = await client.get(key);
+    const ms = Date.now() - t;
+    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:getGapDataMs', { ms }); } catch {}
     return data ? JSON.parse(data) : null;
 }
 
 export async function saveLearningData(userId, learningData) {
+    const t = Date.now();
     const client = await getRedisClient();
     const key = REDIS_KEYS.LEARNING(userId);
     await client.set(key, JSON.stringify(learningData));
+    const ms = Date.now() - t;
+    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:saveLearningDataMs', { ms }); } catch {}
 }
 
 export async function getLearningData(userId) {
+    const t = Date.now();
     const client = await getRedisClient();
     const key = REDIS_KEYS.LEARNING(userId);
     const data = await client.get(key);
+    const ms = Date.now() - t;
+    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:getLearningDataMs', { ms }); } catch {}
     return data ? JSON.parse(data) : null;
 }
 
 export async function saveReflectionData(projectId, reflectionData) {
+    const t = Date.now();
     const client = await getRedisClient();
     const key = REDIS_KEYS.REFLECTION(projectId);
     await client.set(key, JSON.stringify(reflectionData));
+    const ms = Date.now() - t;
+    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:saveReflectionDataMs', { ms }); } catch {}
 }
 
 export async function getReflectionData(projectId) {
+    const t = Date.now();
     const client = await getRedisClient();
     const key = REDIS_KEYS.REFLECTION(projectId);
     const data = await client.get(key);
+    const ms = Date.now() - t;
+    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:getReflectionDataMs', { ms }); } catch {}
     return data ? JSON.parse(data) : null;
 }
 
 export async function saveChatHistory(projectId, chatHistory) {
+    const t = Date.now();
     const client = await getRedisClient();
     const key = REDIS_KEYS.CHAT_HISTORY(projectId);
     await client.set(key, JSON.stringify(chatHistory));
+    const ms = Date.now() - t;
+    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:saveChatHistoryMs', { ms }); } catch {}
 }
 
 export async function getChatHistory(projectId) {
+    const t = Date.now();
     const client = await getRedisClient();
     const key = REDIS_KEYS.CHAT_HISTORY(projectId);
     const data = await client.get(key);
+    const ms = Date.now() - t;
+    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:getChatHistoryMs', { ms }); } catch {}
     return data ? JSON.parse(data) : [];
 }
 
 // Processing storage for polling
 export async function saveProcessing(processingId, payload) {
+    const t = Date.now();
     const client = await getRedisClient();
     const key = REDIS_KEYS.PROCESSING(processingId);
     await client.set(key, JSON.stringify(payload));
+    const ms = Date.now() - t;
+    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:saveProcessingMs', { ms }); } catch {}
 }
 
 export async function getProcessing(processingId) {
+    const t = Date.now();
     const client = await getRedisClient();
     const key = REDIS_KEYS.PROCESSING(processingId);
     const data = await client.get(key);
+    const ms = Date.now() - t;
+    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:getProcessingMs', { ms }); } catch {}
     return data ? JSON.parse(data) : null;
 }
 

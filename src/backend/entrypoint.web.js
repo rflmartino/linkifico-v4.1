@@ -56,6 +56,7 @@ export const processUserRequest = webMethod(Permissions.Anyone, async (requestDa
 
 async function processChatMessage(projectId, userId, message, sessionId, processingId = null) {
     try {
+        const totalStart = Date.now();
         Logger.info('entrypoint.web', 'processChatMessage:input', { projectId, userId, sessionId });
         // Get or create project data
         let pData = await projectData.getProjectData(projectId);
@@ -103,6 +104,8 @@ async function processChatMessage(projectId, userId, message, sessionId, process
         // Save final chat history
         await projectData.saveChatHistory(projectId, chatHistory);
 
+        const totalMs = Date.now() - totalStart;
+        Logger.info('entrypoint.web', 'timing:processChatMessageMs', { ms: totalMs });
         const result = {
             success: true,
             message: finalMessage,
@@ -126,6 +129,7 @@ async function processChatMessage(projectId, userId, message, sessionId, process
 // Intelligence processing loop
 async function processIntelligenceLoop(projectId, userId, message, projectData, chatHistory, processingId, projectDataModule) {
     Logger.info('entrypoint.web', 'processIntelligenceLoop:start', { projectId });
+    const loopStart = Date.now();
     
     // Debug: Check available methods
     Logger.info('entrypoint.web', 'processIntelligenceLoop:debug', { 
@@ -135,7 +139,9 @@ async function processIntelligenceLoop(projectId, userId, message, projectData, 
     });
     
     // 1. Self Analysis - Analyze current project knowledge
+    const t1 = Date.now();
     const analysis = await selfAnalysisController.analyzeProject(projectId, projectData, chatHistory);
+    Logger.info('entrypoint.web', 'timing:selfAnalysisMs', { ms: Date.now() - t1 });
     
     if (processingId && projectDataModule && typeof projectDataModule.saveProcessing === 'function') {
         await projectDataModule.saveProcessing(processingId, { 
@@ -148,7 +154,9 @@ async function processIntelligenceLoop(projectId, userId, message, projectData, 
     }
     
     // 2. Gap Detection - Identify critical missing information
+    const t2 = Date.now();
     const gaps = await gapDetectionController.identifyGaps(projectId, analysis, projectData);
+    Logger.info('entrypoint.web', 'timing:gapDetectionMs', { ms: Date.now() - t2 });
     if (processingId && projectDataModule && typeof projectDataModule.saveProcessing === 'function') {
         await projectDataModule.saveProcessing(processingId, { 
             status: 'processing', 
@@ -160,7 +168,9 @@ async function processIntelligenceLoop(projectId, userId, message, projectData, 
     }
     
     // 3. Action Planning - Plan optimal next action
+    const t3 = Date.now();
     const actionPlan = await actionPlanningController.planAction(projectId, userId, gaps, analysis, chatHistory);
+    Logger.info('entrypoint.web', 'timing:actionPlanningMs', { ms: Date.now() - t3 });
     if (processingId && projectDataModule && typeof projectDataModule.saveProcessing === 'function') {
         await projectDataModule.saveProcessing(processingId, { 
             status: 'processing', 
@@ -172,7 +182,9 @@ async function processIntelligenceLoop(projectId, userId, message, projectData, 
     }
     
     // 4. Execution - Execute planned action and process user response
+    const t4 = Date.now();
     const execution = await executionController.executeAction(projectId, userId, message, actionPlan, projectData);
+    Logger.info('entrypoint.web', 'timing:executionMs', { ms: Date.now() - t4 });
     // Attach gaps (including todos) into analysis for rendering inline checklist
     execution.analysis = execution.analysis || {};
     execution.analysis.gaps = gaps;
@@ -187,8 +199,11 @@ async function processIntelligenceLoop(projectId, userId, message, projectData, 
     }
     
     // 5. Learning - Learn from interaction and adapt
+    const t5 = Date.now();
     await learningController.learnFromInteraction(projectId, userId, message, execution, chatHistory);
+    Logger.info('entrypoint.web', 'timing:learningMs', { ms: Date.now() - t5 });
     Logger.info('entrypoint.web', 'processIntelligenceLoop:end', { action: actionPlan?.action });
+    Logger.info('entrypoint.web', 'timing:intelligenceLoopMs', { ms: Date.now() - loopStart });
     
     return execution;
 }

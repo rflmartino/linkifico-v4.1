@@ -36,7 +36,9 @@ export const executionController = {
             });
             
             // Process user response and generate response in single API call
+            const apiStart = Date.now();
             const { extractedInfo, responseMessage } = await this.extractAndGenerateResponse(userMessage, actionPlan, projectData, sentimentAnalysis);
+            Logger.info('executionController', 'timing:haikuCombinedCallMs', { ms: Date.now() - apiStart });
             
             // Update project data with extracted information
             const updatedProjectData = await this.updateProjectData(projectId, projectData, extractedInfo);
