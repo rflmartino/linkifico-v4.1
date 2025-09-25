@@ -1,15 +1,15 @@
 // entrypoint.web.js - Main entry point for intelligent project management chat
 // Integrates with chat UI and orchestrates the 5-controller intelligence system
 
-import { dataManager } from 'backend/dataManager';
+import { dataManager } from './dataManager';
 
-import { selfAnalysisController } from 'backend/selfAnalysisController';
-import { gapDetectionController } from 'backend/gapDetectionController';
-import { actionPlanningController } from 'backend/actionPlanningController';
-import { executionController } from 'backend/executionController';
-import { learningController } from 'backend/learningController';
+import { selfAnalysisController } from './selfAnalysisController';
+import { gapDetectionController } from './gapDetectionController';
+import { actionPlanningController } from './actionPlanningController';
+import { executionController } from './executionController';
+import { learningController } from './learningController';
 import { Permissions, webMethod } from 'wix-web-module';
-import { Logger } from 'backend/logger';
+import { Logger } from './logger';
 
 // Main chat processing function
 export const processUserRequest = webMethod(Permissions.Anyone, async (requestData) => {
