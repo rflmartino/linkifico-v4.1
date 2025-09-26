@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node-NLP Admin Console</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .status-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-left: 4px solid #4facfe;
+        }
+
+        .status-card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .status-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .status-item .label {
+            font-weight: 600;
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .status-item .value {
+            font-size: 1.1em;
+            color: #333;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-trained {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-not-trained {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 172, 254, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(86, 171, 47, 0.3);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-warning:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(240, 147, 251, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .test-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .input-group input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .results {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid #e9ecef;
+            margin-top: 15px;
+        }
+
+        .result-item {
+            padding: 10px;
+            border-bottom: 1px solid #f1f3f4;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-intent {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .result-confidence {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        .log {
+            background: #1e1e1e;
+            color: #f8f8f2;
+            border-radius: 8px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+
+        .log-info {
+            color: #4facfe;
+        }
+
+        .log-success {
+            color: #56ab2f;
+        }
+
+        .log-error {
+            color: #f5576c;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4facfe;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 Node-NLP Admin Console</h1>
+            <p>Train, test, and manage your NLP model</p>
+        </div>
+
+        <div class="content">
+            <!-- Status Section -->
+            <div class="status-card">
+                <h3>📊 Model Status</h3>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <div class="label">Status</div>
+                        <div class="value">
+                            <span id="modelStatus" class="status-badge status-not-trained">Not Trained</span>
+                        </div>
+                    </div>
+                    <div class="status-item">
+                        <div class="label">Version</div>
+                        <div class="value" id="modelVersion">0.0.0</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="label">Last Training</div>
+                        <div class="value" id="lastTraining">Never</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="label">Training Examples</div>
+                        <div class="value" id="trainingExamples">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Section -->
+            <div class="actions">
+                <button class="btn btn-primary" onclick="initializeSystem()">
+                    <span id="initText">🚀 Initialize System</span>
+                    <span id="initLoading" class="loading hidden"></span>
+                </button>
+                <button class="btn btn-success" onclick="trainModel()">
+                    <span id="trainText">🎯 Train Model</span>
+                    <span id="trainLoading" class="loading hidden"></span>
+                </button>
+                <button class="btn btn-warning" onclick="testModel()">
+                    <span id="testText">🧪 Test Model</span>
+                    <span id="testLoading" class="loading hidden"></span>
+                </button>
+            </div>
+
+            <!-- Test Section -->
+            <div class="test-section">
+                <h3>🔍 Test Input</h3>
+                <div class="input-group">
+                    <input type="text" id="testInput" placeholder="Enter text to test (e.g., 'create a new project')" 
+                           value="create a hardware store project">
+                    <button class="btn btn-primary" onclick="testInput()">Test</button>
+                </div>
+                <div id="testResults" class="results hidden">
+                    <div class="result-item">
+                        <span class="result-intent">Intent: <span id="resultIntent">-</span></span>
+                        <span class="result-confidence">Confidence: <span id="resultConfidence">-</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Log Section -->
+            <div class="log" id="log">
+                <div class="log-entry log-info">[INFO] Node-NLP Admin Console initialized</div>
+                <div class="log-entry log-info">[INFO] Ready to train and test your NLP model</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let isInitialized = false;
+
+        // Initialize the system
+        async function initializeSystem() {
+            setLoading('init', true);
+            log('info', 'Initializing Node-NLP system...');
+            
+            try {
+                const response = await wixData.call('nodeNlpWebMethods', 'initializeNlpSystem');
+                
+                if (response.success) {
+                    log('success', `System initialized: ${response.message}`);
+                    if (response.wasTraining) {
+                        log('success', `Model trained with version ${response.version}`);
+                    }
+                    isInitialized = true;
+                    await loadStatus();
+                } else {
+                    log('error', `Initialization failed: ${response.message}`);
+                }
+            } catch (error) {
+                log('error', `Initialization error: ${error.message}`);
+            } finally {
+                setLoading('init', false);
+            }
+        }
+
+        // Train the model
+        async function trainModel() {
+            setLoading('train', true);
+            log('info', 'Training model with minimal data...');
+            
+            try {
+                const response = await wixData.call('nodeNlpWebMethods', 'trainNlpModel');
+                
+                if (response.success) {
+                    log('success', `Model trained successfully: ${response.message}`);
+                    log('success', `Training time: ${response.trainingTime}ms`);
+                    log('success', `Model version: ${response.version}`);
+                    await loadStatus();
+                } else {
+                    log('error', `Training failed: ${response.message}`);
+                }
+            } catch (error) {
+                log('error', `Training error: ${error.message}`);
+            } finally {
+                setLoading('train', false);
+            }
+        }
+
+        // Test the model
+        async function testModel() {
+            setLoading('test', true);
+            log('info', 'Running model tests...');
+            
+            try {
+                const response = await wixData.call('nodeNlpWebMethods', 'testNlpModel');
+                
+                if (response.success) {
+                    log('success', `Model testing completed`);
+                    log('success', `Total tests: ${response.totalTests}`);
+                    log('success', `Passed tests: ${response.passedTests}`);
+                    
+                    // Display test results
+                    response.results.forEach(result => {
+                        const status = result.success && result.confidence > 0.7 ? 'success' : 'error';
+                        log(status, `"${result.input}" → ${result.intent} (${(result.confidence * 100).toFixed(1)}%)`);
+                    });
+                } else {
+                    log('error', `Testing failed: ${response.error}`);
+                }
+            } catch (error) {
+                log('error', `Testing error: ${error.message}`);
+            } finally {
+                setLoading('test', false);
+            }
+        }
+
+        // Test single input
+        async function testInput() {
+            const input = document.getElementById('testInput').value.trim();
+            if (!input) {
+                log('error', 'Please enter text to test');
+                return;
+            }
+            
+            log('info', `Testing input: "${input}"`);
+            
+            try {
+                const response = await wixData.call('nodeNlpWebMethods', 'processNlpInput', input);
+                
+                if (response.success) {
+                    log('success', `Result: ${response.intent} (${(response.confidence * 100).toFixed(1)}% confidence)`);
+                    
+                    // Display result
+                    document.getElementById('resultIntent').textContent = response.intent;
+                    document.getElementById('resultConfidence').textContent = `${(response.confidence * 100).toFixed(1)}%`;
+                    document.getElementById('testResults').classList.remove('hidden');
+                } else {
+                    log('error', `Processing failed: ${response.error}`);
+                }
+            } catch (error) {
+                log('error', `Processing error: ${error.message}`);
+            }
+        }
+
+        // Load model status
+        async function loadStatus() {
+            try {
+                const response = await wixData.call('nodeNlpWebMethods', 'getNlpModelStatus');
+                
+                if (response.success) {
+                    const status = response.status;
+                    
+                    // Update status badge
+                    const statusElement = document.getElementById('modelStatus');
+                    statusElement.textContent = status.status;
+                    statusElement.className = `status-badge status-${status.status}`;
+                    
+                    // Update other fields
+                    document.getElementById('modelVersion').textContent = status.version;
+                    document.getElementById('lastTraining').textContent = status.lastTraining ? 
+                        new Date(status.lastTraining).toLocaleString() : 'Never';
+                    document.getElementById('trainingExamples').textContent = status.trainingExamples;
+                }
+            } catch (error) {
+                log('error', `Status loading error: ${error.message}`);
+            }
+        }
+
+        // Utility functions
+        function setLoading(button, loading) {
+            const textElement = document.getElementById(`${button}Text`);
+            const loadingElement = document.getElementById(`${button}Loading`);
+            
+            if (loading) {
+                textElement.classList.add('hidden');
+                loadingElement.classList.remove('hidden');
+            } else {
+                textElement.classList.remove('hidden');
+                loadingElement.classList.add('hidden');
+            }
+        }
+
+        function log(type, message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', function() {
+            log('info', 'Node-NLP Admin Console loaded');
+            loadStatus();
+        });
+
+        // Handle Enter key in test input
+        document.getElementById('testInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                testInput();
+            }
+        });
+    </script>
+</body>
+</html>
