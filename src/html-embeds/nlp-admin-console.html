@@ -366,21 +366,15 @@
             log('info', 'Initializing Node-NLP system...');
             
             try {
-                const response = await wixData.call('nodeNlpWebMethods', 'initializeNlpSystem');
+                // Send message to parent (Wix page) to call the web method
+                window.parent.postMessage({
+                    action: 'initializeNlpSystem',
+                    timestamp: new Date().toISOString()
+                }, '*');
                 
-                if (response.success) {
-                    log('success', `System initialized: ${response.message}`);
-                    if (response.wasTraining) {
-                        log('success', `Model trained with version ${response.version}`);
-                    }
-                    isInitialized = true;
-                    await loadStatus();
-                } else {
-                    log('error', `Initialization failed: ${response.message}`);
-                }
+                log('info', 'Initialization request sent to Wix page');
             } catch (error) {
                 log('error', `Initialization error: ${error.message}`);
-            } finally {
                 setLoading('init', false);
             }
         }
@@ -391,19 +385,15 @@
             log('info', 'Training model with minimal data...');
             
             try {
-                const response = await wixData.call('nodeNlpWebMethods', 'trainNlpModel');
+                // Send message to parent (Wix page) to call the web method
+                window.parent.postMessage({
+                    action: 'trainNlpModel',
+                    timestamp: new Date().toISOString()
+                }, '*');
                 
-                if (response.success) {
-                    log('success', `Model trained successfully: ${response.message}`);
-                    log('success', `Training time: ${response.trainingTime}ms`);
-                    log('success', `Model version: ${response.version}`);
-                    await loadStatus();
-                } else {
-                    log('error', `Training failed: ${response.message}`);
-                }
+                log('info', 'Training request sent to Wix page');
             } catch (error) {
                 log('error', `Training error: ${error.message}`);
-            } finally {
                 setLoading('train', false);
             }
         }
@@ -414,24 +404,15 @@
             log('info', 'Running model tests...');
             
             try {
-                const response = await wixData.call('nodeNlpWebMethods', 'testNlpModel');
+                // Send message to parent (Wix page) to call the web method
+                window.parent.postMessage({
+                    action: 'testNlpModel',
+                    timestamp: new Date().toISOString()
+                }, '*');
                 
-                if (response.success) {
-                    log('success', `Model testing completed`);
-                    log('success', `Total tests: ${response.totalTests}`);
-                    log('success', `Passed tests: ${response.passedTests}`);
-                    
-                    // Display test results
-                    response.results.forEach(result => {
-                        const status = result.success && result.confidence > 0.7 ? 'success' : 'error';
-                        log(status, `"${result.input}" → ${result.intent} (${(result.confidence * 100).toFixed(1)}%)`);
-                    });
-                } else {
-                    log('error', `Testing failed: ${response.error}`);
-                }
+                log('info', 'Testing request sent to Wix page');
             } catch (error) {
                 log('error', `Testing error: ${error.message}`);
-            } finally {
                 setLoading('test', false);
             }
         }
@@ -447,18 +428,14 @@
             log('info', `Testing input: "${input}"`);
             
             try {
-                const response = await wixData.call('nodeNlpWebMethods', 'processNlpInput', input);
+                // Send message to parent (Wix page) to call the web method
+                window.parent.postMessage({
+                    action: 'processNlpInput',
+                    input: input,
+                    timestamp: new Date().toISOString()
+                }, '*');
                 
-                if (response.success) {
-                    log('success', `Result: ${response.intent} (${(response.confidence * 100).toFixed(1)}% confidence)`);
-                    
-                    // Display result
-                    document.getElementById('resultIntent').textContent = response.intent;
-                    document.getElementById('resultConfidence').textContent = `${(response.confidence * 100).toFixed(1)}%`;
-                    document.getElementById('testResults').classList.remove('hidden');
-                } else {
-                    log('error', `Processing failed: ${response.error}`);
-                }
+                log('info', 'Input test request sent to Wix page');
             } catch (error) {
                 log('error', `Processing error: ${error.message}`);
             }
@@ -467,22 +444,13 @@
         // Load model status
         async function loadStatus() {
             try {
-                const response = await wixData.call('nodeNlpWebMethods', 'getNlpModelStatus');
+                // Send message to parent (Wix page) to call the web method
+                window.parent.postMessage({
+                    action: 'getNlpModelStatus',
+                    timestamp: new Date().toISOString()
+                }, '*');
                 
-                if (response.success) {
-                    const status = response.status;
-                    
-                    // Update status badge
-                    const statusElement = document.getElementById('modelStatus');
-                    statusElement.textContent = status.status;
-                    statusElement.className = `status-badge status-${status.status}`;
-                    
-                    // Update other fields
-                    document.getElementById('modelVersion').textContent = status.version;
-                    document.getElementById('lastTraining').textContent = status.lastTraining ? 
-                        new Date(status.lastTraining).toLocaleString() : 'Never';
-                    document.getElementById('trainingExamples').textContent = status.trainingExamples;
-                }
+                log('info', 'Status request sent to Wix page');
             } catch (error) {
                 log('error', `Status loading error: ${error.message}`);
             }
@@ -511,6 +479,114 @@
             
             logElement.appendChild(logEntry);
             logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        // Handle messages from Wix page
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.action) {
+                handleWixResponse(event.data);
+            }
+        });
+
+        // Handle responses from Wix page
+        function handleWixResponse(data) {
+            switch (data.action) {
+                case 'initializeNlpSystem':
+                    handleInitializeResponse(data);
+                    break;
+                case 'trainNlpModel':
+                    handleTrainResponse(data);
+                    break;
+                case 'testNlpModel':
+                    handleTestResponse(data);
+                    break;
+                case 'processNlpInput':
+                    handleProcessResponse(data);
+                    break;
+                case 'getNlpModelStatus':
+                    handleStatusResponse(data);
+                    break;
+            }
+        }
+
+        // Handle initialize response
+        function handleInitializeResponse(data) {
+            setLoading('init', false);
+            if (data.success) {
+                log('success', `System initialized: ${data.message}`);
+                if (data.wasTraining) {
+                    log('success', `Model trained with version ${data.version}`);
+                }
+                isInitialized = true;
+                loadStatus();
+            } else {
+                log('error', `Initialization failed: ${data.message}`);
+            }
+        }
+
+        // Handle train response
+        function handleTrainResponse(data) {
+            setLoading('train', false);
+            if (data.success) {
+                log('success', `Model trained successfully: ${data.message}`);
+                log('success', `Training time: ${data.trainingTime}ms`);
+                log('success', `Model version: ${data.version}`);
+                loadStatus();
+            } else {
+                log('error', `Training failed: ${data.message}`);
+            }
+        }
+
+        // Handle test response
+        function handleTestResponse(data) {
+            setLoading('test', false);
+            if (data.success) {
+                log('success', `Model testing completed`);
+                log('success', `Total tests: ${data.totalTests}`);
+                log('success', `Passed tests: ${data.passedTests}`);
+                
+                // Display test results
+                data.results.forEach(result => {
+                    const status = result.success && result.confidence > 0.7 ? 'success' : 'error';
+                    log(status, `"${result.input}" → ${result.intent} (${(result.confidence * 100).toFixed(1)}%)`);
+                });
+            } else {
+                log('error', `Testing failed: ${data.error}`);
+            }
+        }
+
+        // Handle process response
+        function handleProcessResponse(data) {
+            if (data.success) {
+                log('success', `Result: ${data.intent} (${(data.confidence * 100).toFixed(1)}% confidence)`);
+                
+                // Display result
+                document.getElementById('resultIntent').textContent = data.intent;
+                document.getElementById('resultConfidence').textContent = `${(data.confidence * 100).toFixed(1)}%`;
+                document.getElementById('testResults').classList.remove('hidden');
+            } else {
+                log('error', `Processing failed: ${data.error}`);
+            }
+        }
+
+        // Handle status response
+        function handleStatusResponse(data) {
+            if (data.success) {
+                const status = data.status;
+                
+                // Update status badge
+                const statusElement = document.getElementById('modelStatus');
+                statusElement.textContent = status.status;
+                statusElement.className = `status-badge status-${status.status}`;
+                
+                // Update other fields
+                document.getElementById('modelVersion').textContent = status.version;
+                document.getElementById('lastTraining').textContent = status.lastTraining ? 
+                    new Date(status.lastTraining).toLocaleString() : 'Never';
+                document.getElementById('trainingExamples').textContent = status.trainingExamples;
+            } else {
+                log('error', `Status loading failed: ${data.error}`);
+            }
         }
 
         // Initialize on load
