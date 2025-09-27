@@ -1,145 +1,124 @@
-// nodeNlpWebMethods.web.js - Web methods for Node-NLP admin interface
-// Exposes training, testing, and status functions to the frontend
+// nodeNlpWebMethods.web.js - Web methods for Node-NLP management
 
 import { webMethod, Permissions } from 'wix-web-module';
-import { nodeNlpManager } from './nodeNlpManager';
 import { Logger } from '../logger';
+import nodeNlpManager from './nodeNlpManager';
 
-// Get model status
-export const getNlpModelStatus = webMethod(Permissions.Anyone, async () => {
-    try {
-        Logger.info('nodeNlpWebMethods', 'getNlpModelStatus', 'Getting model status');
-        
-        const status = await nodeNlpManager.getModelStatus();
-        
-        return {
-            success: true,
-            status: status,
-            timestamp: new Date().toISOString()
-        };
-        
-    } catch (error) {
-        Logger.error('nodeNlpWebMethods', 'getNlpModelStatus', error);
-        return {
-            success: false,
-            error: error.message,
-            status: {
-                status: 'error',
-                version: '0.0.0',
-                lastTraining: null,
-                trainingExamples: 0
-            }
-        };
-    }
-});
-
-// Train the model
-export const trainNlpModel = webMethod(Permissions.Anyone, async () => {
-    try {
-        Logger.info('nodeNlpWebMethods', 'trainNlpModel', 'Starting model training');
-        
-        const result = await nodeNlpManager.trainWithMinimalData();
-        
-        return {
-            success: result.success,
-            message: result.message,
-            trainingTime: result.trainingTime,
-            version: result.version,
-            timestamp: new Date().toISOString()
-        };
-        
-    } catch (error) {
-        Logger.error('nodeNlpWebMethods', 'trainNlpModel', error);
-        return {
-            success: false,
-            message: 'Training failed: ' + error.message,
-            timestamp: new Date().toISOString()
-        };
-    }
-});
-
-// Test the model
-export const testNlpModel = webMethod(Permissions.Anyone, async () => {
-    try {
-        Logger.info('nodeNlpWebMethods', 'testNlpModel', 'Starting model testing');
-        
-        const result = await nodeNlpManager.testModel();
-        
-        return {
-            success: result.success,
-            results: result.results,
-            totalTests: result.totalTests,
-            passedTests: result.passedTests,
-            timestamp: new Date().toISOString()
-        };
-        
-    } catch (error) {
-        Logger.error('nodeNlpWebMethods', 'testNlpModel', error);
-        return {
-            success: false,
-            error: error.message,
-            results: [],
-            timestamp: new Date().toISOString()
-        };
-    }
-});
-
-// Process single input
-export const processNlpInput = webMethod(Permissions.Anyone, async (input) => {
-    try {
-        if (!input || typeof input !== 'string') {
-            return {
-                success: false,
-                error: 'Input required',
-                timestamp: new Date().toISOString()
-            };
-        }
-        
-        Logger.info('nodeNlpWebMethods', 'processNlpInput', `Processing: "${input}"`);
-        
-        const result = await nodeNlpManager.processInput(input);
-        
-        return {
-            success: result.success,
-            intent: result.intent,
-            confidence: result.confidence,
-            processingTime: result.processingTime,
-            originalText: result.originalText,
-            timestamp: new Date().toISOString()
-        };
-        
-    } catch (error) {
-        Logger.error('nodeNlpWebMethods', 'processNlpInput', error);
-        return {
-            success: false,
-            error: error.message,
-            originalText: input,
-            timestamp: new Date().toISOString()
-        };
-    }
-});
-
-// Initialize the system
 export const initializeNlpSystem = webMethod(Permissions.Anyone, async () => {
     try {
         Logger.info('nodeNlpWebMethods', 'initializeNlpSystem', 'Initializing NLP system');
         
-        const result = await nodeNlpManager.initialize();
+        await nodeNlpManager.initialize();
+        const status = nodeNlpManager.getStatus();
         
         return {
-            success: result.success,
-            message: result.message,
-            wasTraining: result.wasTraining,
-            version: result.version,
-            timestamp: new Date().toISOString()
+            success: true,
+            message: 'NLP system initialized successfully',
+            status: status
         };
         
     } catch (error) {
         Logger.error('nodeNlpWebMethods', 'initializeNlpSystem', error);
         return {
             success: false,
-            message: 'Initialization failed: ' + error.message,
-            timestamp: new Date().toISOString()
+            error: error.message
+        };
+    }
+});
+
+export const trainNlpModel = webMethod(Permissions.Anyone, async () => {
+    try {
+        Logger.info('nodeNlpWebMethods', 'trainNlpModel', 'Training NLP model');
+        
+        const success = await nodeNlpManager.train();
+        
+        if (success) {
+            return {
+                success: true,
+                message: 'Model trained successfully',
+                status: nodeNlpManager.getStatus()
+            };
+        } else {
+            return {
+                success: false,
+                error: 'Training failed'
+            };
+        }
+        
+    } catch (error) {
+        Logger.error('nodeNlpWebMethods', 'trainNlpModel', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+});
+
+export const testNlpModel = webMethod(Permissions.Anyone, async () => {
+    try {
+        Logger.info('nodeNlpWebMethods', 'testNlpModel', 'Testing NLP model');
+        
+        const results = await nodeNlpManager.testModel();
+        
+        return {
+            success: true,
+            results: results,
+            totalTests: results.length,
+            successfulTests: results.filter(r => r.confidence > 0.5).length
+        };
+        
+    } catch (error) {
+        Logger.error('nodeNlpWebMethods', 'testNlpModel', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+});
+
+export const processNlpInput = webMethod(Permissions.Anyone, async (input) => {
+    try {
+        if (!input) {
+            return {
+                success: false,
+                error: 'Input is required'
+            };
+        }
+        
+        Logger.info('nodeNlpWebMethods', 'processNlpInput', `Processing input: ${input}`);
+        
+        const result = await nodeNlpManager.processInput(input);
+        
+        return {
+            success: true,
+            result: result
+        };
+        
+    } catch (error) {
+        Logger.error('nodeNlpWebMethods', 'processNlpInput', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+});
+
+export const getNlpModelStatus = webMethod(Permissions.Anyone, async () => {
+    try {
+        Logger.info('nodeNlpWebMethods', 'getNlpModelStatus', 'Getting NLP model status');
+        
+        const status = nodeNlpManager.getStatus();
+        
+        return {
+            success: true,
+            status: status
+        };
+        
+    } catch (error) {
+        Logger.error('nodeNlpWebMethods', 'getNlpModelStatus', error);
+        return {
+            success: false,
+            error: error.message
         };
     }
 });

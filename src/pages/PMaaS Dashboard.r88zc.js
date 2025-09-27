@@ -33,7 +33,19 @@ function setupHTMLCommunication() {
         console.log('Event data:', data);
         console.log('Action:', action);
         
-        if (action) {
+        if (action === 'ready') {
+            console.log('HTML embed is ready!');
+            // Send a response back (like working chat UI)
+            htmlElement.postMessage({
+                action: 'initialize',
+                message: 'Velo received your ready message',
+                timestamp: new Date().toISOString()
+            });
+            // Also load status
+            setTimeout(() => {
+                handleHTMLCall({ action: 'getNLPModelStatus', requestId: 'auto_status' }, htmlElement);
+            }, 500);
+        } else if (action) {
             console.log(`Processing action: ${action}`);
             handleHTMLCall(data, htmlElement);
         } else {

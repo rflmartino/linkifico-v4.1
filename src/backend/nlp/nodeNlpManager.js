@@ -8,247 +8,214 @@ import { Logger } from '../logger';
 const REDIS_KEYS = {
     MODEL: 'nlp:model',
     VERSION: 'nlp:version',
-    STATUS: 'nlp:status'
+    TRAINING_DATA: 'nlp:training_data'
 };
 
-export class NodeNlpManager {
+class NodeNlpManager {
     constructor() {
-        this.manager = new NlpManager({ languages: ['en'] });
+        this.nlpManager = null;
         this.isInitialized = false;
-        this.modelVersion = '1.0.0';
-        Logger.info('nodeNlpManager', 'constructor', 'Node-NLP Manager initialized');
+        this.isTrained = false;
+        this.version = '1.0.0';
     }
 
-    // Initialize the manager and load existing model
     async initialize() {
+        if (this.isInitialized) return;
+
         try {
-            Logger.info('nodeNlpManager', 'initialize', 'Starting initialization');
+            Logger.info('nodeNlpManager', 'initialize', 'Initializing Node-NLP manager');
             
-            // Try to load existing model from Redis
-            const existingModel = await this.loadModelFromRedis();
-            if (existingModel) {
-                Logger.info('nodeNlpManager', 'initialize', 'Loaded existing model from Redis');
-                this.isInitialized = true;
-                return { success: true, message: 'Model loaded from Redis', wasTraining: false };
+            this.nlpManager = new NlpManager({ 
+                languages: ['en'],
+                forceNER: true,
+                autoSave: false,
+                autoLoad: false
+            });
+
+            // Try to load existing model
+            const modelLoaded = await this.loadModel();
+            if (!modelLoaded) {
+                Logger.info('nodeNlpManager', 'initialize', 'No existing model found, will train new one');
             }
 
-            // If no existing model, train with minimal data
-            Logger.info('nodeNlpManager', 'initialize', 'No existing model found, training with minimal data');
-            const trainingResult = await this.trainWithMinimalData();
-            
             this.isInitialized = true;
-            return trainingResult;
+            Logger.info('nodeNlpManager', 'initialize', 'Node-NLP manager initialized successfully');
             
         } catch (error) {
             Logger.error('nodeNlpManager', 'initialize', error);
-            return { success: false, message: 'Initialization failed: ' + error.message };
-        }
-    }
-
-    // Train with minimal data for testing
-    async trainWithMinimalData() {
-        try {
-            Logger.info('nodeNlpManager', 'trainWithMinimalData', 'Starting minimal training');
-            
-            // Clear existing model
-            this.manager = new NlpManager({ languages: ['en'] });
-            
-            // Add minimal training data
-            this.addMinimalTrainingData();
-            
-            // Train the model
-            const startTime = Date.now();
-            await this.manager.train();
-            const trainingTime = Date.now() - startTime;
-            
-            // Save to Redis
-            await this.saveModelToRedis();
-            
-            Logger.info('nodeNlpManager', 'trainWithMinimalData', `Training completed in ${trainingTime}ms`);
-            
-            return {
-                success: true,
-                message: `Model trained with minimal data in ${trainingTime}ms`,
-                wasTraining: true,
-                trainingTime: trainingTime,
-                version: this.modelVersion
-            };
-            
-        } catch (error) {
-            Logger.error('nodeNlpManager', 'trainWithMinimalData', error);
-            return { success: false, message: 'Training failed: ' + error.message };
-        }
-    }
-
-    // Add minimal training data
-    addMinimalTrainingData() {
-        // Project creation intents
-        this.manager.addDocument('en', 'create a new project', 'project_creation');
-        this.manager.addDocument('en', 'start new project', 'project_creation');
-        this.manager.addDocument('en', 'create a hardware store project', 'project_creation');
-        this.manager.addDocument('en', 'create a mobile app project', 'project_creation');
-        
-        // Task management intents
-        this.manager.addDocument('en', 'update task 3', 'task_update');
-        this.manager.addDocument('en', 'mark task complete', 'task_update');
-        this.manager.addDocument('en', 'task is done', 'task_update');
-        
-        // Budget questions
-        this.manager.addDocument('en', 'what is my budget', 'budget_question');
-        this.manager.addDocument('en', 'budget range', 'budget_question');
-        
-        // Status checks
-        this.manager.addDocument('en', 'project status', 'status_check');
-        this.manager.addDocument('en', 'show me the timeline', 'status_check');
-        
-        Logger.info('nodeNlpManager', 'addMinimalTrainingData', 'Added 10 training examples');
-    }
-
-    // Process input and get prediction
-    async processInput(text) {
-        try {
-            if (!this.isInitialized) {
-                await this.initialize();
-            }
-            
-            const startTime = Date.now();
-            const result = await this.manager.process('en', text);
-            const processingTime = Date.now() - startTime;
-            
-            Logger.info('nodeNlpManager', 'processInput', `Processed "${text}" in ${processingTime}ms`);
-            
-            return {
-                success: true,
-                intent: result.intent,
-                confidence: result.score,
-                processingTime: processingTime,
-                originalText: text
-            };
-            
-        } catch (error) {
-            Logger.error('nodeNlpManager', 'processInput', error);
-            return {
-                success: false,
-                error: error.message,
-                originalText: text
-            };
-        }
-    }
-
-    // Save model to Redis
-    async saveModelToRedis() {
-        try {
-            const client = await getRedisClient();
-            const modelData = this.manager.export();
-            
-            await client.set(REDIS_KEYS.MODEL, JSON.stringify(modelData));
-            await client.set(REDIS_KEYS.VERSION, this.modelVersion);
-            await client.set(REDIS_KEYS.STATUS, JSON.stringify({
-                status: 'trained',
-                version: this.modelVersion,
-                lastTraining: new Date().toISOString(),
-                trainingExamples: 10
-            }));
-            
-            Logger.info('nodeNlpManager', 'saveModelToRedis', 'Model saved to Redis');
-            
-        } catch (error) {
-            Logger.error('nodeNlpManager', 'saveModelToRedis', error);
             throw error;
         }
     }
 
-    // Load model from Redis
-    async loadModelFromRedis() {
+    async train() {
         try {
-            const client = await getRedisClient();
-            const modelData = await client.get(REDIS_KEYS.MODEL);
+            Logger.info('nodeNlpManager', 'train', 'Starting model training');
             
-            if (modelData) {
-                const parsedModel = JSON.parse(modelData);
-                this.manager.import(parsedModel);
-                Logger.info('nodeNlpManager', 'loadModelFromRedis', 'Model loaded from Redis');
-                return true;
+            if (!this.nlpManager) {
+                await this.initialize();
             }
-            
-            return false;
-            
+
+            // Minimal training data
+            const trainingData = [
+                { text: 'create a new project', intent: 'project.create' },
+                { text: 'add tasks to my project', intent: 'tasks.create' },
+                { text: 'set budget to 10000', intent: 'budget.set' },
+                { text: 'what is the project status', intent: 'project.status' },
+                { text: 'yes that looks good', intent: 'response.positive' },
+                { text: 'no change it', intent: 'response.negative' },
+                { text: 'help me', intent: 'general.help' },
+                { text: 'thanks', intent: 'general.thanks' },
+                { text: 'show timeline', intent: 'timeline.query' },
+                { text: 'add team member', intent: 'stakeholder.add' }
+            ];
+
+            // Add training data
+            for (const example of trainingData) {
+                this.nlpManager.addDocument('en', example.text, example.intent);
+            }
+
+            // Add responses
+            this.nlpManager.addAnswer('en', 'project.create', 'I\'ll help you create a new project.');
+            this.nlpManager.addAnswer('en', 'tasks.create', 'Let me add tasks to your project.');
+            this.nlpManager.addAnswer('en', 'budget.set', 'I\'ll set your budget.');
+            this.nlpManager.addAnswer('en', 'project.status', 'Here\'s your project status.');
+            this.nlpManager.addAnswer('en', 'response.positive', 'Great! Let\'s continue.');
+            this.nlpManager.addAnswer('en', 'response.negative', 'I\'ll make those changes.');
+            this.nlpManager.addAnswer('en', 'general.help', 'I\'m here to help you.');
+            this.nlpManager.addAnswer('en', 'general.thanks', 'You\'re welcome!');
+            this.nlpManager.addAnswer('en', 'timeline.query', 'Here\'s your timeline.');
+            this.nlpManager.addAnswer('en', 'stakeholder.add', 'I\'ll add a team member.');
+
+            // Train the model
+            await this.nlpManager.train();
+            this.isTrained = true;
+
+            // Save to Redis
+            await this.saveModel();
+
+            Logger.info('nodeNlpManager', 'train', 'Model training completed successfully');
+            return true;
+
         } catch (error) {
-            Logger.error('nodeNlpManager', 'loadModelFromRedis', error);
+            Logger.error('nodeNlpManager', 'train', error);
+            throw error;
+        }
+    }
+
+    async processInput(input) {
+        try {
+            if (!this.nlpManager || !this.isTrained) {
+                await this.initialize();
+            }
+
+            const result = await this.nlpManager.process('en', input);
+            
+            return {
+                intent: result.intent,
+                confidence: result.score,
+                answer: result.answer,
+                entities: result.entities || []
+            };
+
+        } catch (error) {
+            Logger.error('nodeNlpManager', 'processInput', error);
+            return {
+                intent: 'general.help',
+                confidence: 0.1,
+                answer: 'I\'m having trouble understanding that.',
+                entities: []
+            };
+        }
+    }
+
+    async saveModel() {
+        try {
+            if (!this.nlpManager || !this.isTrained) {
+                throw new Error('No trained model to save');
+            }
+
+            const redis = getRedisClient();
+            const modelData = this.nlpManager.export(true);
+            
+            await redis.set(REDIS_KEYS.MODEL, modelData);
+            await redis.set(REDIS_KEYS.VERSION, this.version);
+            
+            Logger.info('nodeNlpManager', 'saveModel', 'Model saved to Redis successfully');
+            return true;
+
+        } catch (error) {
+            Logger.error('nodeNlpManager', 'saveModel', error);
             return false;
         }
     }
 
-    // Get model status
-    async getModelStatus() {
+    async loadModel() {
         try {
-            const client = await getRedisClient();
-            const statusData = await client.get(REDIS_KEYS.STATUS);
+            const redis = getRedisClient();
+            const modelData = await redis.get(REDIS_KEYS.MODEL);
             
-            if (statusData) {
-                return JSON.parse(statusData);
+            if (!modelData) {
+                Logger.info('nodeNlpManager', 'loadModel', 'No model found in Redis');
+                return false;
             }
+
+            if (!this.nlpManager) {
+                this.nlpManager = new NlpManager({ 
+                    languages: ['en'],
+                    forceNER: true,
+                    autoSave: false,
+                    autoLoad: false
+                });
+            }
+
+            this.nlpManager.import(modelData);
+            this.isTrained = true;
             
-            return {
-                status: 'not_trained',
-                version: '0.0.0',
-                lastTraining: null,
-                trainingExamples: 0
-            };
-            
+            Logger.info('nodeNlpManager', 'loadModel', 'Model loaded from Redis successfully');
+            return true;
+
         } catch (error) {
-            Logger.error('nodeNlpManager', 'getModelStatus', error);
-            return {
-                status: 'error',
-                version: '0.0.0',
-                lastTraining: null,
-                trainingExamples: 0,
-                error: error.message
-            };
+            Logger.error('nodeNlpManager', 'loadModel', error);
+            return false;
         }
     }
 
-    // Test the model with sample inputs
+    getStatus() {
+        return {
+            isInitialized: this.isInitialized,
+            isTrained: this.isTrained,
+            version: this.version,
+            hasModel: !!this.nlpManager
+        };
+    }
+
     async testModel() {
         try {
             const testCases = [
                 'create a new project',
-                'update task 3',
-                'what is my budget',
-                'project status'
+                'add tasks',
+                'set budget to 5000',
+                'yes that looks good',
+                'help me'
             ];
-            
+
             const results = [];
-            
             for (const testCase of testCases) {
                 const result = await this.processInput(testCase);
                 results.push({
                     input: testCase,
                     intent: result.intent,
-                    confidence: result.confidence,
-                    success: result.success
+                    confidence: result.confidence
                 });
             }
-            
-            Logger.info('nodeNlpManager', 'testModel', `Tested ${results.length} cases`);
-            
-            return {
-                success: true,
-                results: results,
-                totalTests: results.length,
-                passedTests: results.filter(r => r.success && r.confidence > 0.7).length
-            };
-            
+
+            return results;
+
         } catch (error) {
             Logger.error('nodeNlpManager', 'testModel', error);
-            return {
-                success: false,
-                error: error.message,
-                results: []
-            };
+            return [];
         }
     }
 }
 
-// Export singleton instance
-export const nodeNlpManager = new NodeNlpManager();
+export default new NodeNlpManager();
