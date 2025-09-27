@@ -496,9 +496,7 @@
         // Handle messages from Wix page
         window.addEventListener('message', function(event) {
             console.log('HTML: Received message from parent:', event.data);
-            if (event.data && event.data.action === 'initialize') {
-                log('success', `Connection established: ${event.data.message}`);
-            } else if (event.data && event.data.action) {
+            if (event.data && event.data.action) {
                 handleWixResponse(event.data);
             }
         });
@@ -635,15 +633,7 @@
         // Initialize on load
         document.addEventListener('DOMContentLoaded', function() {
             log('info', 'Node-NLP Admin Console loaded');
-            
-            // Send ready message to parent (like working chat UI)
-            window.parent.postMessage({
-                action: 'ready',
-                message: 'NLP Admin Console is ready',
-                timestamp: new Date().toISOString()
-            }, '*');
-            
-            log('info', 'Ready message sent to Wix page');
+            log('info', 'Ready to train and test your NLP model');
         });
 
         // Handle Enter key in test input

@@ -33,19 +33,7 @@ function setupHTMLCommunication() {
         console.log('Event data:', data);
         console.log('Action:', action);
         
-        if (action === 'ready') {
-            console.log('HTML embed is ready!');
-            // Send a response back (like working chat UI)
-            htmlElement.postMessage({
-                action: 'initialize',
-                message: 'Velo received your ready message',
-                timestamp: new Date().toISOString()
-            });
-            // Also load status
-            setTimeout(() => {
-                handleHTMLCall({ action: 'getNLPModelStatus', requestId: 'auto_status' }, htmlElement);
-            }, 500);
-        } else if (action) {
+        if (action) {
             console.log(`Processing action: ${action}`);
             handleHTMLCall(data, htmlElement);
         } else {
@@ -54,22 +42,6 @@ function setupHTMLCommunication() {
     });
     
     console.log('HTML communication setup complete');
-    
-    // Test the connection
-    setTimeout(() => {
-        console.log('Testing HTML element connection...');
-        if (htmlElement) {
-            console.log('HTML element found, sending test message...');
-            htmlElement.postMessage({
-                action: 'test',
-                message: 'Connection test from Velo',
-                timestamp: new Date().toISOString()
-            });
-            console.log('Test message sent to HTML element');
-        } else {
-            console.error('HTML element not found for testing');
-        }
-    }, 2000);
 }
 
 /**
