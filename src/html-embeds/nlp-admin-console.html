@@ -318,17 +318,13 @@
 
             <!-- Actions Section -->
             <div class="actions">
-                <button class="btn btn-primary" onclick="initializeSystem()">
-                    <span id="initText">🚀 Initialize System</span>
-                    <span id="initLoading" class="loading hidden"></span>
+                <button class="btn btn-primary" onclick="testBasicFunction()">
+                    <span id="basicText">🔧 Test Basic Function</span>
+                    <span id="basicLoading" class="loading hidden"></span>
                 </button>
-                <button class="btn btn-success" onclick="trainModel()">
-                    <span id="trainText">🎯 Train Model</span>
-                    <span id="trainLoading" class="loading hidden"></span>
-                </button>
-                <button class="btn btn-warning" onclick="testModel()">
-                    <span id="testText">🧪 Test Model</span>
-                    <span id="testLoading" class="loading hidden"></span>
+                <button class="btn btn-success" onclick="testNodeNlpImport()">
+                    <span id="importText">📦 Test Node-NLP Import</span>
+                    <span id="importLoading" class="loading hidden"></span>
                 </button>
             </div>
 
@@ -360,41 +356,41 @@
         // Global variables
         let isInitialized = false;
 
-        // Initialize the system
-        async function initializeSystem() {
-            setLoading('init', true);
-            log('info', 'Initializing Node-NLP system...');
+        // Test basic function
+        async function testBasicFunction() {
+            setLoading('basic', true);
+            log('info', 'Testing basic function...');
             
             try {
                 // Send message to parent (Wix page) to call the web method
                 window.parent.postMessage({
-                    action: 'initializeNlpSystem',
+                    action: 'testBasicFunction',
                     timestamp: new Date().toISOString()
                 }, '*');
                 
-                log('info', 'Initialization request sent to Wix page');
+                log('info', 'Basic function test request sent to Wix page');
             } catch (error) {
-                log('error', `Initialization error: ${error.message}`);
-                setLoading('init', false);
+                log('error', `Basic function test error: ${error.message}`);
+                setLoading('basic', false);
             }
         }
 
-        // Train the model
-        async function trainModel() {
-            setLoading('train', true);
-            log('info', 'Training model with minimal data...');
+        // Test Node-NLP import
+        async function testNodeNlpImport() {
+            setLoading('import', true);
+            log('info', 'Testing Node-NLP import...');
             
             try {
                 // Send message to parent (Wix page) to call the web method
                 window.parent.postMessage({
-                    action: 'trainNlpModel',
+                    action: 'testNodeNlpImport',
                     timestamp: new Date().toISOString()
                 }, '*');
                 
-                log('info', 'Training request sent to Wix page');
+                log('info', 'Node-NLP import test request sent to Wix page');
             } catch (error) {
-                log('error', `Training error: ${error.message}`);
-                setLoading('train', false);
+                log('error', `Node-NLP import test error: ${error.message}`);
+                setLoading('import', false);
             }
         }
 
@@ -441,19 +437,9 @@
             }
         }
 
-        // Load model status
+        // Load model status (simplified for testing)
         async function loadStatus() {
-            try {
-                // Send message to parent (Wix page) to call the web method
-                window.parent.postMessage({
-                    action: 'getNlpModelStatus',
-                    timestamp: new Date().toISOString()
-                }, '*');
-                
-                log('info', 'Status request sent to Wix page');
-            } catch (error) {
-                log('error', `Status loading error: ${error.message}`);
-            }
+            log('info', 'Status loading disabled for testing');
         }
 
         // Utility functions
@@ -491,49 +477,32 @@
         // Handle responses from Wix page
         function handleWixResponse(data) {
             switch (data.action) {
-                case 'initializeNlpSystem':
-                    handleInitializeResponse(data);
+                case 'testBasicFunction':
+                    handleBasicTestResponse(data);
                     break;
-                case 'trainNlpModel':
-                    handleTrainResponse(data);
-                    break;
-                case 'testNlpModel':
-                    handleTestResponse(data);
-                    break;
-                case 'processNlpInput':
-                    handleProcessResponse(data);
-                    break;
-                case 'getNlpModelStatus':
-                    handleStatusResponse(data);
+                case 'testNodeNlpImport':
+                    handleImportTestResponse(data);
                     break;
             }
         }
 
-        // Handle initialize response
-        function handleInitializeResponse(data) {
-            setLoading('init', false);
+        // Handle basic test response
+        function handleBasicTestResponse(data) {
+            setLoading('basic', false);
             if (data.success) {
-                log('success', `System initialized: ${data.message}`);
-                if (data.wasTraining) {
-                    log('success', `Model trained with version ${data.version}`);
-                }
-                isInitialized = true;
-                loadStatus();
+                log('success', `Basic function test: ${data.message}`);
             } else {
-                log('error', `Initialization failed: ${data.message}`);
+                log('error', `Basic function test failed: ${data.error}`);
             }
         }
 
-        // Handle train response
-        function handleTrainResponse(data) {
-            setLoading('train', false);
+        // Handle import test response
+        function handleImportTestResponse(data) {
+            setLoading('import', false);
             if (data.success) {
-                log('success', `Model trained successfully: ${data.message}`);
-                log('success', `Training time: ${data.trainingTime}ms`);
-                log('success', `Model version: ${data.version}`);
-                loadStatus();
+                log('success', `Node-NLP import test: ${data.message}`);
             } else {
-                log('error', `Training failed: ${data.message}`);
+                log('error', `Node-NLP import test failed: ${data.error}`);
             }
         }
 

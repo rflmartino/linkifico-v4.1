@@ -2,12 +2,9 @@
 // This page hosts the Node-NLP training and testing interface
 
 import { 
-    initializeNlpSystem as initNlpSystem,
-    trainNlpModel,
-    testNlpModel,
-    processNlpInput,
-    getNlpModelStatus
-} from 'backend/nlp/nodeNlpWebMethods';
+    testBasicFunction,
+    testNodeNlpImport
+} from './backend/nlp/nodeNlpTest';
 
 $w.onReady(function () {
     console.log('PMaaS Dashboard page ready - Node-NLP Admin Console');
@@ -37,20 +34,11 @@ async function handleHtmlEmbedMessage(event) {
         let response;
         
         switch (action) {
-            case 'initializeNlpSystem':
-                response = await initNlpSystem();
+            case 'testBasicFunction':
+                response = await testBasicFunction();
                 break;
-            case 'trainNlpModel':
-                response = await trainNlpModel();
-                break;
-            case 'testNlpModel':
-                response = await testNlpModel();
-                break;
-            case 'processNlpInput':
-                response = await processNlpInput(input);
-                break;
-            case 'getNlpModelStatus':
-                response = await getNlpModelStatus();
+            case 'testNodeNlpImport':
+                response = await testNodeNlpImport();
                 break;
             default:
                 response = { success: false, error: 'Unknown action' };
