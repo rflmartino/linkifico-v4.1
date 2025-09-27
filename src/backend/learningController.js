@@ -155,76 +155,23 @@ Respond in JSON format:
                 return result;
             }
             
-            // Fallback to individual methods if combined call fails
-            const interactionAnalysis = await this.analyzeInteractionPatterns(userMessage, execution, chatHistory);
-            const learningInsights = await this.generateLearningInsights(learningData, interactionAnalysis);
-            
-            Logger.info('learningController', 'timing:analyzeAndGenerateInsights:fallbackMs', { ms: Date.now() - methodStart });
-            return { interactionAnalysis, learningInsights };
+            // Fallback to simple logic if combined call fails
+            return this.getFallbackAnalysisAndInsights(userMessage, execution, learningData);
             
         } catch (error) {
             console.error('Error in combined learning analysis:', error);
-            // Fallback to individual methods
-            const interactionAnalysis = await this.analyzeInteractionPatterns(userMessage, execution, chatHistory);
-            const learningInsights = await this.generateLearningInsights(learningData, interactionAnalysis);
-            
-            Logger.info('learningController', 'timing:analyzeAndGenerateInsights:errorMs', { ms: Date.now() - methodStart });
-            return { interactionAnalysis, learningInsights };
+            // Fallback to simple logic
+            return this.getFallbackAnalysisAndInsights(userMessage, execution, learningData);
         }
     },
     
-    // Analyze interaction patterns
-    async analyzeInteractionPatterns(userMessage, execution, chatHistory) {
-        try {
-            const methodStart = Date.now();
-            const prompt = `Analyze these interaction patterns for learning insights:
-
-User Message: "${userMessage}"
-Execution Result: ${JSON.stringify(execution, null, 2)}
-Chat History Length: ${chatHistory ? chatHistory.length : 0}
-
-Analyze and provide insights in JSON format:
-{
-    "responseQuality": "high|medium|low",
-    "engagementLevel": "high|medium|low",
-    "communicationStyle": "detailed|brief|mixed",
-    "preferredQuestionType": "direct|exploratory|contextual",
-    "responseTime": "immediate|thoughtful|delayed",
-    "informationDensity": "high|medium|low",
-    "clarityLevel": "clear|unclear|mixed",
-    "cooperationLevel": "high|medium|low"
-}`;
-
-            const response = await callClaude(prompt);
-            
-            // Parse JSON response
-            const jsonMatch = response.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                const result = JSON.parse(jsonMatch[0]);
-                Logger.info('learningController', 'timing:analyzeInteractionPatterns:apiCallMs', { ms: Date.now() - methodStart });
-                return result;
-            }
-            
-            // Fallback analysis
-            const fallbackResult = this.fallbackInteractionAnalysis(userMessage, execution);
-            Logger.info('learningController', 'timing:analyzeInteractionPatterns:fallbackMs', { ms: Date.now() - methodStart });
-            return fallbackResult;
-            
-        } catch (error) {
-            console.error('Error analyzing interaction patterns:', error);
-            const fallbackResult = this.fallbackInteractionAnalysis(userMessage, execution);
-            Logger.info('learningController', 'timing:analyzeInteractionPatterns:errorMs', { ms: Date.now() - methodStart });
-            return fallbackResult;
-        }
-    },
-    
-    // Fallback interaction analysis
-    fallbackInteractionAnalysis(userMessage, execution) {
+    // Fallback analysis and insights when AI fails
+    getFallbackAnalysisAndInsights(userMessage, execution, learningData) {
         const messageLength = userMessage.length;
         const hasQuestions = userMessage.includes('?');
         const hasDetails = messageLength > 100;
         
-        return {
+        const interactionAnalysis = {
             responseQuality: messageLength > 50 ? 'high' : messageLength > 20 ? 'medium' : 'low',
             engagementLevel: messageLength > 100 ? 'high' : messageLength > 50 ? 'medium' : 'low',
             communicationStyle: hasDetails ? 'detailed' : 'brief',
@@ -234,6 +181,25 @@ Analyze and provide insights in JSON format:
             clarityLevel: messageLength > 50 ? 'clear' : 'unclear',
             cooperationLevel: messageLength > 30 ? 'high' : 'medium'
         };
+        
+        const learningInsights = {
+            userProfile: {
+                communicationStyle: interactionAnalysis.communicationStyle,
+                engagementPattern: interactionAnalysis.engagementLevel,
+                preferredApproach: interactionAnalysis.preferredQuestionType
+            },
+            systemImprovements: [
+                'Continue monitoring user patterns',
+                'Adapt question style based on responses'
+            ],
+            adaptationRecommendations: [
+                'Maintain current approach',
+                'Monitor for pattern changes'
+            ],
+            effectivenessScore: 0.7
+        };
+        
+        return { interactionAnalysis, learningInsights };
     },
     
     // Update user patterns based on interaction analysis
@@ -449,76 +415,6 @@ Analyze and provide insights in JSON format:
         }
         
         return Math.min(Math.max(effectiveness, 0.0), 1.0);
-    },
-    
-    // Generate learning insights
-    async generateLearningInsights(learningData, interactionAnalysis) {
-        try {
-            const methodStart = Date.now();
-            const prompt = `Generate learning insights from this user interaction data:
-
-Learning Data: ${JSON.stringify(learningData, null, 2)}
-Interaction Analysis: ${JSON.stringify(interactionAnalysis, null, 2)}
-
-Provide insights in JSON format:
-{
-    "userProfile": {
-        "communicationStyle": "summary of user's communication style",
-        "engagementPattern": "how user typically engages",
-        "preferredApproach": "what approach works best"
-    },
-    "systemImprovements": [
-        "improvement1",
-        "improvement2"
-    ],
-    "adaptationRecommendations": [
-        "recommendation1", 
-        "recommendation2"
-    ],
-    "effectivenessScore": 0.0-1.0
-}`;
-
-            const response = await callClaude(prompt);
-            
-            // Parse JSON response
-            const jsonMatch = response.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                const result = JSON.parse(jsonMatch[0]);
-                Logger.info('learningController', 'timing:generateLearningInsights:apiCallMs', { ms: Date.now() - methodStart });
-                return result;
-            }
-            
-            // Fallback insights
-            const fallbackResult = this.generateFallbackInsights(learningData, interactionAnalysis);
-            Logger.info('learningController', 'timing:generateLearningInsights:fallbackMs', { ms: Date.now() - methodStart });
-            return fallbackResult;
-            
-        } catch (error) {
-            console.error('Error generating learning insights:', error);
-            const fallbackResult = this.generateFallbackInsights(learningData, interactionAnalysis);
-            Logger.info('learningController', 'timing:generateLearningInsights:errorMs', { ms: Date.now() - methodStart });
-            return fallbackResult;
-        }
-    },
-    
-    // Generate fallback insights
-    generateFallbackInsights(learningData, interactionAnalysis) {
-        return {
-            userProfile: {
-                communicationStyle: interactionAnalysis.communicationStyle || 'mixed',
-                engagementPattern: interactionAnalysis.engagementLevel || 'medium',
-                preferredApproach: interactionAnalysis.preferredQuestionType || 'direct'
-            },
-            systemImprovements: [
-                'Continue monitoring user patterns',
-                'Adapt question style based on responses'
-            ],
-            adaptationRecommendations: [
-                'Maintain current approach',
-                'Monitor for pattern changes'
-            ],
-            effectivenessScore: 0.7
-        };
     },
     
     // Update reflection log

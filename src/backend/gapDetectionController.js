@@ -163,74 +163,20 @@ Respond in JSON format:
                 return parsed;
             }
 
-            // Fallback to individual methods if combined call fails
-            const gapAnalysis = await this.analyzeGapCriticality(projectData, analysis, missingFields);
-            const prioritizedGaps = await this.prioritizeGaps(gapAnalysis, projectData, analysis);
-            const nextAction = await this.determineNextAction(prioritizedGaps, projectData, analysis);
-            
-            return { gapAnalysis, prioritizedGaps, nextAction };
+            // Fallback to simple logic if combined call fails
+            return this.getFallbackGapAnalysisAndAction(missingFields);
             
         } catch (error) {
             console.error('Error in combined gap analysis:', error);
-            // Fallback to individual methods
-            const gapAnalysis = await this.analyzeGapCriticality(projectData, analysis, missingFields);
-            const prioritizedGaps = await this.prioritizeGaps(gapAnalysis, projectData, analysis);
-            const nextAction = await this.determineNextAction(prioritizedGaps, projectData, analysis);
-            
-            return { gapAnalysis, prioritizedGaps, nextAction };
+            // Fallback to simple logic
+            return this.getFallbackGapAnalysisAndAction(missingFields);
         }
     },
     
-    // Analyze gap criticality using AI
-    async analyzeGapCriticality(projectData, analysis, missingFields) {
-        try {
-            const prompt = `Analyze these project gaps and determine their criticality:
-
-Project Data: ${JSON.stringify(projectData, null, 2)}
-Analysis: ${JSON.stringify(analysis, null, 2)}
-Missing Fields: ${JSON.stringify(missingFields, null, 2)}
-
-For each missing field, provide:
-1. Criticality level (critical|high|medium|low)
-2. Impact on project success (blocks_everything|blocks_planning|blocks_execution|minor_impact)
-3. Dependencies (what other gaps this depends on)
-4. Reasoning (why this gap matters)
-
-Respond in JSON format:
-{
-    "gaps": [
-        {
-            "field": "scope",
-            "criticality": "critical",
-            "impact": "blocks_everything",
-            "dependencies": [],
-            "reasoning": "Without scope, cannot plan timeline, budget, or deliverables"
-        }
-    ]
-}`;
-
-            const parsed = await askClaudeJSON({
-                user: prompt,
-                system: "You are an expert project management analyst. Return ONLY valid JSON with the requested structure.",
-                model: 'claude-3-5-haiku-latest',
-                maxTokens: 1000
-            });
-
-            if (parsed && parsed.gaps) {
-                return parsed;
-            }
-
-            return this.getFallbackGapAnalysis(missingFields);
-            
-        } catch (error) {
-            console.error('Error analyzing gap criticality:', error);
-            return this.getFallbackGapAnalysis(missingFields);
-        }
-    },
-    
-    // Fallback gap analysis when AI fails
-    getFallbackGapAnalysis(missingFields) {
+    // Fallback gap analysis and action when AI fails
+    getFallbackGapAnalysisAndAction(missingFields) {
         const gaps = [];
+        const prioritizedGaps = [];
         
         missingFields.forEach(field => {
             switch (field) {
@@ -242,6 +188,7 @@ Respond in JSON format:
                         dependencies: [],
                         reasoning: 'Project scope is fundamental - cannot plan without it'
                     });
+                    prioritizedGaps.push('scope');
                     break;
                 case PROJECT_FIELDS.TIMELINE:
                     gaps.push({
@@ -251,6 +198,7 @@ Respond in JSON format:
                         dependencies: ['scope'],
                         reasoning: 'Timeline drives all project planning and resource allocation'
                     });
+                    prioritizedGaps.push('timeline');
                     break;
                 case PROJECT_FIELDS.BUDGET:
                     gaps.push({
@@ -260,6 +208,7 @@ Respond in JSON format:
                         dependencies: ['scope'],
                         reasoning: 'Budget constraints affect scope and resource decisions'
                     });
+                    prioritizedGaps.push('budget');
                     break;
                 case PROJECT_FIELDS.DELIVERABLES:
                     gaps.push({
@@ -269,6 +218,7 @@ Respond in JSON format:
                         dependencies: ['scope', 'timeline'],
                         reasoning: 'Deliverables define what needs to be produced'
                     });
+                    prioritizedGaps.push('deliverables');
                     break;
                 case PROJECT_FIELDS.DEPENDENCIES:
                     gaps.push({
@@ -278,151 +228,66 @@ Respond in JSON format:
                         dependencies: ['scope', 'timeline'],
                         reasoning: 'Dependencies identify what blocks project progress'
                     });
+                    prioritizedGaps.push('dependencies');
                     break;
             }
         });
         
-        return { gaps: gaps };
-    },
-    
-    // Prioritize gaps by impact and dependencies
-    async prioritizeGaps(gapAnalysis, projectData, analysis) {
-        try {
-            if (!gapAnalysis || !gapAnalysis.gaps) {
-                return Object.values(PROJECT_FIELDS);
-            }
-            
-            // Sort gaps by criticality and dependencies
-            const sortedGaps = gapAnalysis.gaps.sort((a, b) => {
-                // Criticality priority
-                const criticalityOrder = { 'critical': 4, 'high': 3, 'medium': 2, 'low': 1 };
-                const aCrit = criticalityOrder[a.criticality] || 0;
-                const bCrit = criticalityOrder[b.criticality] || 0;
-                
-                if (aCrit !== bCrit) {
-                    return bCrit - aCrit;
-                }
-                
-                // Dependency priority (fewer dependencies = higher priority)
-                return a.dependencies.length - b.dependencies.length;
-            });
-            
-            return sortedGaps.map(gap => gap.field);
-            
-        } catch (error) {
-            console.error('Error prioritizing gaps:', error);
-            return Object.values(PROJECT_FIELDS);
-        }
-    },
-    
-    // Determine next optimal action
-    async determineNextAction(prioritizedGaps, projectData, analysis) {
-        try {
-            if (!prioritizedGaps || prioritizedGaps.length === 0) {
-                return {
-                    action: 'project_complete',
-                    reasoning: 'All critical gaps have been addressed'
-                };
-            }
-            
-            const topGap = prioritizedGaps[0];
-            
-            // Generate specific action based on gap
-            const action = await this.generateSpecificAction(topGap, projectData, analysis);
-            
-            return action;
-            
-        } catch (error) {
-            console.error('Error determining next action:', error);
-            return {
-                action: 'ask_about_scope',
-                reasoning: 'Error in action planning - defaulting to scope question'
-            };
-        }
-    },
-    
-    // Generate specific action for a gap
-    async generateSpecificAction(gap, projectData, analysis) {
-        try {
-            const prompt = `Generate a specific, targeted question to address this project gap:
-
-Gap: ${gap}
-Project Data: ${JSON.stringify(projectData, null, 2)}
-Analysis: ${JSON.stringify(analysis, null, 2)}
-
-Generate a question that:
-1. Is specific and actionable
-2. Addresses the exact gap
-3. Is appropriate for the project context
-4. Helps gather the most critical missing information
-
-Respond with JSON:
-{
-    "action": "ask_about_[gap]",
-    "question": "Specific question to ask",
-    "reasoning": "Why this question is most important now"
-}`;
-
-            const parsed = await askClaudeJSON({
-                user: prompt,
-                system: "Return ONLY valid JSON with fields: action, question, reasoning.",
-                model: 'claude-3-5-haiku-latest',
-                maxTokens: 800
-            });
-
-            if (parsed && parsed.action && parsed.question) {
-                return parsed;
-            }
-
-            return this.getFallbackAction(gap);
-            
-        } catch (error) {
-            console.error('Error generating specific action:', error);
-            return this.getFallbackAction(gap);
-        }
-    },
-    
-    // Fallback actions when AI fails
-    getFallbackAction(gap) {
-        switch (gap) {
-            case PROJECT_FIELDS.SCOPE:
-                return {
+        // Determine next action based on top priority gap
+        const topGap = prioritizedGaps[0];
+        let nextAction;
+        
+        switch (topGap) {
+            case 'scope':
+                nextAction = {
                     action: 'ask_about_scope',
                     question: 'What exactly are you trying to accomplish with this project?',
                     reasoning: 'Project scope is fundamental - need to understand the goal'
                 };
-            case PROJECT_FIELDS.TIMELINE:
-                return {
+                break;
+            case 'timeline':
+                nextAction = {
                     action: 'ask_about_timeline',
                     question: 'When do you need this project completed?',
                     reasoning: 'Timeline drives all planning and resource allocation'
                 };
-            case PROJECT_FIELDS.BUDGET:
-                return {
+                break;
+            case 'budget':
+                nextAction = {
                     action: 'ask_about_budget',
                     question: 'What budget do you have available for this project?',
                     reasoning: 'Budget constraints affect scope and approach decisions'
                 };
-            case PROJECT_FIELDS.DELIVERABLES:
-                return {
+                break;
+            case 'deliverables':
+                nextAction = {
                     action: 'ask_about_deliverables',
                     question: 'What specific outputs or results do you need from this project?',
                     reasoning: 'Deliverables define what needs to be produced'
                 };
-            case PROJECT_FIELDS.DEPENDENCIES:
-                return {
+                break;
+            case 'dependencies':
+                nextAction = {
                     action: 'ask_about_dependencies',
                     question: 'What external factors or resources does this project depend on?',
                     reasoning: 'Dependencies identify potential blockers and requirements'
                 };
+                break;
             default:
-                return {
+                nextAction = {
                     action: 'ask_about_scope',
                     question: 'What exactly are you trying to accomplish with this project?',
                     reasoning: 'Default to scope question for unknown gaps'
                 };
         }
+        
+        return {
+            gapAnalysis: { gaps: gaps },
+            prioritizedGaps: prioritizedGaps,
+            nextAction: nextAction
+        };
     },
+    
     
     // Calculate overall priority score
     calculatePriorityScore(prioritizedGaps) {
