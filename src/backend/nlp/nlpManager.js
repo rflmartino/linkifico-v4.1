@@ -2,19 +2,8 @@
 // Your trained model will persist forever in Redis
 
 // @ts-ignore - no types
-// COMMENTED OUT - PROBLEMATIC IMPORT
-// const { NlpManager } = require('node-nlp');
-
-// STUB FOR TESTING
-const NlpManager = class {
-    constructor() { this.isStub = true; }
-    addDocument() { return true; }
-    addAnswer() { return true; }
-    train() { return Promise.resolve(); }
-    process() { return Promise.resolve({ intent: 'stub', score: 0.5 }); }
-    export() { return '{}'; }
-    import() { return true; }
-};
+// Use ES6 import syntax instead of require
+import { NlpManager } from 'node-nlp';
 import { createClient } from 'redis';
 import { getSecret } from 'wix-secrets-backend';
 import { Logger } from '../logger.js';
@@ -41,15 +30,14 @@ class LinkificoNLPManager {
 
         try {
             Logger.log('nlpManager', 'initialize', 'Starting NLP Manager initialization');
-            console.log('[NLP-MANAGER] Initialization started');
 
             // Initialize Redis connection
-            console.log('[NLP-MANAGER] Initializing Redis connection...');
+            Logger.log('nlpManager', 'initialize', 'Initializing Redis connection');
             await this.initRedis();
-            console.log('[NLP-MANAGER] Redis connection established');
+            Logger.log('nlpManager', 'initialize', 'Redis connection established');
 
             // Initialize NLP Manager with NO FILE SYSTEM settings
-            console.log('[NLP-MANAGER] Creating NlpManager instance...');
+            Logger.log('nlpManager', 'initialize', 'Creating NlpManager instance');
             this.nlpManager = new NlpManager({
                 languages: ['en'],
                 forceNER: true,
