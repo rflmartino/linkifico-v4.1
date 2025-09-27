@@ -50,9 +50,9 @@ export const trainNLPModel = webMethod(Permissions.Anyone, async () => {
  */
 export const getNLPModelStatus = webMethod(Permissions.Anyone, async () => {
     try {
-        Logger.log('nlpWebMethods', 'getNLPModelStatus', 'Getting model status via web method');
+        console.log('[NLP-WEB-METHODS] getNLPModelStatus called');
         const result = await getModelStatus();
-        Logger.log('nlpWebMethods', 'getNLPModelStatus', 'Model status retrieved successfully');
+        console.log('[NLP-WEB-METHODS] getNLPModelStatus result:', JSON.stringify(result, null, 2));
         return result;
         
     } catch (error) {
