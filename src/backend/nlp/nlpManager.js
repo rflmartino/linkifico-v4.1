@@ -25,7 +25,7 @@ class LinkificoNLPManager {
         this.modelKey = 'linkifico:nlp:model:permanent';  // Changed key for permanence
         this.modelVersionKey = 'linkifico:nlp:version:permanent';
         this.modelBackupKey = 'linkifico:nlp:model:backup'; // Backup copy
-        this.currentVersion = '1.0.5'; // Will be incremented by reset function when needed
+        this.currentVersion = '1.0.5'; // Base version, will be updated from Redis
         this.confidenceThreshold = 0.7;
         this.isInitialized = false;
         this.isTraining = false;
@@ -47,6 +47,9 @@ class LinkificoNLPManager {
 
             // Initialize Redis connection
             await this.initRedis();
+
+            // Load current version from Redis first
+            await this.loadCurrentVersion();
 
             // Create NLP Manager instance
             this.nlpManager = new NlpManager({
@@ -101,6 +104,25 @@ class LinkificoNLPManager {
         } catch (error) {
             Logger.error('nlpManager', 'initRedis', error);
             throw error;
+        }
+    }
+
+    /**
+     * Load current version from Redis
+     */
+    async loadCurrentVersion() {
+        try {
+            await this.initRedis();
+            const savedVersion = await this.redis.get(this.modelVersionKey);
+            if (savedVersion) {
+                this.currentVersion = savedVersion;
+                Logger.log('nlpManager', 'loadCurrentVersion', `Loaded version from Redis: ${this.currentVersion}`);
+            } else {
+                Logger.log('nlpManager', 'loadCurrentVersion', `No saved version in Redis, using default: ${this.currentVersion}`);
+            }
+        } catch (error) {
+            Logger.error('nlpManager', 'loadCurrentVersion', error);
+            // Keep default version if Redis fails
         }
     }
 
