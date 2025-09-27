@@ -167,6 +167,9 @@ class LinkificoNLPManager {
 
             // Save model to Redis PERMANENTLY
             await this.saveModel();
+            
+            // Reload the model from Redis to ensure it's available for immediate testing
+            await this.loadModel();
 
             this.isTraining = false;
             return true;
@@ -381,10 +384,14 @@ class LinkificoNLPManager {
             await this.initialize();
         }
         
-        // If no model is trained, don't auto-train - wait for user action
+        // If no model is trained, try to load from Redis
         if (!this.isModelTrained) {
-            Logger.log('nlpManager', 'ensureModelReady', 'No trained model - ready for user to train');
-            return;
+            Logger.log('nlpManager', 'ensureModelReady', 'No trained model in memory - checking Redis');
+            const loaded = await this.loadModel();
+            if (!loaded) {
+                Logger.log('nlpManager', 'ensureModelReady', 'No trained model - ready for user to train');
+                return;
+            }
         }
     }
 

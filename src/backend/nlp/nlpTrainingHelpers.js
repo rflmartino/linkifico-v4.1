@@ -349,6 +349,9 @@ export async function resetModelAndIncrementVersion() {
         nlpManager.isTraining = false;
         nlpManager.isModelTrained = false;
         
+        // Reinitialize the NLP manager to ensure clean state
+        nlpManager.isInitialized = false;
+        
         Logger.log('nlpTrainingHelpers', 'resetModelAndIncrementVersion', `Version incremented to ${nlpManager.currentVersion}`);
         
         return {
