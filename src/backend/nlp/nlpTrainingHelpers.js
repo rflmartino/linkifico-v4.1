@@ -9,7 +9,7 @@ import nlpManager from './nlpManager.js';
  */
 export async function getModelStatus() {
     try {
-        // Get model status
+        Logger.log('nlpTrainingHelpers', 'getModelStatus', 'Getting safe model status');
         
         // SAFE: Only return simple, serializable data
         const stats = {
@@ -32,19 +32,22 @@ export async function getModelStatus() {
             }
         };
         
-        console.log(`📊 Model Status: v${stats.version}, ${stats.totalExamples} examples, ${stats.totalIntents} intents`);
+        Logger.log('nlpTrainingHelpers', 'getModelStatus', `Returning safe stats: v${stats.version}, ${stats.totalExamples} examples`);
         
-        return {
+        // CRITICAL: Return only plain JSON objects
+        const result = {
             success: true,
-            stats: JSON.parse(JSON.stringify(stats))
+            stats: JSON.parse(JSON.stringify(stats)) // Force clean serialization
         };
+        
+        return result;
         
     } catch (error) {
         Logger.error('nlpTrainingHelpers', 'getModelStatus', error);
         return {
             success: false,
             error: error.message,
-            stats: { 
+            stats: {
                 isReady: false,
                 systemReady: false,
                 error: error.message
