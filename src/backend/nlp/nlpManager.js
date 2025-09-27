@@ -332,7 +332,7 @@ class LinkificoNLPManager {
      * Check if the model has been trained
      */
     hasTrainedModel() {
-        return this.isModelTrained && this.nlpManager;
+        return this.isModelTrained && !!this.nlpManager;
     }
 
     async forceRetrain() {

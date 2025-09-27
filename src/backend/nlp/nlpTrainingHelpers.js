@@ -25,7 +25,7 @@ export async function getModelStatus() {
             categories: 1,
             currentTime: new Date().toISOString(),
             systemReady: true,
-            modelTrained: hasModel,
+            modelTrained: hasModel,  // Just true/false, not the full model object
             permanentStorage: true,
             fileSystemUsed: false,
             newFeatures: {
