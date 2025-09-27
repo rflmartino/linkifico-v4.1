@@ -10,6 +10,7 @@ import {
 } from 'backend/projectData';
 import { Logger } from 'backend/logger';
 import compromiseSentiment from 'backend/nlp/compromiseSentiment';
+import nlpManager from 'backend/nlp/nlpManager';
 
 async function callClaude(prompt, systemPrompt = null) {
     return await askClaude({
@@ -26,6 +27,43 @@ export const executionController = {
     async executeAction(projectId, userId, userMessage, actionPlan, projectData) {
         try {
             Logger.info('executionController', 'executeAction:start', { projectId, action: actionPlan?.action });
+            
+            // Step 1: Try NLP first with confidence gate
+            const nlpStart = Date.now();
+            const nlpResult = await this.tryNLPProcessing(userMessage, actionPlan, projectData);
+            Logger.info('executionController', 'timing:nlpProcessingMs', { ms: Date.now() - nlpStart });
+            
+            if (nlpResult.success) {
+                Logger.info('executionController', 'nlpSuccess', { 
+                    intent: nlpResult.intent, 
+                    confidence: nlpResult.confidence,
+                    usedNLP: true 
+                });
+                
+                // Update project data with NLP-extracted information
+                const updatedProjectData = await this.updateProjectData(projectId, projectData, nlpResult.extractedInfo);
+                
+                const result = {
+                    message: nlpResult.responseMessage,
+                    analysis: {
+                        extractedInfo: nlpResult.extractedInfo,
+                        updatedProjectData: updatedProjectData,
+                        shouldContinue: true,
+                        actionExecuted: nlpResult.action,
+                        confidence: nlpResult.confidence,
+                        usedNLP: true,
+                        intent: nlpResult.intent
+                    }
+                };
+                Logger.info('executionController', 'executeAction:end:nlp', { ok: true });
+                return result;
+            }
+            
+            // Step 2: Fallback to Haiku for low confidence or unknown intents
+            Logger.info('executionController', 'nlpFallback', { 
+                reason: nlpResult.reason,
+                usedNLP: false 
+            });
             
             // Analyze user sentiment to control verbosity
             const sentimentAnalysis = compromiseSentiment.analyzeForHaiku(userMessage);
@@ -53,10 +91,11 @@ export const executionController = {
                     updatedProjectData: updatedProjectData,
                     shouldContinue: shouldContinue,
                     actionExecuted: actionPlan.action,
-                    confidence: actionPlan.confidence
+                    confidence: actionPlan.confidence,
+                    usedNLP: false
                 }
             };
-            Logger.info('executionController', 'executeAction:end', { ok: true });
+            Logger.info('executionController', 'executeAction:end:haiku', { ok: true });
             return result;
             
         } catch (error) {
@@ -72,6 +111,155 @@ export const executionController = {
                 }
             };
         }
+    },
+    
+    // Try NLP processing first with confidence gate
+    async tryNLPProcessing(userMessage, actionPlan, projectData) {
+        try {
+            const confidenceThreshold = 0.8; // 80% confidence threshold
+            
+            // Get complete analysis from NLP (includes intent, confidence, and response)
+            const nlpResult = await nlpManager.processInput(userMessage);
+            
+            if (!nlpResult || nlpResult.confidence < confidenceThreshold) {
+                return {
+                    success: false,
+                    reason: `Low confidence: ${nlpResult?.confidence || 0} < ${confidenceThreshold}`,
+                    confidence: nlpResult?.confidence || 0
+                };
+            }
+            
+            // Check if NLP provided a response
+            if (!nlpResult.answer) {
+                return {
+                    success: false,
+                    reason: `No response from NLP for intent: ${nlpResult.intent}`,
+                    confidence: nlpResult.confidence
+                };
+            }
+            
+            // Extract information based on intent (simplified)
+            const extractedInfo = this.extractInfoFromIntent(nlpResult.intent, userMessage, actionPlan);
+            
+            return {
+                success: true,
+                intent: nlpResult.intent,
+                confidence: nlpResult.confidence,
+                responseMessage: nlpResult.answer, // Use the response from NLP
+                extractedInfo: extractedInfo,
+                action: nlpResult.mappedAction || actionPlan.action // Use mapped action from NLP
+            };
+            
+        } catch (error) {
+            Logger.error('executionController', 'tryNLPProcessing:error', error);
+            return {
+                success: false,
+                reason: `NLP error: ${error.message}`,
+                confidence: 0
+            };
+        }
+    },
+    
+    // Extract information from user message based on intent
+    extractInfoFromIntent(intent, userMessage, actionPlan) {
+        const extractedInfo = {
+            confidence: 0.8, // High confidence for NLP
+            extractionQuality: 'high',
+            additionalInfo: '',
+            needsClarification: []
+        };
+        
+        switch (intent) {
+            case 'scope.define':
+                extractedInfo.extractedFields = {
+                    scope: userMessage,
+                    timeline: null,
+                    budget: null,
+                    deliverables: [],
+                    dependencies: []
+                };
+                break;
+                
+            case 'budget.set':
+                // Extract budget numbers from message
+                const budgetMatch = userMessage.match(/\$?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/);
+                if (budgetMatch) {
+                    extractedInfo.extractedFields = {
+                        scope: null,
+                        timeline: null,
+                        budget: budgetMatch[1],
+                        deliverables: [],
+                        dependencies: []
+                    };
+                }
+                break;
+                
+            case 'timeline.set':
+                extractedInfo.extractedFields = {
+                    scope: null,
+                    timeline: userMessage,
+                    budget: null,
+                    deliverables: [],
+                    dependencies: []
+                };
+                break;
+                
+            case 'deliverables.define':
+                extractedInfo.extractedFields = {
+                    scope: null,
+                    timeline: null,
+                    budget: null,
+                    deliverables: [userMessage],
+                    dependencies: []
+                };
+                break;
+                
+            case 'dependencies.define':
+                extractedInfo.extractedFields = {
+                    scope: null,
+                    timeline: null,
+                    budget: null,
+                    deliverables: [],
+                    dependencies: [userMessage]
+                };
+                break;
+                
+            case 'response.positive':
+                extractedInfo.extractedFields = {
+                    scope: null,
+                    timeline: null,
+                    budget: null,
+                    deliverables: [],
+                    dependencies: []
+                };
+                extractedInfo.confirmation = true;
+                break;
+                
+            case 'response.negative':
+                extractedInfo.extractedFields = {
+                    scope: null,
+                    timeline: null,
+                    budget: null,
+                    deliverables: [],
+                    dependencies: []
+                };
+                extractedInfo.confirmation = false;
+                break;
+                
+            default:
+                // For other intents, try to extract basic info
+                extractedInfo.extractedFields = {
+                    scope: null,
+                    timeline: null,
+                    budget: null,
+                    deliverables: [],
+                    dependencies: []
+                };
+                extractedInfo.additionalInfo = userMessage;
+                break;
+        }
+        
+        return extractedInfo;
     },
     
     // Combined extraction and response generation in single API call
