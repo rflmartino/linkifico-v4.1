@@ -244,7 +244,7 @@ Respond in JSON format:
             
         } catch (error) {
             console.error('Error updating user patterns:', error);
-            Logger.info('learningController', 'timing:updateUserPatterns:errorMs', { ms: Date.now() - methodStart });
+            Logger.info('learningController', 'timing:updateUserPatterns:errorMs', { ms: Date.now() - Date.now() });
             return learningData.userPatterns || {};
         }
     },
@@ -376,7 +376,7 @@ Respond in JSON format:
             
         } catch (error) {
             console.error('Error tracking question effectiveness:', error);
-            Logger.info('learningController', 'timing:trackQuestionEffectiveness:errorMs', { ms: Date.now() - methodStart });
+            Logger.info('learningController', 'timing:trackQuestionEffectiveness:errorMs', { ms: Date.now() - Date.now() });
             return {
                 questionEffectiveness: learningData.questionEffectiveness || {},
                 interactionHistory: learningData.interactionHistory || []
@@ -449,7 +449,7 @@ Respond in JSON format:
             
         } catch (error) {
             console.error('Error updating reflection log:', error);
-            Logger.info('learningController', 'timing:updateReflectionLog:errorMs', { ms: Date.now() - methodStart });
+            Logger.info('learningController', 'timing:updateReflectionLog:errorMs', { ms: Date.now() - Date.now() });
         }
     },
     
