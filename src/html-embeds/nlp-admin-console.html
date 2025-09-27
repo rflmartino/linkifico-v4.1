@@ -367,8 +367,11 @@
             
             try {
                 // Send message to parent (Wix page) to call the web method
+                const requestId = 'init_' + Date.now();
                 window.parent.postMessage({
-                    action: 'initializeNlpSystem',
+                    type: 'HTML_TO_VELO',
+                    functionName: 'initializeNLP',
+                    requestId: requestId,
                     timestamp: new Date().toISOString()
                 }, '*');
                 
@@ -386,8 +389,11 @@
             
             try {
                 // Send message to parent (Wix page) to call the web method
+                const requestId = 'train_' + Date.now();
                 window.parent.postMessage({
-                    action: 'trainNlpModel',
+                    type: 'HTML_TO_VELO',
+                    functionName: 'trainNLPModel',
+                    requestId: requestId,
                     timestamp: new Date().toISOString()
                 }, '*');
                 
@@ -405,8 +411,11 @@
             
             try {
                 // Send message to parent (Wix page) to call the web method
+                const requestId = 'test_' + Date.now();
                 window.parent.postMessage({
-                    action: 'testNlpModel',
+                    type: 'HTML_TO_VELO',
+                    functionName: 'testNLPModel',
+                    requestId: requestId,
                     timestamp: new Date().toISOString()
                 }, '*');
                 
@@ -445,8 +454,11 @@
         async function loadStatus() {
             try {
                 // Send message to parent (Wix page) to call the web method
+                const requestId = 'status_' + Date.now();
                 window.parent.postMessage({
-                    action: 'getNlpModelStatus',
+                    type: 'HTML_TO_VELO',
+                    functionName: 'getNLPModelStatus',
+                    requestId: requestId,
                     timestamp: new Date().toISOString()
                 }, '*');
                 
@@ -490,50 +502,47 @@
 
         // Handle responses from Wix page
         function handleWixResponse(data) {
-            switch (data.action) {
-                case 'initializeNlpSystem':
+            console.log('HTML: Received response from Wix:', data);
+            
+            if (data.requestId) {
+                // Handle response by requestId
+                if (data.requestId.startsWith('init_')) {
                     handleInitializeResponse(data);
-                    break;
-                case 'trainNlpModel':
+                } else if (data.requestId.startsWith('train_')) {
                     handleTrainResponse(data);
-                    break;
-                case 'testNlpModel':
+                } else if (data.requestId.startsWith('test_')) {
                     handleTestResponse(data);
-                    break;
-                case 'processNlpInput':
-                    handleProcessResponse(data);
-                    break;
-                case 'getNlpModelStatus':
+                } else if (data.requestId.startsWith('status_')) {
                     handleStatusResponse(data);
-                    break;
+                }
             }
         }
 
         // Handle initialize response
         function handleInitializeResponse(data) {
             setLoading('init', false);
-            if (data.success) {
-                log('success', `System initialized: ${data.message}`);
-                if (data.wasTraining) {
-                    log('success', `Model trained with version ${data.version}`);
+            if (data.success && data.result) {
+                log('success', `System initialized: ${data.result.message}`);
+                if (data.result.wasTraining) {
+                    log('success', `Model trained with version ${data.result.stats.version}`);
                 }
                 isInitialized = true;
                 loadStatus();
             } else {
-                log('error', `Initialization failed: ${data.message}`);
+                log('error', `Initialization failed: ${data.error || 'Unknown error'}`);
             }
         }
 
         // Handle train response
         function handleTrainResponse(data) {
             setLoading('train', false);
-            if (data.success) {
-                log('success', `Model trained successfully: ${data.message}`);
-                log('success', `Training time: ${data.trainingTime}ms`);
-                log('success', `Model version: ${data.version}`);
+            if (data.success && data.result) {
+                log('success', `Model trained successfully: ${data.result.message}`);
+                log('success', `Training time: ${data.result.trainingTime}ms`);
+                log('success', `Model version: ${data.result.stats.version}`);
                 loadStatus();
             } else {
-                log('error', `Training failed: ${data.message}`);
+                log('error', `Training failed: ${data.error || 'Unknown error'}`);
             }
         }
 
@@ -551,8 +560,8 @@
 
         // Handle status response
         function handleStatusResponse(data) {
-            if (data.success && data.stats) {
-                const stats = data.stats;
+            if (data.success && data.result && data.result.stats) {
+                const stats = data.result.stats;
                 document.getElementById('modelVersion').textContent = stats.version || 'Unknown';
                 document.getElementById('trainingExamples').textContent = stats.totalExamples || 0;
                 document.getElementById('totalIntents').textContent = stats.totalIntents || 0;
@@ -568,18 +577,21 @@
         // Handle test response
         function handleTestResponse(data) {
             setLoading('test', false);
-            if (data.success) {
-                log('success', `Model testing completed`);
-                log('success', `Total tests: ${data.totalTests}`);
-                log('success', `Passed tests: ${data.passedTests}`);
+            if (data.success && data.result) {
+                log('success', `Model test completed: ${data.result.successRate}% success rate`);
+                log('success', `Average confidence: ${data.result.averageConfidence}`);
+                log('info', `Tested ${data.result.totalTests} cases, ${data.result.successfulTests} successful`);
                 
                 // Display test results
-                data.results.forEach(result => {
-                    const status = result.success && result.confidence > 0.7 ? 'success' : 'error';
-                    log(status, `"${result.input}" → ${result.intent} (${(result.confidence * 100).toFixed(1)}%)`);
-                });
+                if (data.result.results && data.result.results.length > 0) {
+                    log('info', 'Test Results:');
+                    data.result.results.forEach((result, index) => {
+                        const status = result.isHighConfidence ? '✅' : '⚠️';
+                        log('info', `${status} "${result.input}" -> ${result.intent} (${(result.confidence * 100).toFixed(1)}%)`);
+                    });
+                }
             } else {
-                log('error', `Testing failed: ${data.error}`);
+                log('error', `Testing failed: ${data.error || 'Unknown error'}`);
             }
         }
 
