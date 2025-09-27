@@ -3,11 +3,12 @@ import {
     trainNLPModel, 
     getNLPModelStatus, 
     testNLPModel, 
-    initializeNLP 
+    initializeNLP,
+    processNLPInput  // Add this web method
 } from 'backend/nlp/nlpWebMethods.web.js';
 
 import { logToBackend } from 'backend/webLogger.web.js';
-import { processSingleInput } from 'backend/nlp/nlpTrainingHelpers.js';
+// Remove: import { processSingleInput } from 'backend/nlp/nlpTrainingHelpers.js';
 
 $w.onReady(function () {
     try {
@@ -81,7 +82,7 @@ async function handleHTMLCall(data, htmlElement) {
                 break;
                 
             case 'processNlpInput':
-                result = await processSingleInput(data.input);
+                result = await processNLPInput(data.input);  // Use the web method
                 break;
                 
             case 'test':
