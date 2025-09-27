@@ -368,12 +368,15 @@
             try {
                 // Send message to parent (Wix page) to call the web method
                 const requestId = 'init_' + Date.now();
-                window.parent.postMessage({
-                    type: 'HTML_TO_VELO',
-                    functionName: 'initializeNLP',
+                const message = {
+                    action: 'initializeNLP',
                     requestId: requestId,
                     timestamp: new Date().toISOString()
-                }, '*');
+                };
+                
+                console.log('HTML: Sending message to parent:', message);
+                window.parent.postMessage(message, '*');
+                console.log('HTML: Message sent successfully');
                 
                 log('info', 'Initialization request sent to Wix page');
             } catch (error) {
@@ -391,8 +394,7 @@
                 // Send message to parent (Wix page) to call the web method
                 const requestId = 'train_' + Date.now();
                 window.parent.postMessage({
-                    type: 'HTML_TO_VELO',
-                    functionName: 'trainNLPModel',
+                    action: 'trainNLPModel',
                     requestId: requestId,
                     timestamp: new Date().toISOString()
                 }, '*');
@@ -413,8 +415,7 @@
                 // Send message to parent (Wix page) to call the web method
                 const requestId = 'test_' + Date.now();
                 window.parent.postMessage({
-                    type: 'HTML_TO_VELO',
-                    functionName: 'testNLPModel',
+                    action: 'testNLPModel',
                     requestId: requestId,
                     timestamp: new Date().toISOString()
                 }, '*');
@@ -456,8 +457,7 @@
                 // Send message to parent (Wix page) to call the web method
                 const requestId = 'status_' + Date.now();
                 window.parent.postMessage({
-                    type: 'HTML_TO_VELO',
-                    functionName: 'getNLPModelStatus',
+                    action: 'getNLPModelStatus',
                     requestId: requestId,
                     timestamp: new Date().toISOString()
                 }, '*');
@@ -495,6 +495,7 @@
 
         // Handle messages from Wix page
         window.addEventListener('message', function(event) {
+            console.log('HTML: Received message from parent:', event.data);
             if (event.data && event.data.action) {
                 handleWixResponse(event.data);
             }

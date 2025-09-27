@@ -27,27 +27,51 @@ function setupHTMLCommunication() {
     // Listen for messages from HTML element
     htmlElement.onMessage((event) => {
         console.log('Velo received message from HTML:', event);
+        const data = (event && event.data) || {};
+        const action = data.action;
         
-        if (event.data && event.data.type === 'HTML_TO_VELO') {
-            handleHTMLCall(event.data, htmlElement);
+        console.log('Event data:', data);
+        console.log('Action:', action);
+        
+        if (action) {
+            console.log(`Processing action: ${action}`);
+            handleHTMLCall(data, htmlElement);
+        } else {
+            console.log('Message not processed - no action field');
         }
     });
     
     console.log('HTML communication setup complete');
+    
+    // Test the connection
+    setTimeout(() => {
+        console.log('Testing HTML element connection...');
+        if (htmlElement) {
+            console.log('HTML element found, sending test message...');
+            htmlElement.postMessage({
+                action: 'test',
+                message: 'Connection test from Velo',
+                timestamp: new Date().toISOString()
+            });
+            console.log('Test message sent to HTML element');
+        } else {
+            console.error('HTML element not found for testing');
+        }
+    }, 2000);
 }
 
 /**
  * Handle function calls from HTML element
  */
 async function handleHTMLCall(data, htmlElement) {
-    const { functionName, args, requestId } = data;
+    const { action, args, requestId } = data;
     
     try {
-        console.log(`Velo: Handling call to ${functionName}`);
+        console.log(`Velo: Handling call to ${action}`);
         
         let result;
         
-        switch (functionName) {
+        switch (action) {
             case 'getNLPModelStatus':
                 result = await getNLPModelStatus();
                 break;
@@ -65,10 +89,10 @@ async function handleHTMLCall(data, htmlElement) {
                 break;
                 
             default:
-                throw new Error(`Unknown function: ${functionName}`);
+                throw new Error(`Unknown action: ${action}`);
         }
         
-        console.log(`Velo: ${functionName} completed successfully`);
+        console.log(`Velo: ${action} completed successfully`);
         
         // Send success response back to HTML - FIXED METHOD
         sendToHTML(htmlElement, {
@@ -78,7 +102,7 @@ async function handleHTMLCall(data, htmlElement) {
         });
         
     } catch (error) {
-        console.error(`Velo: Error calling ${functionName}:`, error);
+        console.error(`Velo: Error calling ${action}:`, error);
         
         // Send error response back to HTML - FIXED METHOD
         sendToHTML(htmlElement, {
