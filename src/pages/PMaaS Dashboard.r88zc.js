@@ -30,7 +30,8 @@ $w.onReady(function () {
 // Handle messages from HTML embed
 async function handleHtmlEmbedMessage(event) {
     try {
-        const { action, input, timestamp } = event;
+        // Extract data from the event structure
+        const { action, input, timestamp } = event.data || event;
         console.log(`Handling action: ${action}`);
         
         let response;
@@ -72,7 +73,7 @@ async function handleHtmlEmbedMessage(event) {
         const htmlEmbed = $w('#htmlNLPConsole');
         if (htmlEmbed) {
             htmlEmbed.postMessage({
-                action: event.action,
+                action: (event.data || event).action,
                 success: false,
                 error: error.message,
                 timestamp: new Date().toISOString()
