@@ -1,5 +1,5 @@
-// nlpTrainingHelpers.js - PRODUCTION READY VERSION
-// Completely isolated from model serialization issues
+// nlpTrainingHelpers.js - PURELY LAZY VERSION
+// No automatic initialization - only works when explicitly called
 
 import { Logger } from '../logger.js';
 import nlpManager from './nlpManager.js';
@@ -9,21 +9,23 @@ import nlpManager from './nlpManager.js';
  */
 export async function getModelStatus() {
     try {
-        Logger.log('nlpTrainingHelpers', 'getModelStatus', 'Getting safe model status');
-        console.log('[NLP-HELPERS] getModelStatus called');
+        Logger.log('nlpTrainingHelpers', 'getModelStatus', 'Getting model status - LAZY');
         
-        // SAFE: Only return simple, serializable data
+        // Check if manager is initialized (but don't initialize automatically)
+        const isInitialized = nlpManager.isInitialized;
+        const hasModel = nlpManager.hasTrainedModel();
+        
         const stats = {
-            isReady: true,
-            version: '1.0.5',  // Updated to match new nlpManager version
-            totalExamples: 10,  // Minimal training data
-            totalIntents: 10,   // Minimal intents
+            isReady: isInitialized,
+            version: '1.0.5',
+            totalExamples: hasModel ? 35 : 0,  // From training data file
+            totalIntents: hasModel ? 10 : 0,   // Number of intents
             confidenceThreshold: 0.7,
             lastTrainingTime: new Date().toISOString(),
-            categories: 1,  // Single category for testing
+            categories: 1,
             currentTime: new Date().toISOString(),
             systemReady: true,
-            modelTrained: true,
+            modelTrained: hasModel,
             permanentStorage: true,
             fileSystemUsed: false,
             newFeatures: {
@@ -33,23 +35,19 @@ export async function getModelStatus() {
             }
         };
         
-        Logger.log('nlpTrainingHelpers', 'getModelStatus', `Returning safe stats: v${stats.version}, ${stats.totalExamples} examples`);
-        console.log(`[NLP-HELPERS] Returning stats: v${stats.version}, ${stats.totalExamples} examples`);
+        Logger.log('nlpTrainingHelpers', 'getModelStatus', `Status: initialized=${isInitialized}, trained=${hasModel}`);
         
-        // CRITICAL: Return only plain JSON objects
-        const result = {
+        return {
             success: true,
-            stats: JSON.parse(JSON.stringify(stats)) // Force clean serialization
+            stats: JSON.parse(JSON.stringify(stats))
         };
-        console.log('[NLP-HELPERS] getModelStatus result:', JSON.stringify(result, null, 2));
-        return result;
         
     } catch (error) {
         Logger.error('nlpTrainingHelpers', 'getModelStatus', error);
         return {
             success: false,
             error: error.message,
-            stats: { 
+            stats: {
                 isReady: false,
                 systemReady: false,
                 error: error.message
@@ -63,23 +61,22 @@ export async function getModelStatus() {
  */
 export async function performNLPTraining() {
     try {
-        Logger.log('nlpTrainingHelpers', 'performNLPTraining', 'Starting safe training');
+        Logger.log('nlpTrainingHelpers', 'performNLPTraining', 'Starting training - USER REQUESTED');
         
         const startTime = Date.now();
         
-        // Initialize and train
+        // Initialize and train only when user requests it
         await nlpManager.initialize();
         const success = await nlpManager.forceRetrain();
         
         const trainingTime = Date.now() - startTime;
         
         if (success) {
-            // SAFE: Return only simple data, no model references
-            const safeStats = {
-                totalExamples: 10,  // Minimal count
-                totalIntents: 10,    // Minimal count
+            const stats = {
+                totalExamples: 35,  // From training data file
+                totalIntents: 10,   // Number of intents
                 version: '1.0.5',
-                categories: 1,      // Minimal count
+                categories: 1,
                 confidenceThreshold: 0.7,
                 isReady: true,
                 modelTrained: true,
@@ -94,8 +91,8 @@ export async function performNLPTraining() {
             return {
                 success: true,
                 trainingTime: trainingTime,
-                stats: JSON.parse(JSON.stringify(safeStats)), // Force clean serialization
-                message: `Training completed in ${trainingTime}ms with minimal test data`
+                stats: JSON.parse(JSON.stringify(stats)),
+                message: `Training completed in ${trainingTime}ms with ${stats.totalExamples} examples`
             };
         } else {
             return {
@@ -119,19 +116,21 @@ export async function performNLPTraining() {
  */
 export async function initializeNLPSystem() {
     try {
-        Logger.log('nlpTrainingHelpers', 'initializeNLPSystem', 'Initializing safely');
+        Logger.log('nlpTrainingHelpers', 'initializeNLPSystem', 'Initializing - USER REQUESTED');
         
+        // Initialize only when user requests it
         await nlpManager.initialize();
         
-        // SAFE: Return only simple data
-        const safeStats = {
-            totalExamples: 10,  // Minimal count
-            totalIntents: 10,    // Minimal count
+        const hasModel = nlpManager.hasTrainedModel();
+        
+        const stats = {
+            totalExamples: hasModel ? 35 : 0,
+            totalIntents: hasModel ? 10 : 0,
             version: '1.0.5',
-            categories: 1,      // Minimal count
+            categories: 1,
             confidenceThreshold: 0.7,
             isReady: true,
-            modelTrained: true,
+            modelTrained: hasModel,
             permanentStorage: true,
             newFeatures: {
                 sentimentAnalysis: false,
@@ -142,9 +141,9 @@ export async function initializeNLPSystem() {
         
         return {
             success: true,
-            message: 'NLP system initialized with minimal test data',
+            message: `NLP system initialized. Model trained: ${hasModel}`,
             wasTraining: false,
-            stats: JSON.parse(JSON.stringify(safeStats)) // Force clean serialization
+            stats: JSON.parse(JSON.stringify(stats))
         };
         
     } catch (error) {
@@ -162,8 +161,9 @@ export async function initializeNLPSystem() {
  */
 export async function testNLPSystem(customTestCases = null) {
     try {
-        Logger.log('nlpTrainingHelpers', 'testNLPSystem', 'Starting safe tests');
+        Logger.log('nlpTrainingHelpers', 'testNLPSystem', 'Starting tests - USER REQUESTED');
         
+        // Only initialize if user requests testing
         await nlpManager.ensureModelReady();
         
         const testCases = customTestCases || [
@@ -252,6 +252,7 @@ export async function processSingleInput(input) {
             };
         }
         
+        // Only initialize if user requests processing
         await nlpManager.ensureModelReady();
         const result = await nlpManager.processInput(input);
         
