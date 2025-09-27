@@ -299,16 +299,70 @@ class LinkificoNLPManager {
         }
     }
 
-    // Add other required methods as stubs
-    async processInput(text) {
-        return {
-            originalText: text,
-            intent: 'test.intent',
-            confidence: 0.8,
-            mappedIntent: 'TEST',
-            mappedAction: 'TEST',
-            isHighConfidence: true
-        };
+    /**
+     * Process user input and return intent analysis - REAL IMPLEMENTATION
+     */
+    async processInput(text, sessionContext = {}) {
+        try {
+            // Ensure model is ready
+            await this.ensureModelReady();
+
+            if (!this.nlpManager || !this.isModelTrained) {
+                throw new Error('NLP Manager not available or not trained');
+            }
+
+            Logger.log('nlpManager', 'processInput', `Processing: "${text}"`);
+
+            // Process the input with the real trained model
+            const result = await this.nlpManager.process('en', text);
+            
+            Logger.log('nlpManager', 'processInput', `Raw result: intent=${result.intent}, score=${result.score}`);
+            
+            // Extract relevant information
+            const analysis = {
+                originalText: text,
+                intent: result.intent,
+                confidence: result.score,
+                entities: result.entities || [],
+                sentiment: result.sentiment,
+                answer: result.answer,
+                
+                // Map to our action system
+                mappedIntent: null,
+                mappedAction: null,
+                isHighConfidence: result.score >= this.confidenceThreshold,
+                
+                // Additional context
+                language: result.language,
+                domain: result.domain,
+                classifications: result.classifications || []
+            };
+
+            Logger.log('nlpManager', 'processInput', {
+                text: text.substring(0, 50) + '...',
+                intent: analysis.intent,
+                confidence: analysis.confidence
+            });
+
+            return analysis;
+
+        } catch (error) {
+            Logger.error('nlpManager', 'processInput', error);
+            
+            // Return fallback analysis
+            return {
+                originalText: text,
+                intent: 'general.help',
+                confidence: 0.3,
+                entities: [],
+                sentiment: { score: 0, comparative: 0, vote: 'neutral' },
+                answer: 'I\'ll help you with that.',
+                mappedIntent: 'GENERAL_INQUIRY',
+                mappedAction: 'QUERY',
+                isHighConfidence: false,
+                error: error.message
+            };
+        }
     }
 
     /**
