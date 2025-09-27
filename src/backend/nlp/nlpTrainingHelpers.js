@@ -3,6 +3,7 @@
 
 import { Logger } from '../logger.js';
 import nlpManager from './nlpManager.js';
+import { trainingData } from './nlpTrainingData.js';
 
 /**
  * PRODUCTION SAFE model status - no direct model access
@@ -17,9 +18,9 @@ export async function getModelStatus() {
         
         const stats = {
             isReady: isInitialized,
-            version: '1.0.5',
-            totalExamples: hasModel ? 35 : 0,  // From training data file
-            totalIntents: hasModel ? 10 : 0,   // Number of intents
+            version: nlpManager.currentVersion,
+            totalExamples: hasModel ? trainingData.length : 0,  // From training data file
+            totalIntents: hasModel ? new Set(trainingData.map(item => item.intent)).size : 0,   // Number of intents
             confidenceThreshold: 0.7,
             lastTrainingTime: new Date().toISOString(),
             categories: 1,
@@ -73,9 +74,9 @@ export async function performNLPTraining() {
         
         if (success) {
             const stats = {
-                totalExamples: 35,  // From training data file
-                totalIntents: 10,   // Number of intents
-                version: '1.0.5',
+                totalExamples: trainingData.length,  // From training data file
+                totalIntents: new Set(trainingData.map(item => item.intent)).size,   // Number of intents
+                version: nlpManager.currentVersion,
                 categories: 1,
                 confidenceThreshold: 0.7,
                 isReady: true,
@@ -124,9 +125,9 @@ export async function initializeNLPSystem() {
         const hasModel = nlpManager.hasTrainedModel();
         
         const stats = {
-            totalExamples: hasModel ? 35 : 0,
-            totalIntents: hasModel ? 10 : 0,
-            version: '1.0.5',
+            totalExamples: hasModel ? trainingData.length : 0,
+            totalIntents: hasModel ? new Set(trainingData.map(item => item.intent)).size : 0,
+            version: nlpManager.currentVersion,
             categories: 1,
             confidenceThreshold: 0.7,
             isReady: true,
