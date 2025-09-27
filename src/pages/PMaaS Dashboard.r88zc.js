@@ -1,6 +1,4 @@
-// Page Code for NLP Admin (Wix Velo) - CLEAN VERSION
-console.log('🔧 PMaaS Dashboard page script loaded at:', new Date().toISOString());
-
+// Page Code for NLP Admin (Wix Velo) - WITH WEB LOGGING
 import { 
     trainNLPModel, 
     getNLPModelStatus, 
@@ -8,152 +6,119 @@ import {
     initializeNLP 
 } from 'backend/nlp/nlpWebMethods.web.js';
 
-console.log('🔧 Imports completed successfully');
+import { logToBackend } from 'backend/webLogger.web.js';
 
 $w.onReady(function () {
     try {
-        console.log('🔧 PMaaS Dashboard page ready - LAZY LOADING APPROACH');
-        console.log('🔧 Page loaded at:', new Date().toISOString());
-        console.log('🔧 About to call setupHTMLCommunication...');
+        logToBackend('PMaaS-Dashboard', 'onReady', { 
+            message: 'Page ready - LAZY LOADING APPROACH',
+            timestamp: new Date().toISOString()
+        });
+        
         setupHTMLCommunication();
-        console.log('🔧 setupHTMLCommunication completed successfully');
+        logToBackend('PMaaS-Dashboard', 'onReady', { message: 'HTML communication setup completed' });
     } catch (error) {
-        console.error('❌ Error in $w.onReady:', error);
-        console.error('❌ Error message:', error.message);
-        console.error('❌ Error stack:', error.stack);
+        logToBackend('PMaaS-Dashboard', 'onReady', null, error);
     }
 });
 
 function setupHTMLCommunication() {
     try {
-        console.log('🔧 Setting up HTML communication...');
-        
         const htmlElement = $w('#htmlNLPConsole');
-        console.log('🔧 HTML element query result:', htmlElement);
         
         if (!htmlElement) {
-            console.error('❌ HTML element #htmlNLPConsole not found!');
+            logToBackend('PMaaS-Dashboard', 'setupHTMLCommunication', null, new Error('HTML element #htmlNLPConsole not found'));
             return;
         }
         
-        console.log('✅ HTML element found:', htmlElement);
-        console.log('🔧 About to set up onMessage listener...');
-        
         htmlElement.onMessage((event) => {
             try {
-                console.log('📥 Velo received message from HTML:', event);
-                console.log('📥 Event type:', typeof event);
-                console.log('📥 Event keys:', Object.keys(event));
-                
                 const data = (event && event.data) || event;
-                console.log('📥 Parsed data:', data);
-                console.log('📥 Data type:', typeof data);
-                console.log('📥 Data keys:', Object.keys(data));
-                
                 const action = data.action;
-                console.log('📥 Action:', action);
                 
                 if (action) {
-                    console.log(`✅ Processing action: ${action}`);
+                    logToBackend('PMaaS-Dashboard', 'onMessage', { action: action, requestId: data.requestId });
                     handleHTMLCall(data, htmlElement);
                 } else {
-                    console.log('⚠️ Message not processed - no action field');
-                    console.log('⚠️ Available fields:', Object.keys(data));
+                    logToBackend('PMaaS-Dashboard', 'onMessage', { 
+                        message: 'Message not processed - no action field',
+                        availableFields: Object.keys(data)
+                    });
                 }
             } catch (error) {
-                console.error('❌ Error in onMessage handler:', error);
+                logToBackend('PMaaS-Dashboard', 'onMessage', null, error);
             }
         });
         
-        console.log('✅ HTML communication setup complete');
+        logToBackend('PMaaS-Dashboard', 'setupHTMLCommunication', { message: 'HTML communication setup complete' });
     } catch (error) {
-        console.error('❌ Error in setupHTMLCommunication:', error);
-        console.error('❌ Error message:', error.message);
-        console.error('❌ Error stack:', error.stack);
+        logToBackend('PMaaS-Dashboard', 'setupHTMLCommunication', null, error);
     }
 }
 
 async function handleHTMLCall(data, htmlElement) {
     const { action, args, requestId } = data;
     
-    console.log(`🔧 Velo: Handling call to ${action}`);
-    console.log(`🔧 Request ID: ${requestId}`);
-    console.log(`🔧 Args:`, args);
-    
     try {
         let result;
         
         switch (action) {
             case 'getNLPModelStatus':
-                console.log('🔧 Calling getNLPModelStatus...');
                 result = await getNLPModelStatus();
-                console.log('🔧 getNLPModelStatus result:', result);
                 break;
                 
             case 'trainNLPModel':
-                console.log('🔧 Calling trainNLPModel...');
                 result = await trainNLPModel();
-                console.log('🔧 trainNLPModel result:', result);
                 break;
                 
             case 'testNLPModel':
-                console.log('🔧 Calling testNLPModel with args:', args);
                 result = await testNLPModel(...(args || []));
-                console.log('🔧 testNLPModel result:', result);
                 break;
                 
             case 'initializeNLP':
-                console.log('🔧 Calling initializeNLP...');
                 result = await initializeNLP();
-                console.log('🔧 initializeNLP result:', result);
                 break;
                 
             case 'processNlpInput':
-                console.log('🔧 Calling processSingleInput with input:', data.input);
                 const { processSingleInput } = await import('backend/nlp/nlpTrainingHelpers.js');
                 result = await processSingleInput(data.input);
-                console.log('🔧 processSingleInput result:', result);
                 break;
                 
             case 'test':
-                console.log('🔧 Handling test action...');
                 result = { 
                     message: 'Test successful!', 
                     timestamp: new Date().toISOString(),
                     receivedData: data
                 };
-                console.log('✅ Test action handled successfully');
                 break;
                 
             default:
                 throw new Error(`Unknown action: ${action}`);
         }
         
-        console.log(`✅ Velo: ${action} completed successfully`);
-        console.log(`📤 Sending response to HTML with requestId: ${requestId}`);
+        logToBackend('PMaaS-Dashboard', 'handleHTMLCall', { 
+            action: action, 
+            success: true, 
+            requestId: requestId 
+        });
         sendToHTML(htmlElement, { requestId, success: true, result });
         
     } catch (error) {
-        console.error(`❌ Velo: Error calling ${action}:`, error);
-        console.log(`📤 Sending error response to HTML with requestId: ${requestId}`);
+        logToBackend('PMaaS-Dashboard', 'handleHTMLCall', null, error);
         sendToHTML(htmlElement, { requestId, success: false, error: error.message });
     }
 }
 
 function sendToHTML(htmlElement, data) {
     try {
-        console.log('📤 Sending message to HTML:', data);
-        console.log('📤 Message type:', typeof data);
-        console.log('📤 Message keys:', Object.keys(data));
-        console.log('📤 Has requestId:', !!data.requestId);
-        console.log('📤 Has success:', !!data.success);
-        console.log('📤 Has result:', !!data.result);
-        console.log('📤 Has error:', !!data.error);
-        
         htmlElement.postMessage(data);
-        console.log('✅ Message sent to HTML successfully');
-        
+        logToBackend('PMaaS-Dashboard', 'sendToHTML', { 
+            success: data.success, 
+            hasRequestId: !!data.requestId,
+            hasResult: !!data.result,
+            hasError: !!data.error
+        });
     } catch (error) {
-        console.error('❌ Failed to send message to HTML:', error);
+        logToBackend('PMaaS-Dashboard', 'sendToHTML', null, error);
     }
 }
