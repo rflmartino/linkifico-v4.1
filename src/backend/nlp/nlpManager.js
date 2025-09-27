@@ -5,12 +5,12 @@ import { createClient } from 'redis';
 import { getSecret } from 'wix-secrets-backend';
 import { Logger } from '../logger.js';
 
-// Training data will be imported only when explicitly training
-// import { 
-//     trainingData, 
-//     responseTemplates, 
-//     intentActionMap 
-// } from './nlpTrainingData.js';
+// Import training data - static import (no dynamic imports in Wix Velo)
+import { 
+    trainingData, 
+    responseTemplates, 
+    intentActionMap 
+} from './nlpTrainingData.js';
 
 class LinkificoNLPManager {
     constructor() {
@@ -129,8 +129,7 @@ class LinkificoNLPManager {
                 }
             });
 
-            // Import training data only when training (lazy loading)
-            const { trainingData, responseTemplates } = await import('./nlpTrainingData.js');
+            // Use training data from static import
 
             // Add training data from file
             for (const example of trainingData) {

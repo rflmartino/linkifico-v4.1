@@ -7,6 +7,7 @@ import {
 } from 'backend/nlp/nlpWebMethods.web.js';
 
 import { logToBackend } from 'backend/webLogger.web.js';
+import { processSingleInput } from 'backend/nlp/nlpTrainingHelpers.js';
 
 $w.onReady(function () {
     try {
@@ -80,7 +81,6 @@ async function handleHTMLCall(data, htmlElement) {
                 break;
                 
             case 'processNlpInput':
-                const { processSingleInput } = await import('backend/nlp/nlpTrainingHelpers.js');
                 result = await processSingleInput(data.input);
                 break;
                 

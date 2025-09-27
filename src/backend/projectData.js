@@ -3,6 +3,7 @@
 
 import { createClient } from 'redis';
 import { getSecret } from 'wix-secrets-backend';
+import { Logger } from './logger.js';
 
 // Redis client (lazy)
 let redisClient = null;
@@ -108,7 +109,7 @@ export async function saveProjectData(projectId, projectData) {
     const key = REDIS_KEYS.PROJECT(projectId);
     await client.set(key, JSON.stringify(projectData));
     const ms = Date.now() - t;
-    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:saveProjectDataMs', { ms }); } catch {}
+    try { Logger.info('projectData', 'timing:saveProjectDataMs', { ms }); } catch {}
 }
 
 export async function getProjectData(projectId) {
@@ -117,7 +118,7 @@ export async function getProjectData(projectId) {
     const key = REDIS_KEYS.PROJECT(projectId);
     const data = await client.get(key);
     const ms = Date.now() - t;
-    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:getProjectDataMs', { ms }); } catch {}
+    try { Logger.info('projectData', 'timing:getProjectDataMs', { ms }); } catch {}
     return data ? JSON.parse(data) : null;
 }
 
@@ -127,7 +128,7 @@ export async function saveKnowledgeData(projectId, knowledgeData) {
     const key = REDIS_KEYS.KNOWLEDGE(projectId);
     await client.set(key, JSON.stringify(knowledgeData));
     const ms = Date.now() - t;
-    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:saveKnowledgeDataMs', { ms }); } catch {}
+    try { Logger.info('projectData', 'timing:saveKnowledgeDataMs', { ms }); } catch {}
 }
 
 export async function getKnowledgeData(projectId) {
@@ -136,7 +137,7 @@ export async function getKnowledgeData(projectId) {
     const key = REDIS_KEYS.KNOWLEDGE(projectId);
     const data = await client.get(key);
     const ms = Date.now() - t;
-    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:getKnowledgeDataMs', { ms }); } catch {}
+    try { Logger.info('projectData', 'timing:getKnowledgeDataMs', { ms }); } catch {}
     return data ? JSON.parse(data) : null;
 }
 
@@ -146,7 +147,7 @@ export async function saveGapData(projectId, gapData) {
     const key = REDIS_KEYS.GAPS(projectId);
     await client.set(key, JSON.stringify(gapData));
     const ms = Date.now() - t;
-    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:saveGapDataMs', { ms }); } catch {}
+    try { Logger.info('projectData', 'timing:saveGapDataMs', { ms }); } catch {}
 }
 
 export async function getGapData(projectId) {
@@ -155,7 +156,7 @@ export async function getGapData(projectId) {
     const key = REDIS_KEYS.GAPS(projectId);
     const data = await client.get(key);
     const ms = Date.now() - t;
-    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:getGapDataMs', { ms }); } catch {}
+    try { Logger.info('projectData', 'timing:getGapDataMs', { ms }); } catch {}
     return data ? JSON.parse(data) : null;
 }
 
@@ -165,7 +166,7 @@ export async function saveLearningData(userId, learningData) {
     const key = REDIS_KEYS.LEARNING(userId);
     await client.set(key, JSON.stringify(learningData));
     const ms = Date.now() - t;
-    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:saveLearningDataMs', { ms }); } catch {}
+    try { Logger.info('projectData', 'timing:saveLearningDataMs', { ms }); } catch {}
 }
 
 export async function getLearningData(userId) {
@@ -174,7 +175,7 @@ export async function getLearningData(userId) {
     const key = REDIS_KEYS.LEARNING(userId);
     const data = await client.get(key);
     const ms = Date.now() - t;
-    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:getLearningDataMs', { ms }); } catch {}
+    try { Logger.info('projectData', 'timing:getLearningDataMs', { ms }); } catch {}
     return data ? JSON.parse(data) : null;
 }
 
@@ -184,7 +185,7 @@ export async function saveReflectionData(projectId, reflectionData) {
     const key = REDIS_KEYS.REFLECTION(projectId);
     await client.set(key, JSON.stringify(reflectionData));
     const ms = Date.now() - t;
-    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:saveReflectionDataMs', { ms }); } catch {}
+    try { Logger.info('projectData', 'timing:saveReflectionDataMs', { ms }); } catch {}
 }
 
 export async function getReflectionData(projectId) {
@@ -193,7 +194,7 @@ export async function getReflectionData(projectId) {
     const key = REDIS_KEYS.REFLECTION(projectId);
     const data = await client.get(key);
     const ms = Date.now() - t;
-    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:getReflectionDataMs', { ms }); } catch {}
+    try { Logger.info('projectData', 'timing:getReflectionDataMs', { ms }); } catch {}
     return data ? JSON.parse(data) : null;
 }
 
@@ -203,7 +204,7 @@ export async function saveChatHistory(projectId, chatHistory) {
     const key = REDIS_KEYS.CHAT_HISTORY(projectId);
     await client.set(key, JSON.stringify(chatHistory));
     const ms = Date.now() - t;
-    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:saveChatHistoryMs', { ms }); } catch {}
+    try { Logger.info('projectData', 'timing:saveChatHistoryMs', { ms }); } catch {}
 }
 
 export async function getChatHistory(projectId) {
@@ -212,7 +213,7 @@ export async function getChatHistory(projectId) {
     const key = REDIS_KEYS.CHAT_HISTORY(projectId);
     const data = await client.get(key);
     const ms = Date.now() - t;
-    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:getChatHistoryMs', { ms }); } catch {}
+    try { Logger.info('projectData', 'timing:getChatHistoryMs', { ms }); } catch {}
     return data ? JSON.parse(data) : [];
 }
 
@@ -223,7 +224,7 @@ export async function saveProcessing(processingId, payload) {
     const key = REDIS_KEYS.PROCESSING(processingId);
     await client.set(key, JSON.stringify(payload));
     const ms = Date.now() - t;
-    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:saveProcessingMs', { ms }); } catch {}
+    try { Logger.info('projectData', 'timing:saveProcessingMs', { ms }); } catch {}
 }
 
 export async function getProcessing(processingId) {
@@ -232,7 +233,7 @@ export async function getProcessing(processingId) {
     const key = REDIS_KEYS.PROCESSING(processingId);
     const data = await client.get(key);
     const ms = Date.now() - t;
-    try { const { Logger } = await import('backend/logger'); Logger.info('projectData', 'timing:getProcessingMs', { ms }); } catch {}
+    try { Logger.info('projectData', 'timing:getProcessingMs', { ms }); } catch {}
     return data ? JSON.parse(data) : null;
 }
 
