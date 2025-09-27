@@ -85,22 +85,14 @@ class LinkificoNLPManager {
     async initRedis() {
         try {
             if (!this.redis) {
-                console.log('[NLP-MANAGER] Getting Redis connection URL from secrets...');
                 const redisUrl = await getSecret('REDIS_CONNECTION_URL');
-                console.log(`[NLP-MANAGER] Redis URL obtained: ${redisUrl ? 'YES' : 'NO'}`);
-                
-                console.log('[NLP-MANAGER] Creating Redis client...');
                 this.redis = createClient({
                     url: redisUrl
                 });
-                
-                console.log('[NLP-MANAGER] Connecting to Redis...');
                 await this.redis.connect();
-                console.log('[NLP-MANAGER] Redis connection successful');
                 Logger.log('nlpManager', 'initRedis', 'Redis connected for NLP storage');
             }
         } catch (error) {
-            console.log(`[NLP-MANAGER] Redis connection failed: ${error.message}`);
             Logger.error('nlpManager', 'initRedis', error);
             throw error;
         }
