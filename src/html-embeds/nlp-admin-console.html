@@ -665,11 +665,17 @@
             }
         }
 
-        // Initialize on load
+        // Initialize on load with delay to ensure Wix page is ready
         document.addEventListener('DOMContentLoaded', function() {
             log('info', 'Node-NLP Admin Console loaded');
             log('info', 'Ready to train and test your NLP model');
             updateCommStatus('ready', 'Ready to communicate');
+            
+            // Add a small delay to ensure Wix page is fully loaded
+            setTimeout(() => {
+                log('info', 'HTML embed fully initialized - ready for communication');
+                updateCommStatus('ready', 'Ready to communicate (delayed)');
+            }, 1000);
         });
 
         // Handle Enter key in test input

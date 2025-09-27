@@ -1,50 +1,76 @@
 // Page Code for NLP Admin (Wix Velo) - FULL FUNCTIONALITY WITH ENHANCED LOGGING
+console.log('🔧 PMaaS Dashboard page script loaded at:', new Date().toISOString());
+
 import { 
     trainNLPModel, 
     getNLPModelStatus, 
     testNLPModel, 
     initializeNLP 
-} from './backend/nlp/nlpWebMethods';
+} from 'backend/nlp/nlpWebMethods.web.js';
+
+console.log('🔧 Imports completed successfully');
 
 $w.onReady(function () {
-    console.log('🔧 PMaaS Dashboard page ready - FULL NLP FUNCTIONALITY');
-    setupHTMLCommunication();
+    try {
+        console.log('🔧 PMaaS Dashboard page ready - FULL NLP FUNCTIONALITY');
+        console.log('🔧 Page loaded at:', new Date().toISOString());
+        console.log('🔧 About to call setupHTMLCommunication...');
+        setupHTMLCommunication();
+        console.log('🔧 setupHTMLCommunication completed successfully');
+    } catch (error) {
+        console.error('❌ Error in $w.onReady:', error);
+        console.error('❌ Error message:', error.message);
+        console.error('❌ Error stack:', error.stack);
+    }
 });
 
 function setupHTMLCommunication() {
-    console.log('🔧 Setting up HTML communication...');
-    
-    const htmlElement = $w('#htmlNLPConsole');
-    if (!htmlElement) {
-        console.error('❌ HTML element #htmlNLPConsole not found!');
-        return;
-    }
-    
-    console.log('✅ HTML element found:', htmlElement);
-    
-    htmlElement.onMessage((event) => {
-        console.log('📥 Velo received message from HTML:', event);
-        console.log('📥 Event type:', typeof event);
-        console.log('📥 Event keys:', Object.keys(event));
+    try {
+        console.log('🔧 Setting up HTML communication...');
         
-        const data = (event && event.data) || event;
-        console.log('📥 Parsed data:', data);
-        console.log('📥 Data type:', typeof data);
-        console.log('📥 Data keys:', Object.keys(data));
+        const htmlElement = $w('#htmlNLPConsole');
+        console.log('🔧 HTML element query result:', htmlElement);
         
-        const action = data.action;
-        console.log('📥 Action:', action);
-        
-        if (action) {
-            console.log(`✅ Processing action: ${action}`);
-            handleHTMLCall(data, htmlElement);
-        } else {
-            console.log('⚠️ Message not processed - no action field');
-            console.log('⚠️ Available fields:', Object.keys(data));
+        if (!htmlElement) {
+            console.error('❌ HTML element #htmlNLPConsole not found!');
+            return;
         }
-    });
-    
-    console.log('✅ HTML communication setup complete');
+        
+        console.log('✅ HTML element found:', htmlElement);
+        console.log('🔧 About to set up onMessage listener...');
+        
+        htmlElement.onMessage((event) => {
+            try {
+                console.log('📥 Velo received message from HTML:', event);
+                console.log('📥 Event type:', typeof event);
+                console.log('📥 Event keys:', Object.keys(event));
+                
+                const data = (event && event.data) || event;
+                console.log('📥 Parsed data:', data);
+                console.log('📥 Data type:', typeof data);
+                console.log('📥 Data keys:', Object.keys(data));
+                
+                const action = data.action;
+                console.log('📥 Action:', action);
+                
+                if (action) {
+                    console.log(`✅ Processing action: ${action}`);
+                    handleHTMLCall(data, htmlElement);
+                } else {
+                    console.log('⚠️ Message not processed - no action field');
+                    console.log('⚠️ Available fields:', Object.keys(data));
+                }
+            } catch (error) {
+                console.error('❌ Error in onMessage handler:', error);
+            }
+        });
+        
+        console.log('✅ HTML communication setup complete');
+    } catch (error) {
+        console.error('❌ Error in setupHTMLCommunication:', error);
+        console.error('❌ Error message:', error.message);
+        console.error('❌ Error stack:', error.stack);
+    }
 }
 
 async function handleHTMLCall(data, htmlElement) {
