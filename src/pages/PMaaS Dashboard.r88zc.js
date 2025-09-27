@@ -1,4 +1,6 @@
 // Page Code for NLP Admin (Wix Velo) - CLEAN VERSION
+console.log('🔧 PMaaS Dashboard script loading...');
+
 import { 
     trainNLPModel, 
     getNLPModelStatus, 
@@ -6,12 +8,16 @@ import {
     initializeNLP 
 } from 'backend/nlp/nlpWebMethods.web.js';
 
+console.log('🔧 Imports completed');
+
 $w.onReady(function () {
     try {
         console.log('🧠 PMaaS Dashboard ready - Node-NLP Admin Console');
+        console.log('🔧 Available functions:', { trainNLPModel: !!trainNLPModel, getNLPModelStatus: !!getNLPModelStatus, testNLPModel: !!testNLPModel, initializeNLP: !!initializeNLP });
         setupHTMLCommunication();
     } catch (error) {
         console.error('❌ Page initialization error:', error.message);
+        console.error('❌ Error stack:', error.stack);
     }
 });
 
