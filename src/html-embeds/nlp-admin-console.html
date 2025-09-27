@@ -1,137 +1,683 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node-NLP Admin Console</title>
     <style>
-        body {
+        * {
             margin: 0;
-            padding: 20px;
-            font-family: Arial, sans-serif;
-            background: #f8f9fa;
+            padding: 0;
+            box-sizing: border-box;
         }
-        .test-container {
-            background: white;
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             padding: 20px;
-            border-radius: 8px;
-            border: 2px solid #007bff;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
             text-align: center;
         }
-        .test-button {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            margin: 10px;
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
         }
-        .test-button:hover {
-            background: #0056b3;
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
         }
-        .log-area {
+
+        .content {
+            padding: 30px;
+        }
+
+        .status-card {
             background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-left: 4px solid #4facfe;
+        }
+
+        .status-card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .status-item {
+            background: white;
             padding: 15px;
-            margin-top: 20px;
-            text-align: left;
-            font-family: monospace;
-            font-size: 12px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .status-item .label {
+            font-weight: 600;
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .status-item .value {
+            font-size: 1.1em;
+            color: #333;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-trained {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-not-trained {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 172, 254, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(86, 171, 47, 0.3);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-warning:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(240, 147, 251, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .test-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .input-group input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .results {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid #e9ecef;
+            margin-top: 15px;
+        }
+
+        .result-item {
+            padding: 10px;
+            border-bottom: 1px solid #f1f3f4;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-intent {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .result-confidence {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        .log {
+            background: #1e1e1e;
+            color: #f8f8f2;
+            border-radius: 8px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
             max-height: 300px;
             overflow-y: auto;
+            margin-top: 20px;
         }
+
         .log-entry {
-            margin: 5px 0;
-            padding: 5px;
-            border-radius: 3px;
+            margin-bottom: 5px;
+            padding: 2px 0;
         }
-        .log-info { background: #d1ecf1; color: #0c5460; }
-        .log-success { background: #d4edda; color: #155724; }
-        .log-error { background: #f8d7da; color: #721c24; }
+
+        .log-info {
+            color: #4facfe;
+        }
+
+        .log-success {
+            color: #56ab2f;
+        }
+
+        .log-error {
+            color: #f5576c;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4facfe;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .communication-status {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .communication-status h4 {
+            margin: 0 0 10px 0;
+            color: #1976d2;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-ready { background: #4caf50; }
+        .status-sending { background: #ff9800; }
+        .status-success { background: #4caf50; }
+        .status-error { background: #f44336; }
     </style>
 </head>
 <body>
-    <div class="test-container">
-        <h2>🔧 Minimal Communication Test</h2>
-        <p>This is a simplified test to debug the HTML ↔ Wix communication issue.</p>
-        
-        <div style="margin: 20px 0; padding: 10px; background: #e3f2fd; border-radius: 5px;">
-            <strong>Status:</strong> <span id="statusText">Ready to test</span>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 Node-NLP Admin Console</h1>
+            <p>Train, test, and manage your NLP model</p>
         </div>
-        
-        <button class="test-button" onclick="sendTestMessage()">
-            🚀 Send Test Message
-        </button>
-        
-        <div class="log-area" id="logArea">
-            <div class="log-entry log-info">[INFO] HTML embed loaded and ready</div>
+
+        <div class="content">
+            <!-- Communication Status -->
+            <div class="communication-status">
+                <h4>📡 Communication Status</h4>
+                <div>
+                    <span class="status-indicator status-ready" id="commStatus"></span>
+                    <span id="commStatusText">Ready to communicate</span>
+                </div>
+            </div>
+
+            <!-- Status Section -->
+            <div class="status-card">
+                <h3>📊 Model Status</h3>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <div class="label">Status</div>
+                        <div class="value">
+                            <span id="modelStatus" class="status-badge status-not-trained">Not Trained</span>
+                        </div>
+                    </div>
+                    <div class="status-item">
+                        <div class="label">Version</div>
+                        <div class="value" id="modelVersion">0.0.0</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="label">Last Training</div>
+                        <div class="value" id="lastTraining">Never</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="label">Training Examples</div>
+                        <div class="value" id="trainingExamples">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Section -->
+            <div class="actions">
+                <button class="btn btn-primary" onclick="initializeSystem()">
+                    <span id="initText">🚀 Initialize System</span>
+                    <span id="initLoading" class="loading hidden"></span>
+                </button>
+                <button class="btn btn-success" onclick="trainModel()">
+                    <span id="trainText">🎯 Train Model</span>
+                    <span id="trainLoading" class="loading hidden"></span>
+                </button>
+                <button class="btn btn-warning" onclick="testModel()">
+                    <span id="testText">🧪 Test Model</span>
+                    <span id="testLoading" class="loading hidden"></span>
+                </button>
+                <button class="btn btn-primary" onclick="loadStatus()">
+                    <span id="statusText">📊 Load Status</span>
+                    <span id="statusLoading" class="loading hidden"></span>
+                </button>
+            </div>
+
+            <!-- Test Section -->
+            <div class="test-section">
+                <h3>🔍 Test Input</h3>
+                <div class="input-group">
+                    <input type="text" id="testInput" placeholder="Enter text to test (e.g., 'create a new project')" 
+                           value="create a hardware store project">
+                    <button class="btn btn-primary" onclick="testInput()">Test</button>
+                </div>
+                <div id="testResults" class="results hidden">
+                    <div class="result-item">
+                        <span class="result-intent">Intent: <span id="resultIntent">-</span></span>
+                        <span class="result-confidence">Confidence: <span id="resultConfidence">-</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Log Section -->
+            <div class="log" id="log">
+                <div class="log-entry log-info">[INFO] Node-NLP Admin Console initialized</div>
+                <div class="log-entry log-info">[INFO] Ready to train and test your NLP model</div>
+            </div>
         </div>
     </div>
 
     <script>
-        function log(message, type = 'info') {
-            const logArea = document.getElementById('logArea');
+        // Global variables
+        let isInitialized = false;
+
+        // Communication status management
+        function updateCommStatus(status, text) {
+            const statusEl = document.getElementById('commStatus');
+            const textEl = document.getElementById('commStatusText');
+            
+            if (statusEl) {
+                statusEl.className = `status-indicator status-${status}`;
+            }
+            if (textEl) {
+                textEl.textContent = text;
+            }
+        }
+
+        // Enhanced logging function
+        function log(type, message) {
+            const logElement = document.getElementById('log');
             const timestamp = new Date().toLocaleTimeString();
             const logEntry = document.createElement('div');
             logEntry.className = `log-entry log-${type}`;
             logEntry.textContent = `[${timestamp}] ${message}`;
-            logArea.appendChild(logEntry);
-            logArea.scrollTop = logArea.scrollHeight;
-            // Note: console.log doesn't work in Wix HTML embeds, so we only use visual logging
+            
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
         }
 
-        function updateStatus(text) {
-            const statusEl = document.getElementById('statusText');
-            if (statusEl) {
-                statusEl.textContent = text;
-            }
-        }
-
-        function sendTestMessage() {
-            updateStatus('Sending test message...');
-            log('🚀 Button clicked - sending test message...', 'info');
+        // Enhanced message sending with detailed logging
+        function sendMessageToWix(action, data = {}) {
+            const requestId = `${action}_${Date.now()}`;
+            const message = {
+                action: action,
+                requestId: requestId,
+                timestamp: new Date().toISOString(),
+                ...data
+            };
+            
+            log('info', `📤 Sending ${action} message to Wix page`);
+            log('info', `📤 Message: ${JSON.stringify(message, null, 2)}`);
+            log('info', `📤 Request ID: ${requestId}`);
+            
+            updateCommStatus('sending', `Sending ${action} request...`);
             
             try {
-                const message = {
-                    action: 'test',
-                    timestamp: new Date().toISOString(),
-                    testData: 'Hello from HTML embed!'
-                };
-                
-                log(`📤 Sending message: ${JSON.stringify(message)}`, 'info');
-                
-                // Send to parent Wix page
                 window.parent.postMessage(message, '*');
-                
-                log('✅ Message sent successfully via window.parent.postMessage', 'success');
-                updateStatus('Message sent - waiting for response...');
-                
+                log('success', `✅ ${action} message sent successfully`);
+                return requestId;
             } catch (error) {
-                log(`❌ Error sending message: ${error.message}`, 'error');
-                updateStatus('Error sending message');
+                log('error', `❌ Failed to send ${action} message: ${error.message}`);
+                updateCommStatus('error', `Failed to send ${action}`);
+                throw error;
             }
         }
 
-        // Listen for responses from Wix page
-        window.addEventListener('message', function(event) {
-            log(`📥 Received message from parent: ${JSON.stringify(event.data)}`, 'info');
-            updateStatus('Received response from Wix page!');
+        // Initialize the system
+        async function initializeSystem() {
+            setLoading('init', true);
+            log('info', 'Initializing Node-NLP system...');
             
-            if (event.data && event.data.action) {
-                log(`✅ Message has action field: ${event.data.action}`, 'success');
+            try {
+                const requestId = sendMessageToWix('initializeNLP');
+                log('info', `Initialization request sent with ID: ${requestId}`);
+            } catch (error) {
+                log('error', `Initialization error: ${error.message}`);
+                setLoading('init', false);
+            }
+        }
+
+        // Train the model
+        async function trainModel() {
+            setLoading('train', true);
+            log('info', 'Training model with minimal data...');
+            
+            try {
+                const requestId = sendMessageToWix('trainNLPModel');
+                log('info', `Training request sent with ID: ${requestId}`);
+            } catch (error) {
+                log('error', `Training error: ${error.message}`);
+                setLoading('train', false);
+            }
+        }
+
+        // Test the model
+        async function testModel() {
+            setLoading('test', true);
+            log('info', 'Running model tests...');
+            
+            try {
+                const requestId = sendMessageToWix('testNLPModel');
+                log('info', `Test request sent with ID: ${requestId}`);
+            } catch (error) {
+                log('error', `Test error: ${error.message}`);
+                setLoading('test', false);
+            }
+        }
+
+        // Load status
+        async function loadStatus() {
+            setLoading('status', true);
+            log('info', 'Loading model status...');
+            
+            try {
+                const requestId = sendMessageToWix('getNLPModelStatus');
+                log('info', `Status request sent with ID: ${requestId}`);
+            } catch (error) {
+                log('error', `Status loading error: ${error.message}`);
+                setLoading('status', false);
+            }
+        }
+
+        // Test single input
+        async function testInput() {
+            const input = document.getElementById('testInput').value.trim();
+            if (!input) {
+                log('error', 'Please enter text to test');
+                return;
+            }
+            
+            log('info', `Testing input: "${input}"`);
+            
+            try {
+                const requestId = sendMessageToWix('processNlpInput', { input: input });
+                log('info', `Input test request sent with ID: ${requestId}`);
+            } catch (error) {
+                log('error', `Processing error: ${error.message}`);
+            }
+        }
+
+        // Utility functions
+        function setLoading(button, loading) {
+            const textElement = document.getElementById(`${button}Text`);
+            const loadingElement = document.getElementById(`${button}Loading`);
+            
+            if (loading) {
+                textElement.classList.add('hidden');
+                loadingElement.classList.remove('hidden');
             } else {
-                log(`⚠️ Message missing action field`, 'error');
+                textElement.classList.remove('hidden');
+                loadingElement.classList.add('hidden');
+            }
+        }
+
+        // Enhanced message handling with detailed logging
+        window.addEventListener('message', function(event) {
+            log('info', `📥 Received message from parent Wix page`);
+            log('info', `📥 Event type: ${typeof event}`);
+            log('info', `📥 Event keys: ${Object.keys(event)}`);
+            log('info', `📥 Event data: ${JSON.stringify(event.data, null, 2)}`);
+            
+            updateCommStatus('success', 'Received response from Wix page');
+            
+            if (event.data && event.data.requestId) {
+                log('info', `📥 Processing response for request ID: ${event.data.requestId}`);
+                handleWixResponse(event.data);
+            } else {
+                log('error', `⚠️ Response missing requestId field`);
+                log('error', `⚠️ Available fields: ${Object.keys(event.data || {})}`);
             }
         });
 
-        // Log when page loads
+        // Enhanced response handling
+        function handleWixResponse(data) {
+            log('info', `📥 Handling Wix response: ${JSON.stringify(data, null, 2)}`);
+            
+            if (data.requestId) {
+                const action = data.requestId.split('_')[0];
+                log('info', `📥 Response for action: ${action}`);
+                
+                if (data.requestId.startsWith('init_')) {
+                    handleInitializeResponse(data);
+                } else if (data.requestId.startsWith('train_')) {
+                    handleTrainResponse(data);
+                } else if (data.requestId.startsWith('test_')) {
+                    handleTestResponse(data);
+                } else if (data.requestId.startsWith('status_')) {
+                    handleStatusResponse(data);
+                } else if (data.requestId.startsWith('processNlpInput_')) {
+                    handleProcessResponse(data);
+                } else {
+                    log('error', `⚠️ Unknown request ID format: ${data.requestId}`);
+                }
+            } else {
+                log('error', `⚠️ Response missing requestId`);
+            }
+        }
+
+        // Response handlers
+        function handleInitializeResponse(data) {
+            setLoading('init', false);
+            if (data.success && data.result) {
+                log('success', `System initialized: ${data.result.message}`);
+                if (data.result.wasTraining) {
+                    log('success', `Model trained with version ${data.result.stats.version}`);
+                }
+                isInitialized = true;
+                loadStatus();
+            } else {
+                log('error', `Initialization failed: ${data.error || 'Unknown error'}`);
+            }
+        }
+
+        function handleTrainResponse(data) {
+            setLoading('train', false);
+            if (data.success && data.result) {
+                log('success', `Model trained successfully: ${data.result.message}`);
+                log('success', `Training time: ${data.result.trainingTime}ms`);
+                log('success', `Model version: ${data.result.stats.version}`);
+                loadStatus();
+            } else {
+                log('error', `Training failed: ${data.error || 'Unknown error'}`);
+            }
+        }
+
+        function handleTestResponse(data) {
+            setLoading('test', false);
+            if (data.success && data.result) {
+                log('success', `Model test completed: ${data.result.successRate}% success rate`);
+                log('success', `Average confidence: ${data.result.averageConfidence}`);
+                log('info', `Tested ${data.result.totalTests} cases, ${data.result.successfulTests} successful`);
+                
+                if (data.result.results && data.result.results.length > 0) {
+                    log('info', 'Test Results:');
+                    data.result.results.forEach((result, index) => {
+                        const status = result.isHighConfidence ? '✅' : '⚠️';
+                        log('info', `${status} "${result.input}" -> ${result.intent} (${(result.confidence * 100).toFixed(1)}%)`);
+                    });
+                }
+            } else {
+                log('error', `Testing failed: ${data.error || 'Unknown error'}`);
+            }
+        }
+
+        function handleStatusResponse(data) {
+            setLoading('status', false);
+            if (data.success && data.result && data.result.stats) {
+                const stats = data.result.stats;
+                document.getElementById('modelVersion').textContent = stats.version || 'Unknown';
+                document.getElementById('trainingExamples').textContent = stats.totalExamples || 0;
+                document.getElementById('lastTraining').textContent = stats.lastTrainingTime ? 
+                    new Date(stats.lastTrainingTime).toLocaleString() : 'Never';
+                
+                const statusElement = document.getElementById('modelStatus');
+                if (stats.isReady) {
+                    statusElement.textContent = 'Trained';
+                    statusElement.className = 'status-badge status-trained';
+                } else {
+                    statusElement.textContent = 'Not Trained';
+                    statusElement.className = 'status-badge status-not-trained';
+                }
+                
+                log('success', `Model Status: v${stats.version}, ${stats.totalExamples} examples`);
+            } else {
+                log('error', `Status loading failed: ${data.error || 'Unknown error'}`);
+            }
+        }
+
+        function handleProcessResponse(data) {
+            if (data.success) {
+                log('success', `Result: ${data.result.intent} (${(data.result.confidence * 100).toFixed(1)}% confidence)`);
+                
+                document.getElementById('resultIntent').textContent = data.result.intent;
+                document.getElementById('resultConfidence').textContent = `${(data.result.confidence * 100).toFixed(1)}%`;
+                document.getElementById('testResults').classList.remove('hidden');
+            } else {
+                log('error', `Processing failed: ${data.error}`);
+            }
+        }
+
+        // Initialize on load
         document.addEventListener('DOMContentLoaded', function() {
-            log('🎯 DOM loaded - HTML embed ready for testing', 'success');
+            log('info', 'Node-NLP Admin Console loaded');
+            log('info', 'Ready to train and test your NLP model');
+            updateCommStatus('ready', 'Ready to communicate');
         });
 
-        // Log initial state
-        log('🔧 Minimal test HTML embed initialized', 'info');
+        // Handle Enter key in test input
+        document.getElementById('testInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                testInput();
+            }
+        });
     </script>
 </body>
 </html>
