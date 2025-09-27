@@ -108,6 +108,13 @@ async function handleHTMLCall(data, htmlElement) {
                 console.log('🔧 initializeNLP result:', result);
                 break;
                 
+            case 'processNlpInput':
+                console.log('🔧 Calling processSingleInput with input:', data.input);
+                const { processSingleInput } = await import('backend/nlp/nlpTrainingHelpers.js');
+                result = await processSingleInput(data.input);
+                console.log('🔧 processSingleInput result:', result);
+                break;
+                
             case 'test':
                 console.log('🔧 Handling test action...');
                 result = { 
