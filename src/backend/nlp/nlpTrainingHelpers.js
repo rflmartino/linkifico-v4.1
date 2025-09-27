@@ -2,7 +2,16 @@
 // Completely isolated from model serialization issues
 
 import { Logger } from '../logger.js';
-import nlpManager from './nlpManager.js';
+
+// Safe import with error handling
+let nlpManager = null;
+try {
+    nlpManager = (await import('./nlpManager.js')).default;
+    console.log('[NLP-HELPERS] Successfully imported nlpManager');
+} catch (error) {
+    console.error('[NLP-HELPERS] Failed to import nlpManager:', error.message);
+    Logger.error('nlpTrainingHelpers', 'import', error);
+}
 
 /**
  * PRODUCTION SAFE model status - no direct model access
@@ -13,7 +22,7 @@ export async function getModelStatus() {
         
         // SAFE: Only return simple, serializable data
         const stats = {
-            isReady: true,
+            isReady: nlpManager ? true : false,
             version: '1.0.5',  // Updated to match new nlpManager version
             totalExamples: 10,  // Minimal training data
             totalIntents: 10,   // Minimal intents
@@ -21,16 +30,32 @@ export async function getModelStatus() {
             lastTrainingTime: new Date().toISOString(),
             categories: 1,  // Single category for testing
             currentTime: new Date().toISOString(),
-            systemReady: true,
-            modelTrained: true,
-            permanentStorage: true,
+            systemReady: nlpManager ? true : false,
+            modelTrained: nlpManager ? true : false,
+            permanentStorage: false, // Will be updated based on actual status
             fileSystemUsed: false,
+            nlpManagerAvailable: !!nlpManager,
             newFeatures: {
                 sentimentAnalysis: false,
                 stateResponsePatterns: false,
                 stateResponseTemplates: false
             }
         };
+        
+        // If nlpManager is available, get actual stats
+        if (nlpManager) {
+            try {
+                const actualStats = await nlpManager.getModelStats();
+                if (actualStats) {
+                    stats.permanentStorage = actualStats.permanentStorage || false;
+                    stats.redisAvailable = actualStats.redisAvailable || false;
+                    stats.initializationError = actualStats.initializationError || null;
+                }
+            } catch (error) {
+                Logger.error('nlpTrainingHelpers', 'getModelStatus', error);
+                stats.nlpManagerError = error.message;
+            }
+        }
         
         Logger.log('nlpTrainingHelpers', 'getModelStatus', `Returning safe stats: v${stats.version}, ${stats.totalExamples} examples`);
         
@@ -62,6 +87,14 @@ export async function getModelStatus() {
 export async function performNLPTraining() {
     try {
         Logger.log('nlpTrainingHelpers', 'performNLPTraining', 'Starting safe training');
+        
+        if (!nlpManager) {
+            return {
+                success: false,
+                message: 'NLP Manager not available - cannot train model',
+                error: 'nlpManager import failed'
+            };
+        }
         
         const startTime = Date.now();
         
@@ -119,6 +152,14 @@ export async function initializeNLPSystem() {
     try {
         Logger.log('nlpTrainingHelpers', 'initializeNLPSystem', 'Initializing safely');
         
+        if (!nlpManager) {
+            return {
+                success: false,
+                message: 'NLP Manager not available - cannot initialize system',
+                error: 'nlpManager import failed'
+            };
+        }
+        
         await nlpManager.initialize();
         
         // SAFE: Return only simple data
@@ -161,6 +202,15 @@ export async function initializeNLPSystem() {
 export async function testNLPSystem(customTestCases = null) {
     try {
         Logger.log('nlpTrainingHelpers', 'testNLPSystem', 'Starting safe tests');
+        
+        if (!nlpManager) {
+            return {
+                success: false,
+                message: 'NLP Manager not available - cannot run tests',
+                error: 'nlpManager import failed',
+                results: []
+            };
+        }
         
         await nlpManager.ensureModelReady();
         
@@ -247,6 +297,13 @@ export async function processSingleInput(input) {
             return {
                 success: false,
                 error: 'Input required'
+            };
+        }
+        
+        if (!nlpManager) {
+            return {
+                success: false,
+                error: 'NLP Manager not available'
             };
         }
         

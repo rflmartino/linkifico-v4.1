@@ -1,18 +1,36 @@
 // Page Code for NLP Admin (Wix Velo) - RESTORED WORKING VERSION
 console.log('🔧 PMaaS Dashboard page script loaded at:', new Date().toISOString());
 
-import { 
-    trainNLPModel, 
-    getNLPModelStatus, 
-    testNLPModel, 
-    initializeNLP 
-} from 'backend/nlp/nlpWebMethods.web.js';
+// Safe import with error handling
+let trainNLPModel, getNLPModelStatus, testNLPModel, initializeNLP;
+let importsLoaded = false;
 
-console.log('🔧 Imports completed successfully');
+try {
+    console.log('🔧 Attempting to import NLP web methods...');
+    const nlpMethods = await import('backend/nlp/nlpWebMethods.web.js');
+    trainNLPModel = nlpMethods.trainNLPModel;
+    getNLPModelStatus = nlpMethods.getNLPModelStatus;
+    testNLPModel = nlpMethods.testNLPModel;
+    initializeNLP = nlpMethods.initializeNLP;
+    importsLoaded = true;
+    console.log('🔧 Imports completed successfully');
+} catch (error) {
+    console.error('❌ Failed to import NLP methods:', error);
+    console.error('❌ Error message:', error.message);
+    console.error('❌ Error stack:', error.stack);
+    
+    // Create fallback functions
+    trainNLPModel = async () => ({ success: false, error: 'NLP methods not available' });
+    getNLPModelStatus = async () => ({ success: false, error: 'NLP methods not available' });
+    testNLPModel = async () => ({ success: false, error: 'NLP methods not available' });
+    initializeNLP = async () => ({ success: false, error: 'NLP methods not available' });
+    
+    console.log('🔧 Fallback functions created - dashboard will work with limited functionality');
+}
 
 $w.onReady(function () {
     try {
-        console.log('🔧 PMaaS Dashboard page ready - FULL NLP FUNCTIONALITY');
+        console.log('🔧 PMaaS Dashboard page ready - NLP FUNCTIONALITY:', importsLoaded ? 'AVAILABLE' : 'DEGRADED');
         console.log('🔧 Page loaded at:', new Date().toISOString());
         console.log('🔧 About to call setupHTMLCommunication...');
         setupHTMLCommunication();
@@ -110,9 +128,14 @@ async function handleHTMLCall(data, htmlElement) {
                 
             case 'processNlpInput':
                 console.log('🔧 Calling processSingleInput with input:', data.input);
-                const { processSingleInput } = await import('backend/nlp/nlpTrainingHelpers.js');
-                result = await processSingleInput(data.input);
-                console.log('🔧 processSingleInput result:', result);
+                try {
+                    const { processSingleInput } = await import('backend/nlp/nlpTrainingHelpers.js');
+                    result = await processSingleInput(data.input);
+                    console.log('🔧 processSingleInput result:', result);
+                } catch (importError) {
+                    console.error('❌ Failed to import processSingleInput:', importError);
+                    result = { success: false, error: 'Processing not available' };
+                }
                 break;
                 
             case 'test':

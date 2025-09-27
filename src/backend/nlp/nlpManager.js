@@ -31,10 +31,15 @@ class LinkificoNLPManager {
             Logger.log('nlpManager', 'initialize', 'Starting NLP Manager initialization');
             console.log('[NLP-MANAGER] Initialization started');
 
-            // Initialize Redis connection
-            console.log('[NLP-MANAGER] Initializing Redis connection...');
-            await this.initRedis();
-            console.log('[NLP-MANAGER] Redis connection established');
+            // Try to initialize Redis connection (non-blocking)
+            console.log('[NLP-MANAGER] Attempting Redis connection...');
+            try {
+                await this.initRedis();
+                console.log('[NLP-MANAGER] Redis connection established');
+            } catch (redisError) {
+                console.log(`[NLP-MANAGER] Redis connection failed, continuing without Redis: ${redisError.message}`);
+                Logger.warn('nlpManager', 'initialize', `Redis unavailable: ${redisError.message}`);
+            }
 
             // Initialize NLP Manager with NO FILE SYSTEM settings
             console.log('[NLP-MANAGER] Creating NlpManager instance...');
@@ -54,16 +59,23 @@ class LinkificoNLPManager {
                 }
             });
 
-            // Try to load existing model from Redis
-            console.log('[NLP-MANAGER] Attempting to load existing model from Redis...');
-            const modelLoaded = await this.loadModel();
-            console.log(`[NLP-MANAGER] Model load result: ${modelLoaded}`);
-            
-            if (!modelLoaded) {
-                Logger.log('nlpManager', 'initialize', 'No existing model found, training new model');
-                console.log('[NLP-MANAGER] No existing model found, starting training...');
-                await this.trainModel(); // Train immediately if no model exists
-                console.log('[NLP-MANAGER] Training completed');
+            // Try to load existing model from Redis (only if Redis is available)
+            if (this.redis) {
+                console.log('[NLP-MANAGER] Attempting to load existing model from Redis...');
+                const modelLoaded = await this.loadModel();
+                console.log(`[NLP-MANAGER] Model load result: ${modelLoaded}`);
+                
+                if (!modelLoaded) {
+                    Logger.log('nlpManager', 'initialize', 'No existing model found, training new model');
+                    console.log('[NLP-MANAGER] No existing model found, starting training...');
+                    await this.trainModel(); // Train immediately if no model exists
+                    console.log('[NLP-MANAGER] Training completed');
+                }
+            } else {
+                // If Redis is not available, train a basic model
+                console.log('[NLP-MANAGER] Redis unavailable, training basic model...');
+                await this.trainModel();
+                console.log('[NLP-MANAGER] Basic model training completed');
             }
 
             this.isInitialized = true;
