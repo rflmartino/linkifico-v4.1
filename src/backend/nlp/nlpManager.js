@@ -5,7 +5,7 @@
 const { NlpManager } = require('node-nlp');
 import { createClient } from 'redis';
 import { getSecret } from 'wix-secrets-backend';
-import { Logger } from '../utils/logger.js';
+import { Logger } from '../logger.js';
 
 class LinkificoNLPManager {
     constructor() {

@@ -1,8 +1,8 @@
 // nlpTrainingHelpers.js - PRODUCTION READY VERSION
 // Completely isolated from model serialization issues
 
-import { Logger } from '../utils/logger.js';
-import nlpManager from 'backend/nlp/nlpManager.js';
+import { Logger } from '../logger.js';
+import nlpManager from './nlpManager.js';
 
 /**
  * PRODUCTION SAFE model status - no direct model access
