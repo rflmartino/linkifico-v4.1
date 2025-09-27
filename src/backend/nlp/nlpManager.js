@@ -59,10 +59,9 @@ class LinkificoNLPManager {
             console.log(`[NLP-MANAGER] Model load result: ${modelLoaded}`);
             
             if (!modelLoaded) {
-                Logger.log('nlpManager', 'initialize', 'No existing model found, training new model');
-                console.log('[NLP-MANAGER] No existing model found, starting training...');
-                await this.trainModel(); // Train immediately if no model exists
-                console.log('[NLP-MANAGER] Training completed');
+                Logger.log('nlpManager', 'initialize', 'No existing model found - will train on demand');
+                // DON'T train automatically - train on demand instead
+                this.isModelTrained = false;
             }
 
             this.isInitialized = true;

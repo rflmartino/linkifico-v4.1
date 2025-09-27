@@ -1,4 +1,6 @@
-// Page Code for NLP Admin (Wix Velo) - WITH PROPER WEB LOGGING
+// Page Code for NLP Admin (Wix Velo) - LAZY LOADING APPROACH
+console.log('🔧 PMaaS Dashboard page script loaded at:', new Date().toISOString());
+
 import { 
     trainNLPModel, 
     getNLPModelStatus, 
@@ -6,10 +8,21 @@ import {
     initializeNLP 
 } from 'backend/nlp/nlpWebMethods.web.js';
 
-import { logToBackend } from 'backend/webLogger.web.js';
+console.log('🔧 Imports completed successfully');
 
-// Log page load
-logToBackend('PMaaS-Dashboard', 'pageLoad', { timestamp: new Date().toISOString() });
+$w.onReady(function () {
+    try {
+        console.log('🔧 PMaaS Dashboard page ready - LAZY LOADING APPROACH');
+        console.log('🔧 Page loaded at:', new Date().toISOString());
+        console.log('🔧 About to call setupHTMLCommunication...');
+        setupHTMLCommunication();
+        console.log('🔧 setupHTMLCommunication completed successfully');
+    } catch (error) {
+        console.error('❌ Error in $w.onReady:', error);
+        console.error('❌ Error message:', error.message);
+        console.error('❌ Error stack:', error.stack);
+    }
+});
 
 $w.onReady(function () {
     try {

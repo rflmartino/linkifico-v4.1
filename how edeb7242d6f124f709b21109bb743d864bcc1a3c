@@ -1,0 +1,45 @@
+[33mcommit 3f59bb3cfe6babc6e4b5df149ad7bd32df9f721c[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Rafa <rflmartino@gmail.com>
+Date:   Sat Sep 27 15:35:51 2025 +0100
+
+    fixing things again
+
+src/backend/nlp/nlpManager.js
+src/backend/nlp/nlpTrainingHelpers.js
+src/pages/PMaaS Dashboard.r88zc.js
+
+[33mcommit 9e9f39037101123f29ff0432938d1afcd6f75b40[m
+Author: Rafa <rflmartino@gmail.com>
+Date:   Sat Sep 27 15:16:18 2025 +0100
+
+    restoring logs
+
+src/backend/nlp/nlpTrainingHelpers.js
+src/backend/nlp/nlpWebMethods.web.js
+src/pages/PMaaS Dashboard.r88zc.js
+
+[33mcommit c1a632c128b2ecaa67bfd6d14db4eed8af351fe9[m
+Author: Rafa <rflmartino@gmail.com>
+Date:   Sat Sep 27 15:11:57 2025 +0100
+
+    essential logs restored.
+
+src/pages/PMaaS Dashboard.r88zc.js
+
+[33mcommit edeb7242d6f124f709b21109bb743d864bcc1a3c[m
+Author: Rafa <rflmartino@gmail.com>
+Date:   Sat Sep 27 15:08:36 2025 +0100
+
+    console log cleanup.
+
+src/backend/nlp/nlpTrainingHelpers.js
+src/backend/nlp/nlpWebMethods.web.js
+src/pages/PMaaS Dashboard.r88zc.js
+
+[33mcommit f98930467a344954f4c55fc79244e562c5484a2b[m
+Author: Rafa <rflmartino@gmail.com>
+Date:   Sat Sep 27 15:03:56 2025 +0100
+
+    fixing test button on NLP Admin Console.
+
+src/pages/PMaaS Dashboard.r88zc.js
