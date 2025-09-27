@@ -2,8 +2,7 @@
 // Your trained model will persist forever in Redis
 
 // @ts-ignore - no types
-// Use ES6 import syntax instead of require
-import { NlpManager } from 'node-nlp';
+const { NlpManager } = require('node-nlp');
 import { createClient } from 'redis';
 import { getSecret } from 'wix-secrets-backend';
 import { Logger } from '../logger.js';
