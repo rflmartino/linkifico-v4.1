@@ -565,13 +565,13 @@
                 const action = data.requestId.split('_')[0];
                 log('info', `📥 Response for action: ${action}`);
                 
-                if (data.requestId.startsWith('init_')) {
+                if (data.requestId.startsWith('init_') || data.requestId.startsWith('initializeNLP_')) {
                     handleInitializeResponse(data);
-                } else if (data.requestId.startsWith('train_')) {
+                } else if (data.requestId.startsWith('train_') || data.requestId.startsWith('trainNLPModel_')) {
                     handleTrainResponse(data);
-                } else if (data.requestId.startsWith('test_')) {
+                } else if (data.requestId.startsWith('test_') || data.requestId.startsWith('testNLPModel_')) {
                     handleTestResponse(data);
-                } else if (data.requestId.startsWith('status_')) {
+                } else if (data.requestId.startsWith('status_') || data.requestId.startsWith('getNLPModelStatus_')) {
                     handleStatusResponse(data);
                 } else if (data.requestId.startsWith('processNlpInput_')) {
                     handleProcessResponse(data);
