@@ -25,7 +25,7 @@ class LinkificoNLPManager {
         this.modelKey = 'linkifico:nlp:model:permanent';  // Changed key for permanence
         this.modelVersionKey = 'linkifico:nlp:version:permanent';
         this.modelBackupKey = 'linkifico:nlp:model:backup'; // Backup copy
-        this.currentVersion = '1.0.5'; // Increment to save permanent version WITH NEW FEATURES
+        this.currentVersion = '1.0.5'; // Will be incremented by reset function when needed
         this.confidenceThreshold = 0.7;
         this.isInitialized = false;
         this.isTraining = false;
@@ -407,6 +407,50 @@ class LinkificoNLPManager {
         this.nlpManager = null;
         this.isInitialized = false;
         this.isModelTrained = false;
+    }
+    
+    /**
+     * Delete model from Redis storage
+     */
+    async deleteModel() {
+        try {
+            if (!this.redis) {
+                await this.initRedis();
+            }
+            
+            // Delete model data
+            const modelDeleted = await this.redis.del(this.modelKey);
+            
+            // Delete version info
+            await this.redis.del(this.modelVersionKey);
+            
+            // Delete backup if exists
+            await this.redis.del(this.modelBackupKey);
+            
+            Logger.log('nlpManager', 'deleteModel', `Model deleted: ${modelDeleted > 0 ? 'found and deleted' : 'not found'}`);
+            
+            return modelDeleted > 0;
+            
+        } catch (error) {
+            Logger.error('nlpManager', 'deleteModel', error);
+            return false;
+        }
+    }
+    
+    /**
+     * Increment version number
+     */
+    incrementVersion() {
+        const versionParts = this.currentVersion.split('.');
+        const major = parseInt(versionParts[0]);
+        const minor = parseInt(versionParts[1]);
+        const patch = parseInt(versionParts[2]);
+        
+        // Increment patch version
+        const newPatch = patch + 1;
+        this.currentVersion = `${major}.${minor}.${newPatch}`;
+        
+        Logger.log('nlpManager', 'incrementVersion', `Version incremented to ${this.currentVersion}`);
     }
 
 }

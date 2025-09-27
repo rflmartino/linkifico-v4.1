@@ -321,3 +321,51 @@ export async function performHealthCheck() {
         };
     }
 }
+
+/**
+ * Reset NLP model - deletes old model and increments version
+ */
+export async function resetModelAndIncrementVersion() {
+    try {
+        Logger.log('nlpTrainingHelpers', 'resetModelAndIncrementVersion', 'Starting model reset');
+        
+        // Initialize NLP manager to access Redis
+        await nlpManager.initialize();
+        
+        // Delete old model from Redis
+        const deleted = await nlpManager.deleteModel();
+        
+        if (!deleted) {
+            Logger.log('nlpTrainingHelpers', 'resetModelAndIncrementVersion', 'No existing model to delete');
+        } else {
+            Logger.log('nlpTrainingHelpers', 'resetModelAndIncrementVersion', 'Old model deleted from Redis');
+        }
+        
+        // Increment version in the manager
+        nlpManager.incrementVersion();
+        
+        // Reset training state
+        nlpManager.isTraining = false;
+        nlpManager.isModelTrained = false;
+        
+        Logger.log('nlpTrainingHelpers', 'resetModelAndIncrementVersion', `Version incremented to ${nlpManager.currentVersion}`);
+        
+        return {
+            success: true,
+            message: `Model reset successfully. New version: ${nlpManager.currentVersion}`,
+            stats: {
+                version: nlpManager.currentVersion,
+                modelDeleted: deleted,
+                readyForTraining: true
+            }
+        };
+        
+    } catch (error) {
+        Logger.error('nlpTrainingHelpers', 'resetModelAndIncrementVersion', error);
+        return {
+            success: false,
+            message: 'Error resetting model',
+            error: error.message
+        };
+    }
+}

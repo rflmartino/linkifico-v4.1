@@ -8,7 +8,8 @@ import {
     testNLPSystem,
     getModelStatus,
     processSingleInput,
-    performHealthCheck
+    performHealthCheck,
+    resetModelAndIncrementVersion
 } from './nlpTrainingHelpers.js';
 
 /**
@@ -137,6 +138,39 @@ export const initializeNLP = webMethod(Permissions.Anyone, async () => {
         Logger.error('nlpWebMethods', 'initializeNLP', error);
         return {
             success: false,
+            error: error.message
+        };
+    }
+});
+
+/**
+ * Reset NLP model - deletes old model and increments version
+ */
+export const resetNLPModel = webMethod(Permissions.Anyone, async () => {
+    try {
+        Logger.log('nlpWebMethods', 'resetNLPModel', 'Starting model reset');
+        
+        const result = await resetModelAndIncrementVersion();
+        
+        if (result.success) {
+            return {
+                success: true,
+                message: result.message,
+                stats: result.stats
+            };
+        } else {
+            return {
+                success: false,
+                message: result.message,
+                error: result.error
+            };
+        }
+        
+    } catch (error) {
+        Logger.error('nlpWebMethods', 'resetNLPModel', error);
+        return {
+            success: false,
+            message: 'Error resetting model',
             error: error.message
         };
     }

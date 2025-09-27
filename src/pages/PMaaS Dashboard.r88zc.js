@@ -4,7 +4,8 @@ import {
     getNLPModelStatus, 
     testNLPModel, 
     initializeNLP,
-    processNLPInput  // Add this web method
+    processNLPInput,
+    resetNLPModel  // Add reset method
 } from 'backend/nlp/nlpWebMethods.web.js';
 
 import { logToBackend } from 'backend/webLogger.web.js';
@@ -83,6 +84,10 @@ async function handleHTMLCall(data, htmlElement) {
                 
             case 'processNlpInput':
                 result = await processNLPInput(data.input);  // Use the web method
+                break;
+                
+            case 'resetNLPModel':
+                result = await resetNLPModel();
                 break;
                 
             case 'test':

@@ -354,7 +354,7 @@
             <!-- Actions Section -->
             <div class="actions">
                 <button class="btn btn-primary" onclick="initializeSystem()">
-                    <span id="initText">🚀 Initialize System</span>
+                    <span id="initText">🔗 Connect to Database</span>
                     <span id="initLoading" class="loading hidden"></span>
                 </button>
                 <button class="btn btn-success" onclick="trainModel()">
@@ -368,6 +368,10 @@
                 <button class="btn btn-primary" onclick="loadStatus()">
                     <span id="statusText">📊 Load Status</span>
                     <span id="statusLoading" class="loading hidden"></span>
+                </button>
+                <button class="btn btn-danger" onclick="resetModel()">
+                    <span id="resetText">🔄 Reset Model</span>
+                    <span id="resetLoading" class="loading hidden"></span>
                 </button>
             </div>
 
@@ -451,16 +455,16 @@
             }
         }
 
-        // Initialize the system
+        // Connect to database
         async function initializeSystem() {
             setLoading('init', true);
-            log('info', 'Initializing Node-NLP system...');
+            log('info', 'Connecting to model database...');
             
             try {
                 const requestId = sendMessageToWix('initializeNLP');
-                log('info', `Initialization request sent with ID: ${requestId}`);
+                log('info', `Connection request sent with ID: ${requestId}`);
             } catch (error) {
-                log('error', `Initialization error: ${error.message}`);
+                log('error', `Connection error: ${error.message}`);
                 setLoading('init', false);
             }
         }
@@ -504,6 +508,25 @@
             } catch (error) {
                 log('error', `Status loading error: ${error.message}`);
                 setLoading('status', false);
+            }
+        }
+
+        // Reset model
+        async function resetModel() {
+            // Show confirmation dialog
+            if (!confirm('Are you sure you want to reset the model? This will delete the current model and increment the version. You will need to retrain after this.')) {
+                return;
+            }
+            
+            setLoading('reset', true);
+            log('info', 'Resetting model...');
+            
+            try {
+                const requestId = sendMessageToWix('resetNLPModel');
+                log('info', `Reset request sent with ID: ${requestId}`);
+            } catch (error) {
+                log('error', `Reset error: ${error.message}`);
+                setLoading('reset', false);
             }
         }
 
@@ -573,6 +596,8 @@
                     handleTestResponse(data);
                 } else if (data.requestId.startsWith('status_') || data.requestId.startsWith('getNLPModelStatus_')) {
                     handleStatusResponse(data);
+                } else if (data.requestId.startsWith('reset_') || data.requestId.startsWith('resetNLPModel_')) {
+                    handleResetResponse(data);
                 } else if (data.requestId.startsWith('processNlpInput_')) {
                     handleProcessResponse(data);
                 } else {
@@ -587,14 +612,14 @@
         function handleInitializeResponse(data) {
             setLoading('init', false);
             if (data.success && data.result) {
-                log('success', `System initialized: ${data.result.message}`);
+                log('success', `Database connected: ${data.result.message}`);
                 if (data.result.wasTraining) {
                     log('success', `Model trained with version ${data.result.stats.version}`);
                 }
                 isInitialized = true;
                 loadStatus();
             } else {
-                log('error', `Initialization failed: ${data.error || 'Unknown error'}`);
+                log('error', `Connection failed: ${data.error || 'Unknown error'}`);
             }
         }
 
@@ -650,6 +675,22 @@
                 log('success', `Model Status: v${stats.version}, ${stats.totalExamples} examples`);
             } else {
                 log('error', `Status loading failed: ${data.error || 'Unknown error'}`);
+            }
+        }
+
+        function handleResetResponse(data) {
+            setLoading('reset', false);
+            if (data.success && data.result) {
+                log('success', `Model reset successfully: ${data.result.message}`);
+                if (data.result.stats) {
+                    log('success', `New version: ${data.result.stats.version}`);
+                    log('success', `Model deleted: ${data.result.stats.modelDeleted ? 'Yes' : 'No'}`);
+                    log('info', 'Model is now ready for training with new data');
+                }
+                // Auto-load status after reset
+                loadStatus();
+            } else {
+                log('error', `Reset failed: ${data.error || 'Unknown error'}`);
             }
         }
 
