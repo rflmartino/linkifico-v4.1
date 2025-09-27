@@ -655,10 +655,15 @@
 
         function handleProcessResponse(data) {
             if (data.success) {
-                log('success', `Result: ${data.result.intent} (${(data.result.confidence * 100).toFixed(1)}% confidence)`);
+                // Fix: Access the nested result structure
+                const result = data.result.result || data.result;
+                const intent = result.intent || 'Unknown';
+                const confidence = result.confidence || 0;
                 
-                document.getElementById('resultIntent').textContent = data.result.intent;
-                document.getElementById('resultConfidence').textContent = `${(data.result.confidence * 100).toFixed(1)}%`;
+                log('success', `Result: ${intent} (${(confidence * 100).toFixed(1)}% confidence)`);
+                
+                document.getElementById('resultIntent').textContent = intent;
+                document.getElementById('resultConfidence').textContent = `${(confidence * 100).toFixed(1)}%`;
                 document.getElementById('testResults').classList.remove('hidden');
             } else {
                 log('error', `Processing failed: ${data.error}`);
