@@ -1,10 +1,7 @@
 // nlpManager.js - PURELY LAZY VERSION (No Automatic Initialization)
 // @ts-ignore - no types
 
-// Suppress debug module warnings in serverless environment
-process.env.DEBUG = '';
-process.env.DEBUG_COLORS = 'false';
-
+// Import statements at the very top
 const { NlpManager } = require('node-nlp');
 import { createClient } from 'redis';
 import { getSecret } from 'wix-secrets-backend';
@@ -16,6 +13,10 @@ import {
     responseTemplates, 
     intentActionMap 
 } from './nlpTrainingData.js';
+
+// Suppress debug module warnings in serverless environment
+process.env.DEBUG = '';
+process.env.DEBUG_COLORS = 'false';
 
 class LinkificoNLPManager {
     constructor() {
