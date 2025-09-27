@@ -2,23 +2,14 @@
 
 import { Permissions, webMethod } from 'wix-web-module';
 import { Logger } from '../logger.js';
-// COMMENTED OUT - TESTING IMPORTS
-// import { 
-//     performNLPTraining,
-//     initializeNLPSystem,
-//     testNLPSystem,
-//     getModelStatus,
-//     processSingleInput,
-//     performHealthCheck
-// } from './nlpTrainingHelpers.js';
-
-// STUB FUNCTIONS FOR TESTING
-const performNLPTraining = async () => ({ success: false, message: 'Stub function' });
-const initializeNLPSystem = async () => ({ success: false, message: 'Stub function' });
-const testNLPSystem = async () => ({ success: false, message: 'Stub function' });
-const getModelStatus = async () => ({ success: false, message: 'Stub function' });
-const processSingleInput = async () => ({ success: false, message: 'Stub function' });
-const performHealthCheck = async () => ({ success: false, message: 'Stub function' });
+import { 
+    performNLPTraining,
+    initializeNLPSystem,
+    testNLPSystem,
+    getModelStatus,
+    processSingleInput,
+    performHealthCheck
+} from './nlpTrainingHelpers.js';
 
 /**
  * Train the NLP model (admin function)
