@@ -8,7 +8,7 @@ import {
     resetNLPModel  // Add reset method
 } from 'backend/nlp/nlpWebMethods.web.js';
 
-import { logToBackend } from 'backend/webLogger.web.js';
+import { logToBackend } from 'backend/utils/webLogger.web.js';
 // Remove: import { processSingleInput } from 'backend/nlp/nlpTrainingHelpers.js';
 
 $w.onReady(function () {

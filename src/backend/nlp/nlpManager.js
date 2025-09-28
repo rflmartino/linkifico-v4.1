@@ -5,7 +5,7 @@
 const { NlpManager } = require('node-nlp');
 import { createClient } from 'redis';
 import { getSecret } from 'wix-secrets-backend';
-import { Logger } from '../logger.js';
+import { Logger } from '../utils/logger.js';
 
 // Import training data - static import (no dynamic imports in Wix Velo)
 import { 

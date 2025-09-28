@@ -3,13 +3,13 @@
 
 import { dataManager } from './dataManager';
 
-import { selfAnalysisController } from './selfAnalysisController';
-import { gapDetectionController } from './gapDetectionController';
-import { actionPlanningController } from './actionPlanningController';
-import { executionController } from './executionController';
-import { learningController } from './learningController';
+import { selfAnalysisController } from './controllers/selfAnalysisController';
+import { gapDetectionController } from './controllers/gapDetectionController';
+import { actionPlanningController } from './controllers/actionPlanningController';
+import { executionController } from './controllers/executionController';
+import { learningController } from './controllers/learningController';
 import { Permissions, webMethod } from 'wix-web-module';
-import { Logger } from './logger';
+import { Logger } from './utils/logger';
 
 // Main chat processing function
 export const processUserRequest = webMethod(Permissions.Anyone, async (requestData) => {

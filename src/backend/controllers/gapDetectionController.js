@@ -3,7 +3,7 @@
 
 import { getSecret } from 'wix-secrets-backend';
 import { askClaude, askClaudeJSON } from 'backend/aiClient';
-import { Logger } from 'backend/logger';
+import { Logger } from '../utils/logger';
 import { 
     createGapData, 
     saveGapData, 

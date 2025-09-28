@@ -1,7 +1,7 @@
 // nlpTrainingHelpers.js - PURELY LAZY VERSION
 // No automatic initialization - only works when explicitly called
 
-import { Logger } from '../logger.js';
+import { Logger } from '../utils/logger.js';
 import nlpManager from './nlpManager.js';
 import { trainingData } from './nlpTrainingData.js';
 

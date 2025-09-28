@@ -3,7 +3,7 @@
 
 import { createClient } from 'redis';
 import { getSecret } from 'wix-secrets-backend';
-import { Logger } from './logger.js';
+import { Logger } from './utils/logger.js';
 
 // Redis client (lazy)
 let redisClient = null;

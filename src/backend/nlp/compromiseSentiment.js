@@ -2,7 +2,7 @@
 // Simple, reliable sentiment detection using compromise library
 
 import nlp from 'compromise';
-import { Logger } from '../logger.js';
+import { Logger } from '../utils/logger.js';
 
 /**
  * Sentiment Analysis using Compromise

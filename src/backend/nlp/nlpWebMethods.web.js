@@ -1,7 +1,7 @@
 // nlpWebMethods.web.js - Web methods for NLP management from frontend
 
 import { Permissions, webMethod } from 'wix-web-module';
-import { Logger } from '../logger.js';
+import { Logger } from '../utils/logger.js';
 import { 
     performNLPTraining,
     initializeNLPSystem,

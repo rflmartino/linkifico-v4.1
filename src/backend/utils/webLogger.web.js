@@ -1,5 +1,5 @@
 import { Permissions, webMethod } from 'wix-web-module';
-import { Logger } from 'backend/logger';
+import { Logger } from './logger';
 
 export const logToBackend = webMethod(Permissions.Anyone, async (file, functionName, data = null, error = null) => {
     try {
