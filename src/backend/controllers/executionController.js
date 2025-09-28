@@ -2,15 +2,15 @@
 // Mirrors Cursor's execution system - processes responses and updates project data
 
 import { getSecret } from 'wix-secrets-backend';
-import { askClaude } from '../utils/aiClient';
+import { askClaude } from '../utils/aiClient.js';
 import { 
     getProjectData,
     saveProjectData,
     PROJECT_FIELDS 
-} from 'backend/data/projectData';
-import { Logger } from '../utils/logger';
-import compromiseSentiment from 'backend/nlp/compromiseSentiment';
-import nlpManager from 'backend/nlp/nlpManager';
+} from 'backend/data/projectData.js';
+import { Logger } from '../utils/logger.js';
+import compromiseSentiment from 'backend/nlp/compromiseSentiment.js';
+import nlpManager from 'backend/nlp/nlpManager.js';
 
 async function callClaude(prompt, systemPrompt = null) {
     return await askClaude({

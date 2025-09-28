@@ -2,13 +2,13 @@
 // Mirrors Cursor's suggestion system - determines best next step
 
 import { getSecret } from 'wix-secrets-backend';
-import { askClaude, askClaudeJSON } from '../utils/aiClient';
-import { Logger } from '../utils/logger';
+import { askClaude, askClaudeJSON } from '../utils/aiClient.js';
+import { Logger } from '../utils/logger.js';
 import { 
     getLearningData,
     saveLearningData,
     createLearningData 
-} from 'backend/data/projectData';
+} from 'backend/data/projectData.js';
 
 async function callClaude(prompt, systemPrompt = null) {
     return await askClaude({

@@ -2,15 +2,15 @@
 // Mirrors Cursor's gap analysis - finds what's blocking progress
 
 import { getSecret } from 'wix-secrets-backend';
-import { askClaude, askClaudeJSON } from '../utils/aiClient';
-import { Logger } from '../utils/logger';
+import { askClaude, askClaudeJSON } from '../utils/aiClient.js';
+import { Logger } from '../utils/logger.js';
 import { 
     createGapData, 
     saveGapData, 
     getGapData,
     identifyMissingFields,
     PROJECT_FIELDS 
-} from 'backend/data/projectData';
+} from 'backend/data/projectData.js';
 
 async function callClaude(prompt, systemPrompt = null) {
     return await askClaude({

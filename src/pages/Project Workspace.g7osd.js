@@ -1,7 +1,7 @@
 // API Reference: https://www.wix.com/velo/reference/api-overview/introduction
 // “Hello, World!” Example: https://learn-code.wix.com/en/article/hello-world
 
-import { processUserRequest } from 'backend/entrypoint.web';
+import { processUserRequest } from 'backend/entrypoint.web.js';
 import { currentMember } from 'wix-members';
 import wixLocation from 'wix-location';
 import { session } from 'wix-storage';

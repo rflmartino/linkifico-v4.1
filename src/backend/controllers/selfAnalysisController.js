@@ -2,8 +2,8 @@
 // Mirrors Cursor's codebase analysis - continuously evaluates what the system knows
 
 import { getSecret } from 'wix-secrets-backend';
-import { askClaude, askClaudeJSON } from '../utils/aiClient';
-import { Logger } from '../utils/logger';
+import { askClaude, askClaudeJSON } from '../utils/aiClient.js';
+import { Logger } from '../utils/logger.js';
 import { 
     createKnowledgeData, 
     saveKnowledgeData, 
@@ -11,7 +11,7 @@ import {
     calculateProjectCompleteness,
     identifyMissingFields,
     PROJECT_FIELDS 
-} from 'backend/data/projectData';
+} from 'backend/data/projectData.js';
 
 // AI wrapper
 async function callClaude(prompt, systemPrompt = null) {

@@ -2,8 +2,8 @@
 // Mirrors Cursor's learning system - continuously improves based on interactions
 
 import { getSecret } from 'wix-secrets-backend';
-import { askClaude, askClaudeJSON } from '../utils/aiClient';
-import { Logger } from '../utils/logger';
+import { askClaude, askClaudeJSON } from '../utils/aiClient.js';
+import { Logger } from '../utils/logger.js';
 import { 
     getLearningData,
     saveLearningData,
@@ -11,7 +11,7 @@ import {
     getReflectionData,
     saveReflectionData,
     createReflectionData 
-} from 'backend/data/projectData';
+} from 'backend/data/projectData.js';
 
 async function callClaude(prompt, systemPrompt = null) {
     return await askClaude({
