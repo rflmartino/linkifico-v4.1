@@ -2,7 +2,7 @@
 // Mirrors Cursor's learning system - continuously improves based on interactions
 
 import { getSecret } from 'wix-secrets-backend';
-import { askClaude, askClaudeJSON } from 'backend/aiClient';
+import { askClaude, askClaudeJSON } from '../utils/aiClient';
 import { Logger } from '../utils/logger';
 import { 
     getLearningData,

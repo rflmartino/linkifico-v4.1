@@ -2,7 +2,7 @@
 // Mirrors Cursor's gap analysis - finds what's blocking progress
 
 import { getSecret } from 'wix-secrets-backend';
-import { askClaude, askClaudeJSON } from 'backend/aiClient';
+import { askClaude, askClaudeJSON } from '../utils/aiClient';
 import { Logger } from '../utils/logger';
 import { 
     createGapData, 

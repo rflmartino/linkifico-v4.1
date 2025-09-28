@@ -2,7 +2,7 @@
 // Mirrors Cursor's execution system - processes responses and updates project data
 
 import { getSecret } from 'wix-secrets-backend';
-import { askClaude } from 'backend/aiClient';
+import { askClaude } from '../utils/aiClient';
 import { 
     getProjectData,
     saveProjectData,

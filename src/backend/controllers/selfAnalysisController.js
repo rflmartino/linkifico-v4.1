@@ -2,7 +2,7 @@
 // Mirrors Cursor's codebase analysis - continuously evaluates what the system knows
 
 import { getSecret } from 'wix-secrets-backend';
-import { askClaude, askClaudeJSON } from 'backend/aiClient';
+import { askClaude, askClaudeJSON } from '../utils/aiClient';
 import { Logger } from '../utils/logger';
 import { 
     createKnowledgeData, 

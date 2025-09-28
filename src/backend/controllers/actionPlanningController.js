@@ -2,7 +2,7 @@
 // Mirrors Cursor's suggestion system - determines best next step
 
 import { getSecret } from 'wix-secrets-backend';
-import { askClaude, askClaudeJSON } from 'backend/aiClient';
+import { askClaude, askClaudeJSON } from '../utils/aiClient';
 import { Logger } from '../utils/logger';
 import { 
     getLearningData,
