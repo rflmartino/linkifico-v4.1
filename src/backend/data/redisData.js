@@ -1,7 +1,7 @@
 // redisData.js - Centralized data management with batch Redis operations
 // Reduces Redis calls from 25+ per interaction to just 2 (load + save)
 
-import { Logger } from './utils/logger.js';
+import { Logger } from '../utils/logger.js';
 import { 
     getProjectData, saveProjectData,
     getKnowledgeData, saveKnowledgeData,
