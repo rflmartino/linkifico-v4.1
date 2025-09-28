@@ -1,4 +1,4 @@
-// dataManager.js - Centralized data management with batch Redis operations
+// redisData.js - Centralized data management with batch Redis operations
 // Reduces Redis calls from 25+ per interaction to just 2 (load + save)
 
 import { Logger } from './utils/logger';
@@ -13,7 +13,7 @@ import {
     createProjectData, createKnowledgeData, createGapData, createLearningData, createReflectionData
 } from './projectData';
 
-export const dataManager = {
+export const redisData = {
     
     // Load all data for a project and user in a single Redis operation
     async loadAllData(projectId, userId) {

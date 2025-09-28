@@ -8,7 +8,7 @@ import {
     getLearningData,
     saveLearningData,
     createLearningData 
-} from 'backend/projectData';
+} from 'backend/data/projectData';
 
 async function callClaude(prompt, systemPrompt = null) {
     return await askClaude({

@@ -1,7 +1,7 @@
 // entrypoint.web.js - Main entry point for intelligent project management chat
 // Integrates with chat UI and orchestrates the 5-controller intelligence system
 
-import { dataManager } from './dataManager';
+import { redisData } from './data/redisData';
 
 import { selfAnalysisController } from './controllers/selfAnalysisController';
 import { gapDetectionController } from './controllers/gapDetectionController';
@@ -59,9 +59,9 @@ async function processChatMessage(projectId, userId, message, sessionId, process
         const totalStart = Date.now();
         Logger.info('entrypoint.web', 'processChatMessage:input', { projectId, userId, sessionId });
         // Get or create project data using data manager
-        let allData = await dataManager.loadAllData(projectId, userId);
+        let allData = await redisData.loadAllData(projectId, userId);
         if (!allData.projectData) {
-            allData.projectData = dataManager.createDefaultProjectData(projectId);
+            allData.projectData = redisData.createDefaultProjectData(projectId);
         }
         
         // Get chat history
@@ -132,24 +132,24 @@ async function processIntelligenceLoop(projectId, userId, message, processingId)
     
     // Load all data in a single Redis operation
     const dataLoadStart = Date.now();
-    let allData = await dataManager.loadAllData(projectId, userId);
+    let allData = await redisData.loadAllData(projectId, userId);
     Logger.info('entrypoint.web', 'timing:dataLoadMs', { ms: Date.now() - dataLoadStart });
     
     // Initialize default data structures if needed
     if (!allData.projectData) {
-        allData.projectData = dataManager.createDefaultProjectData(projectId);
+        allData.projectData = redisData.createDefaultProjectData(projectId);
     }
     if (!allData.learningData) {
-        allData.learningData = dataManager.createDefaultLearningData(userId);
+        allData.learningData = redisData.createDefaultLearningData(userId);
     }
     if (!allData.knowledgeData) {
-        allData.knowledgeData = dataManager.createDefaultKnowledgeData(projectId);
+        allData.knowledgeData = redisData.createDefaultKnowledgeData(projectId);
     }
     if (!allData.gapData) {
-        allData.gapData = dataManager.createDefaultGapData(projectId);
+        allData.gapData = redisData.createDefaultGapData(projectId);
     }
     if (!allData.reflectionData) {
-        allData.reflectionData = dataManager.createDefaultReflectionData(projectId);
+        allData.reflectionData = redisData.createDefaultReflectionData(projectId);
     }
     
     // 1. Self Analysis - Analyze current project knowledge
@@ -163,7 +163,7 @@ async function processIntelligenceLoop(projectId, userId, message, processingId)
     }
     
     if (processingId) {
-        await dataManager.saveProcessing(processingId, { 
+        await redisData.saveProcessing(processingId, { 
             status: 'processing', 
             stage: 'analyzing', 
             updatedAt: Date.now(),
@@ -182,7 +182,7 @@ async function processIntelligenceLoop(projectId, userId, message, processingId)
         allData.gapData = gaps.gapData;
     }
     if (processingId) {
-        await dataManager.saveProcessing(processingId, { 
+        await redisData.saveProcessing(processingId, { 
             status: 'processing', 
             stage: 'gap_detection', 
             updatedAt: Date.now(),
@@ -201,7 +201,7 @@ async function processIntelligenceLoop(projectId, userId, message, processingId)
         allData.learningData = actionPlan.updatedLearningData;
     }
     if (processingId) {
-        await dataManager.saveProcessing(processingId, { 
+        await redisData.saveProcessing(processingId, { 
             status: 'processing', 
             stage: 'planning', 
             updatedAt: Date.now(),
@@ -218,7 +218,7 @@ async function processIntelligenceLoop(projectId, userId, message, processingId)
     execution.analysis = execution.analysis || {};
     execution.analysis.gaps = gaps;
     if (processingId) {
-        await dataManager.saveProcessing(processingId, { 
+        await redisData.saveProcessing(processingId, { 
             status: 'processing', 
             stage: 'execution', 
             updatedAt: Date.now(),
@@ -244,7 +244,7 @@ async function processIntelligenceLoop(projectId, userId, message, processingId)
             }
             
             // Save updated learning data in background
-            dataManager.saveAllData(projectId, userId, allData).catch(console.error);
+            redisData.saveAllData(projectId, userId, allData).catch(console.error);
         })
         .catch((error) => {
             Logger.error('entrypoint.web', 'backgroundLearning:error', error);
@@ -252,7 +252,7 @@ async function processIntelligenceLoop(projectId, userId, message, processingId)
     
     // Save all updated data in a single Redis operation
     const dataSaveStart = Date.now();
-    await dataManager.saveAllData(projectId, userId, allData);
+    await redisData.saveAllData(projectId, userId, allData);
     Logger.info('entrypoint.web', 'timing:dataSaveMs', { ms: Date.now() - dataSaveStart });
     
     Logger.info('entrypoint.web', 'processIntelligenceLoop:end', { action: actionPlan?.action });
@@ -266,7 +266,7 @@ async function startProcessing(projectId, userId, sessionId, message) {
     const processingId = `proc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     
     // Save initial processing status
-    await dataManager.saveProcessing(processingId, { 
+    await redisData.saveProcessing(processingId, { 
         status: 'processing', 
         stage: 'queued', 
         startedAt: Date.now(),
@@ -281,7 +281,7 @@ async function startProcessing(projectId, userId, sessionId, message) {
             ? { status: 'complete', conversation: [{ type: 'assistant', content: result.message, timestamp: new Date().toISOString() }], projectData: result.projectData, analysis: result.analysis, todos: (result.analysis && result.analysis.gaps && result.analysis.gaps.todos) ? result.analysis.gaps.todos : [] }
             : { status: 'error', error: result.error || 'processing failed' };
         
-        await dataManager.saveProcessing(processingId, payload);
+        await redisData.saveProcessing(processingId, payload);
     })();
     
     return { 
@@ -295,7 +295,7 @@ async function startProcessing(projectId, userId, sessionId, message) {
 
 async function getProcessingStatus(processingId) {
     if (!processingId) return { success: false, status: 'error', error: 'missing processingId' };
-    const payload = await dataManager.getProcessing(processingId);
+    const payload = await redisData.getProcessing(processingId);
     if (!payload) return { success: true, status: 'processing' };
     return { success: true, ...payload };
 }
@@ -304,15 +304,15 @@ async function getProcessingStatus(processingId) {
 export async function initializeProject(projectId, userId, initialMessage) {
     try {
         const allData = {
-            projectData: dataManager.createDefaultProjectData(projectId),
+            projectData: redisData.createDefaultProjectData(projectId),
             chatHistory: [],
-            knowledgeData: dataManager.createDefaultKnowledgeData(projectId),
-            gapData: dataManager.createDefaultGapData(projectId),
-            learningData: dataManager.createDefaultLearningData(userId),
-            reflectionData: dataManager.createDefaultReflectionData(projectId)
+            knowledgeData: redisData.createDefaultKnowledgeData(projectId),
+            gapData: redisData.createDefaultGapData(projectId),
+            learningData: redisData.createDefaultLearningData(userId),
+            reflectionData: redisData.createDefaultReflectionData(projectId)
         };
         
-        await dataManager.saveAllData(projectId, userId, allData);
+        await redisData.saveAllData(projectId, userId, allData);
         
         // Process initial message
         return await processChatMessage(projectId, userId, initialMessage, `session_${Date.now()}`, null);
@@ -330,7 +330,7 @@ export async function initializeProject(projectId, userId, initialMessage) {
 // Get project status
 export async function getProjectStatus(projectId, userId) {
     try {
-        const allData = await dataManager.loadAllData(projectId, userId);
+        const allData = await redisData.loadAllData(projectId, userId);
         const pData = allData.projectData;
         const chatHistory = allData.chatHistory;
         
@@ -361,7 +361,7 @@ export async function getProjectStatus(projectId, userId) {
 // Get chat history
 export async function getProjectChatHistory(projectId, userId) {
     try {
-        const allData = await dataManager.loadAllData(projectId, userId);
+        const allData = await redisData.loadAllData(projectId, userId);
         const chatHistory = allData.chatHistory;
         return {
             success: true,
@@ -380,7 +380,7 @@ export async function getProjectChatHistory(projectId, userId) {
 // Update project data manually
 export async function updateProjectData(projectId, userId, updates) {
     try {
-        const allData = await dataManager.loadAllData(projectId, userId);
+        const allData = await redisData.loadAllData(projectId, userId);
         const pData = allData.projectData;
         if (!pData) {
             return {
@@ -393,7 +393,7 @@ export async function updateProjectData(projectId, userId, updates) {
         Object.assign(pData, updates);
         pData.updatedAt = new Date().toISOString();
         
-        await dataManager.saveAllData(projectId, userId, allData);
+        await redisData.saveAllData(projectId, userId, allData);
         
         return {
             success: true,
@@ -414,7 +414,7 @@ export async function updateProjectData(projectId, userId, updates) {
 // Trigger intelligence analysis
 export async function triggerAnalysis(projectId, userId) {
     try {
-        const allData = await dataManager.loadAllData(projectId, userId);
+        const allData = await redisData.loadAllData(projectId, userId);
         const pData = allData.projectData;
         const chatHistory = allData.chatHistory;
         

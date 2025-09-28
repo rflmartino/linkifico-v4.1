@@ -11,7 +11,7 @@ import {
     calculateProjectCompleteness,
     identifyMissingFields,
     PROJECT_FIELDS 
-} from 'backend/projectData';
+} from 'backend/data/projectData';
 
 // AI wrapper
 async function callClaude(prompt, systemPrompt = null) {

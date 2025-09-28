@@ -7,7 +7,7 @@ import {
     getProjectData,
     saveProjectData,
     PROJECT_FIELDS 
-} from 'backend/projectData';
+} from 'backend/data/projectData';
 import { Logger } from '../utils/logger';
 import compromiseSentiment from 'backend/nlp/compromiseSentiment';
 import nlpManager from 'backend/nlp/nlpManager';

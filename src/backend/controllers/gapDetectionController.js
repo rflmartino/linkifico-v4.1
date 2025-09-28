@@ -10,7 +10,7 @@ import {
     getGapData,
     identifyMissingFields,
     PROJECT_FIELDS 
-} from 'backend/projectData';
+} from 'backend/data/projectData';
 
 async function callClaude(prompt, systemPrompt = null) {
     return await askClaude({
