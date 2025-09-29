@@ -102,7 +102,10 @@ export const redisData = {
 
     // Helper functions to create default data structures
     createDefaultProjectData(projectId) {
-        return createProjectData(projectId, {
+        return createProjectData(projectId, 'simple_waterfall', {
+            name: 'Untitled Project',
+            maturityLevel: 'basic',
+            templateData: {},
             scope: null,
             budget: null,
             timeline: null,

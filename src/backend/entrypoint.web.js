@@ -10,6 +10,7 @@ import { executionController } from './controllers/executionController.js';
 import { learningController } from './controllers/learningController.js';
 import { Permissions, webMethod } from 'wix-web-module';
 import { Logger } from './utils/logger.js';
+import { getTemplate } from './templates/templatesRegistry.js';
 
 // Main chat processing function
 export const processUserRequest = webMethod(Permissions.Anyone, async (requestData) => {
@@ -34,7 +35,8 @@ export const processUserRequest = webMethod(Permissions.Anyone, async (requestDa
     }
     if (op === 'init') {
         const initialMessage = (payload && payload.initialMessage) || 'Start';
-        return await initializeProject(projectId, userId, initialMessage);
+        const templateName = (payload && payload.templateName) || 'simple_waterfall';
+        return await initializeProject(projectId, userId, initialMessage, templateName, (payload && payload.projectName) || 'Untitled Project');
     }
     if (op === 'status') {
         return await getProjectStatus(projectId);
@@ -154,7 +156,9 @@ async function processIntelligenceLoop(projectId, userId, message, processingId)
     
     // 1. Self Analysis - Analyze current project knowledge
     const t1 = Date.now();
-    const analysis = await selfAnalysisController.analyzeProject(projectId, allData.projectData, allData.chatHistory, allData.knowledgeData);
+    const templateName = allData?.projectData?.templateName || 'simple_waterfall';
+    const template = getTemplate(templateName);
+    const analysis = await selfAnalysisController.analyzeProject(projectId, allData.projectData, allData.chatHistory, allData.knowledgeData, template);
     Logger.info('entrypoint.web', 'timing:selfAnalysisMs', { ms: Date.now() - t1 });
     
     // Update knowledge data from analysis
@@ -174,7 +178,7 @@ async function processIntelligenceLoop(projectId, userId, message, processingId)
     
     // 2. Gap Detection - Identify critical missing information
     const t2 = Date.now();
-    const gaps = await gapDetectionController.identifyGaps(projectId, analysis, allData.projectData, allData.gapData);
+    const gaps = await gapDetectionController.identifyGaps(projectId, analysis, allData.projectData, allData.gapData, template);
     Logger.info('entrypoint.web', 'timing:gapDetectionMs', { ms: Date.now() - t2 });
     
     // Update gap data from analysis
@@ -193,7 +197,7 @@ async function processIntelligenceLoop(projectId, userId, message, processingId)
     
     // 3. Action Planning - Plan optimal next action
     const t3 = Date.now();
-    const actionPlan = await actionPlanningController.planAction(projectId, userId, gaps, analysis, allData.chatHistory, allData.learningData);
+    const actionPlan = await actionPlanningController.planAction(projectId, userId, gaps, analysis, allData.chatHistory, allData.learningData, template);
     Logger.info('entrypoint.web', 'timing:actionPlanningMs', { ms: Date.now() - t3 });
     
     // Update learning data from action planning
@@ -212,7 +216,7 @@ async function processIntelligenceLoop(projectId, userId, message, processingId)
     
     // 4. Execution - Execute planned action and process user response
     const t4 = Date.now();
-    const execution = await executionController.executeAction(projectId, userId, message, actionPlan, allData.projectData);
+    const execution = await executionController.executeAction(projectId, userId, message, actionPlan, allData.projectData, template);
     Logger.info('entrypoint.web', 'timing:executionMs', { ms: Date.now() - t4 });
     // Attach gaps (including todos) into analysis for rendering inline checklist
     execution.analysis = execution.analysis || {};
@@ -301,7 +305,7 @@ async function getProcessingStatus(processingId) {
 }
 
 // Initialize new project
-export async function initializeProject(projectId, userId, initialMessage) {
+export async function initializeProject(projectId, userId, initialMessage, templateName = 'simple_waterfall', projectName = 'Untitled Project') {
     try {
         const allData = {
             projectData: redisData.createDefaultProjectData(projectId),
@@ -311,6 +315,9 @@ export async function initializeProject(projectId, userId, initialMessage) {
             learningData: redisData.createDefaultLearningData(userId),
             reflectionData: redisData.createDefaultReflectionData(projectId)
         };
+        // Ensure templateName & projectName are stored on creation
+        allData.projectData.templateName = templateName;
+        allData.projectData.name = projectName;
         
         await redisData.saveAllData(projectId, userId, allData);
         

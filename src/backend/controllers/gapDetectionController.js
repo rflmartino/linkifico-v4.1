@@ -7,9 +7,7 @@ import { Logger } from '../utils/logger.js';
 import { 
     createGapData, 
     saveGapData, 
-    getGapData,
-    identifyMissingFields,
-    PROJECT_FIELDS 
+    getGapData
 } from 'backend/data/projectData.js';
 
 async function callClaude(prompt, systemPrompt = null) {
@@ -24,11 +22,14 @@ async function callClaude(prompt, systemPrompt = null) {
 export const gapDetectionController = {
     
     // Main gap identification function
-    async identifyGaps(projectId, analysis, projectData, existingGapData = null) {
+    async identifyGaps(projectId, analysis, projectData, existingGapData = null, template = null) {
         try {
             Logger.info('gapDetectionController', 'identifyGaps:start', { projectId });
-            // Get basic missing fields
-            const missingFields = identifyMissingFields(projectData);
+            // Template-driven missing areas (Phase 1): empty or absent area objects
+            const areas = (template && template.areas) || [];
+            const missingFields = areas
+                .filter(a => !projectData?.templateData?.[a.id] || Object.keys(projectData.templateData[a.id]).length === 0)
+                .map(a => a.id);
             
             // Analyze gaps and determine next action in one API call
             const gapAnalysisAndAction = await this.analyzeGapsAndDetermineAction(projectData, analysis, missingFields);
@@ -88,24 +89,14 @@ export const gapDetectionController = {
             gapAnalysis.gaps.forEach(g => byField.set(g.field, g));
         }
         const priorityMap = { critical: 'critical', high: 'high', medium: 'medium', low: 'low' };
-        const titleMap = {
-            scope: 'Define project scope',
-            timeline: 'Set project timeline',
-            budget: 'Confirm project budget',
-            deliverables: 'List project deliverables',
-            dependencies: 'Identify dependencies/blockers'
-        };
+            const titleMap = {};
         
-        return prioritizedGaps.map(field => {
+            return prioritizedGaps.map(field => {
             const gap = byField.get(field) || { criticality: 'high', reasoning: '' };
-            const action = field === 'scope' ? 'ask_about_scope'
-                : field === 'timeline' ? 'ask_about_timeline'
-                : field === 'budget' ? 'ask_about_budget'
-                : field === 'deliverables' ? 'ask_about_deliverables'
-                : 'ask_about_dependencies';
+                const action = `ask_about_${field}`;
             return {
                 id: `todo_${field}`,
-                title: titleMap[field] || `Clarify ${field}`,
+                    title: titleMap[field] || `Clarify ${field}`,
                 reason: gap.reasoning || `Clarify ${field} to progress`,
                 priority: priorityMap[gap.criticality] || 'high',
                 action: action,
@@ -179,107 +170,25 @@ Respond in JSON format:
         const prioritizedGaps = [];
         
         missingFields.forEach(field => {
-            switch (field) {
-                case PROJECT_FIELDS.SCOPE:
-                    gaps.push({
-                        field: 'scope',
-                        criticality: 'critical',
-                        impact: 'blocks_everything',
-                        dependencies: [],
-                        reasoning: 'Project scope is fundamental - cannot plan without it'
-                    });
-                    prioritizedGaps.push('scope');
-                    break;
-                case PROJECT_FIELDS.TIMELINE:
-                    gaps.push({
-                        field: 'timeline',
-                        criticality: 'high',
-                        impact: 'blocks_planning',
-                        dependencies: ['scope'],
-                        reasoning: 'Timeline drives all project planning and resource allocation'
-                    });
-                    prioritizedGaps.push('timeline');
-                    break;
-                case PROJECT_FIELDS.BUDGET:
-                    gaps.push({
-                        field: 'budget',
-                        criticality: 'high',
-                        impact: 'blocks_planning',
-                        dependencies: ['scope'],
-                        reasoning: 'Budget constraints affect scope and resource decisions'
-                    });
-                    prioritizedGaps.push('budget');
-                    break;
-                case PROJECT_FIELDS.DELIVERABLES:
-                    gaps.push({
-                        field: 'deliverables',
-                        criticality: 'medium',
-                        impact: 'blocks_execution',
-                        dependencies: ['scope', 'timeline'],
-                        reasoning: 'Deliverables define what needs to be produced'
-                    });
-                    prioritizedGaps.push('deliverables');
-                    break;
-                case PROJECT_FIELDS.DEPENDENCIES:
-                    gaps.push({
-                        field: 'dependencies',
-                        criticality: 'medium',
-                        impact: 'blocks_execution',
-                        dependencies: ['scope', 'timeline'],
-                        reasoning: 'Dependencies identify what blocks project progress'
-                    });
-                    prioritizedGaps.push('dependencies');
-                    break;
-            }
+            gaps.push({
+                field,
+                criticality: field === 'objectives' ? 'critical' : (field === 'tasks' ? 'high' : 'medium'),
+                impact: field === 'objectives' ? 'blocks_everything' : (field === 'tasks' ? 'blocks_planning' : 'blocks_execution'),
+                dependencies: field === 'tasks' ? ['objectives'] : [],
+                reasoning: `Area '${field}' is missing in templateData`
+            });
+            prioritizedGaps.push(field);
         });
         
         // Determine next action based on top priority gap
         const topGap = prioritizedGaps[0];
         let nextAction;
         
-        switch (topGap) {
-            case 'scope':
-                nextAction = {
-                    action: 'ask_about_scope',
-                    question: 'What exactly are you trying to accomplish with this project?',
-                    reasoning: 'Project scope is fundamental - need to understand the goal'
-                };
-                break;
-            case 'timeline':
-                nextAction = {
-                    action: 'ask_about_timeline',
-                    question: 'When do you need this project completed?',
-                    reasoning: 'Timeline drives all planning and resource allocation'
-                };
-                break;
-            case 'budget':
-                nextAction = {
-                    action: 'ask_about_budget',
-                    question: 'What budget do you have available for this project?',
-                    reasoning: 'Budget constraints affect scope and approach decisions'
-                };
-                break;
-            case 'deliverables':
-                nextAction = {
-                    action: 'ask_about_deliverables',
-                    question: 'What specific outputs or results do you need from this project?',
-                    reasoning: 'Deliverables define what needs to be produced'
-                };
-                break;
-            case 'dependencies':
-                nextAction = {
-                    action: 'ask_about_dependencies',
-                    question: 'What external factors or resources does this project depend on?',
-                    reasoning: 'Dependencies identify potential blockers and requirements'
-                };
-                break;
-            default:
-                nextAction = {
-                    action: 'ask_about_scope',
-                    question: 'What exactly are you trying to accomplish with this project?',
-                    reasoning: 'Default to scope question for unknown gaps'
-                };
-        }
+        nextAction = {
+            action: topGap ? `ask_about_${topGap}` : 'ask_about_objectives',
+            question: topGap ? `Tell me about ${topGap}` : 'What are your main objectives?',
+            reasoning: 'Focus on missing area first'
+        };
         
         return {
             gapAnalysis: { gaps: gaps },

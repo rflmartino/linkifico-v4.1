@@ -7,10 +7,7 @@ import { Logger } from '../utils/logger.js';
 import { 
     createKnowledgeData, 
     saveKnowledgeData, 
-    getKnowledgeData,
-    calculateProjectCompleteness,
-    identifyMissingFields,
-    PROJECT_FIELDS 
+    getKnowledgeData
 } from 'backend/data/projectData.js';
 
 // AI wrapper
@@ -26,12 +23,20 @@ async function callClaude(prompt, systemPrompt = null) {
 export const selfAnalysisController = {
     
     // Main analysis function
-    async analyzeProject(projectId, projectData, chatHistory, existingKnowledgeData = null) {
+    async analyzeProject(projectId, projectData, chatHistory, existingKnowledgeData = null, template = null) {
         try {
             Logger.info('selfAnalysisController', 'analyzeProject:start', { projectId });
-            // Calculate basic completeness metrics
-            const completeness = calculateProjectCompleteness(projectData);
-            const missingFields = identifyMissingFields(projectData);
+            // Template-driven completeness (Phase 1 heuristic): ratio of areas with any data
+            const areas = (template && template.areas) || [];
+            const totalAreas = areas.length || 1;
+            const filledAreas = areas.filter(a => {
+                const d = projectData?.templateData?.[a.id];
+                return d && Object.keys(d).length > 0;
+            }).length;
+            const completeness = Math.min(1, Math.max(0, filledAreas / totalAreas));
+            const missingFields = areas
+                .filter(a => !projectData?.templateData?.[a.id] || Object.keys(projectData.templateData[a.id]).length === 0)
+                .map(a => a.id);
             
             // Analyze project context from chat history
             const contextAnalysis = await this.analyzeProjectContext(projectData, chatHistory);
@@ -67,6 +72,9 @@ export const selfAnalysisController = {
                 missingFields: missingFields
             });
             
+            // Routing (template-driven) - lightweight for Phase 1
+            const routed = this.routeConversation(chatHistory, template, projectData);
+
             Logger.info('selfAnalysisController', 'analyzeProject:end', { confidence, completeness });
             return {
                 confidence: confidence,
@@ -75,7 +83,8 @@ export const selfAnalysisController = {
                 uncertainties: knowledgeAssessment.uncertainties,
                 missingFields: missingFields,
                 contextAnalysis: contextAnalysis,
-                knowledgeData: knowledgeData
+                knowledgeData: knowledgeData,
+                routing: routed
             };
             
         } catch (error) {
@@ -87,6 +96,48 @@ export const selfAnalysisController = {
                 uncertainties: ['Analysis failed'],
                 missingFields: Object.values(PROJECT_FIELDS),
                 contextAnalysis: null
+            };
+        }
+    },
+
+    // Simple keyword-based router based on template areas (Phase 1)
+    routeConversation(chatHistory, template, projectData) {
+        try {
+            const lastMsg = Array.isArray(chatHistory) && chatHistory.length ? chatHistory[chatHistory.length - 1].message || '' : '';
+            if (!template || !template.areas) {
+                return {
+                    routedTo: 'off_topic',
+                    confidence: 0.5,
+                    reasoning: 'No template provided; defaulting to off_topic',
+                    isProjectRelated: false,
+                    tierLevel: projectData?.maturityLevel || 'basic',
+                    templateName: projectData?.templateName || 'unknown'
+                };
+            }
+            const text = (lastMsg || '').toLowerCase();
+            let best = { id: 'off_topic', score: 0 };
+            template.areas.forEach(area => {
+                const keywords = area.routingKeywords || [];
+                const score = keywords.reduce((acc, kw) => acc + (text.includes(kw.toLowerCase()) ? 1 : 0), 0);
+                if (score > best.score) best = { id: area.id, score };
+            });
+            const routedTo = best.score > 0 ? best.id : 'off_topic';
+            return {
+                routedTo,
+                confidence: Math.min(0.9, 0.4 + best.score * 0.2),
+                reasoning: best.score > 0 ? `Matched routing keywords for ${routedTo}` : 'No relevant keywords found',
+                isProjectRelated: best.score > 0,
+                tierLevel: projectData?.maturityLevel || 'basic',
+                templateName: projectData?.templateName || template?.templateName || 'unknown'
+            };
+        } catch (e) {
+            return {
+                routedTo: 'off_topic',
+                confidence: 0.5,
+                reasoning: 'Routing error',
+                isProjectRelated: false,
+                tierLevel: projectData?.maturityLevel || 'basic',
+                templateName: projectData?.templateName || 'unknown'
             };
         }
     },
@@ -161,25 +212,12 @@ Provide analysis in JSON format:
             // Base confidence from completeness
             confidence += completeness * 0.4;
             
-            // Boost confidence for defined scope
-            if (projectData.scope && projectData.scope.length > 10) {
-                confidence += 0.2;
-            }
-            
-            // Boost confidence for timeline
-            if (projectData.timeline) {
-                confidence += 0.2;
-            }
-            
-            // Boost confidence for budget
-            if (projectData.budget) {
-                confidence += 0.1;
-            }
-            
-            // Boost confidence for deliverables
-            if (projectData.deliverables && projectData.deliverables.length > 0) {
-                confidence += 0.1;
-            }
+            // Boosts based on templateData presence
+            const td = projectData?.templateData || {};
+            if (td.objectives && (td.objectives.description || (td.objectives.goals || []).length)) confidence += 0.15;
+            if (td.tasks && (td.tasks.deadline || (td.tasks.tasks || []).length)) confidence += 0.15;
+            if (td.budget && (td.budget.total || td.budget.spent)) confidence += 0.1;
+            if (td.people && ((td.people.stakeholders || []).length || (td.people.team || []).length)) confidence += 0.1;
             
             // Adjust based on context analysis
             if (contextAnalysis) {
@@ -205,42 +243,16 @@ Provide analysis in JSON format:
             const knownFacts = [];
             const uncertainties = [];
             
-            // Analyze known facts
-            if (projectData.scope) {
-                knownFacts.push(`Project scope: ${projectData.scope}`);
-            }
-            if (projectData.timeline) {
-                knownFacts.push(`Timeline: ${projectData.timeline}`);
-            }
-            if (projectData.budget) {
-                knownFacts.push(`Budget: ${projectData.budget}`);
-            }
-            if (projectData.deliverables && projectData.deliverables.length > 0) {
-                knownFacts.push(`Deliverables: ${projectData.deliverables.join(', ')}`);
-            }
-            if (projectData.dependencies && projectData.dependencies.length > 0) {
-                knownFacts.push(`Dependencies: ${projectData.dependencies.join(', ')}`);
-            }
+            // Analyze known facts from templateData (simple waterfall)
+            const td2 = projectData?.templateData || {};
+            if (td2.objectives?.description) knownFacts.push(`Objectives: ${td2.objectives.description}`);
+            if (td2.tasks?.deadline) knownFacts.push(`Deadline: ${td2.tasks.deadline}`);
+            if (td2.budget?.total) knownFacts.push(`Budget total: ${td2.budget.total}`);
+            if ((td2.people?.stakeholders || []).length) knownFacts.push(`Stakeholders: ${td2.people.stakeholders.length}`);
             
-            // Analyze uncertainties
-            missingFields.forEach(field => {
-                switch (field) {
-                    case PROJECT_FIELDS.SCOPE:
-                        uncertainties.push('Project scope is undefined');
-                        break;
-                    case PROJECT_FIELDS.TIMELINE:
-                        uncertainties.push('Timeline is unclear');
-                        break;
-                    case PROJECT_FIELDS.BUDGET:
-                        uncertainties.push('Budget constraints unknown');
-                        break;
-                    case PROJECT_FIELDS.DELIVERABLES:
-                        uncertainties.push('Deliverables not specified');
-                        break;
-                    case PROJECT_FIELDS.DEPENDENCIES:
-                        uncertainties.push('Dependencies not identified');
-                        break;
-                }
+            // Analyze uncertainties (area-level for Phase 1)
+            missingFields.forEach(areaId => {
+                uncertainties.push(`Area missing: ${areaId}`);
             });
             
             // Add context-based uncertainties

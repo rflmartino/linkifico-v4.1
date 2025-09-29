@@ -16,14 +16,7 @@ async function getRedisClient() {
     return redisClient;
 }
 
-// PMI-Aligned Project Core Fields
-export const PROJECT_FIELDS = {
-    SCOPE: 'scope',
-    TIMELINE: 'timeline',
-    BUDGET: 'budget',
-    DELIVERABLES: 'deliverables',
-    DEPENDENCIES: 'dependencies'
-};
+// No legacy fields/constants – templates drive structure via templateData
 
 // Redis Key Structure
 export const REDIS_KEYS = {
@@ -37,14 +30,15 @@ export const REDIS_KEYS = {
 };
 
 // Project Data Structure
-export const createProjectData = (projectId, initialData = {}) => {
+export const createProjectData = (projectId, templateName = 'simple_waterfall', initialData = {}) => {
     return {
         id: projectId,
-        scope: initialData.scope || null,
-        timeline: initialData.timeline || null,
-        budget: initialData.budget || null,
-        deliverables: initialData.deliverables || [],
-        dependencies: initialData.dependencies || [],
+        name: initialData.name || 'Untitled Project',
+        templateName: templateName,
+        // Reserved for future tier gating (ignored by simple_waterfall)
+        maturityLevel: initialData.maturityLevel || 'basic',
+        // Template-specific container (e.g., objectives/tasks/budget/people for simple_waterfall)
+        templateData: initialData.templateData || {},
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
     };
@@ -238,20 +232,6 @@ export async function getProcessing(processingId) {
 }
 
 // Utility Functions
-export function calculateProjectCompleteness(projectData) {
-    const fields = [PROJECT_FIELDS.SCOPE, PROJECT_FIELDS.TIMELINE, PROJECT_FIELDS.BUDGET];
-    const completedFields = fields.filter(field => projectData[field] !== null && projectData[field] !== undefined);
-    return completedFields.length / fields.length;
-}
-
-export function identifyMissingFields(projectData) {
-    const missing = [];
-    if (!projectData.scope) missing.push(PROJECT_FIELDS.SCOPE);
-    if (!projectData.timeline) missing.push(PROJECT_FIELDS.TIMELINE);
-    if (!projectData.budget) missing.push(PROJECT_FIELDS.BUDGET);
-    if (!projectData.deliverables || projectData.deliverables.length === 0) missing.push(PROJECT_FIELDS.DELIVERABLES);
-    if (!projectData.dependencies || projectData.dependencies.length === 0) missing.push(PROJECT_FIELDS.DEPENDENCIES);
-    return missing;
-}
+// Completeness and gaps are now template-driven and computed in controllers
 
 

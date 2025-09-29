@@ -5,8 +5,7 @@ import { getSecret } from 'wix-secrets-backend';
 import { askClaude } from '../utils/aiClient.js';
 import { 
     getProjectData,
-    saveProjectData,
-    PROJECT_FIELDS 
+    saveProjectData
 } from 'backend/data/projectData.js';
 import { Logger } from '../utils/logger.js';
 import compromiseSentiment from 'backend/nlp/compromiseSentiment.js';
@@ -24,7 +23,7 @@ async function callClaude(prompt, systemPrompt = null) {
 export const executionController = {
     
     // Main execution function
-    async executeAction(projectId, userId, userMessage, actionPlan, projectData) {
+    async executeAction(projectId, userId, userMessage, actionPlan, projectData, template = null) {
         try {
             Logger.info('executionController', 'executeAction:start', { projectId, action: actionPlan?.action });
             
@@ -41,7 +40,7 @@ export const executionController = {
                 });
                 
                 // Update project data with NLP-extracted information
-                const updatedProjectData = await this.updateProjectData(projectId, projectData, nlpResult.extractedInfo);
+                const updatedProjectData = await this.updateProjectData(projectId, projectData, nlpResult.extractedInfo, template, actionPlan);
                 
                 const result = {
                     message: nlpResult.responseMessage,
@@ -79,7 +78,7 @@ export const executionController = {
             Logger.info('executionController', 'timing:haikuCombinedCallMs', { ms: Date.now() - apiStart });
             
             // Update project data with extracted information
-            const updatedProjectData = await this.updateProjectData(projectId, projectData, extractedInfo);
+            const updatedProjectData = await this.updateProjectData(projectId, projectData, extractedInfo, template, actionPlan);
             
             // Determine if we should continue or wait
             const shouldContinue = this.shouldContinueConversation(extractedInfo, updatedProjectData);
@@ -171,90 +170,42 @@ export const executionController = {
         
         switch (intent) {
             case 'scope.define':
-                extractedInfo.extractedFields = {
-                    scope: userMessage,
-                    timeline: null,
-                    budget: null,
-                    deliverables: [],
-                    dependencies: []
-                };
+                extractedInfo.extractedFields = { templateArea: 'objectives', objectives: { description: userMessage } };
                 break;
                 
             case 'budget.set':
                 // Extract budget numbers from message
                 const budgetMatch = userMessage.match(/\$?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/);
                 if (budgetMatch) {
-                    extractedInfo.extractedFields = {
-                        scope: null,
-                        timeline: null,
-                        budget: budgetMatch[1],
-                        deliverables: [],
-                        dependencies: []
-                    };
+                    extractedInfo.extractedFields = { templateArea: 'budget', budget: { total: budgetMatch[1] } };
                 }
                 break;
                 
             case 'timeline.set':
-                extractedInfo.extractedFields = {
-                    scope: null,
-                    timeline: userMessage,
-                    budget: null,
-                    deliverables: [],
-                    dependencies: []
-                };
+                extractedInfo.extractedFields = { templateArea: 'tasks', tasks: { deadline: userMessage } };
                 break;
                 
             case 'deliverables.define':
-                extractedInfo.extractedFields = {
-                    scope: null,
-                    timeline: null,
-                    budget: null,
-                    deliverables: [userMessage],
-                    dependencies: []
-                };
+                extractedInfo.extractedFields = { templateArea: 'tasks', tasks: { tasks: [userMessage] } };
                 break;
                 
             case 'dependencies.define':
-                extractedInfo.extractedFields = {
-                    scope: null,
-                    timeline: null,
-                    budget: null,
-                    deliverables: [],
-                    dependencies: [userMessage]
-                };
+                extractedInfo.extractedFields = { templateArea: 'tasks', tasks: { dependencies: [userMessage] } };
                 break;
                 
             case 'response.positive':
-                extractedInfo.extractedFields = {
-                    scope: null,
-                    timeline: null,
-                    budget: null,
-                    deliverables: [],
-                    dependencies: []
-                };
+                extractedInfo.extractedFields = {};
                 extractedInfo.confirmation = true;
                 break;
                 
             case 'response.negative':
-                extractedInfo.extractedFields = {
-                    scope: null,
-                    timeline: null,
-                    budget: null,
-                    deliverables: [],
-                    dependencies: []
-                };
+                extractedInfo.extractedFields = {};
                 extractedInfo.confirmation = false;
                 break;
                 
             default:
-                // For other intents, try to extract basic info
-                extractedInfo.extractedFields = {
-                    scope: null,
-                    timeline: null,
-                    budget: null,
-                    deliverables: [],
-                    dependencies: []
-                };
+                // For other intents, leave to template-aware combined extraction
+                extractedInfo.extractedFields = {};
                 extractedInfo.additionalInfo = userMessage;
                 break;
         }
@@ -270,15 +221,15 @@ export const executionController = {
 Action: ${actionPlan.action}
 Verbosity: ${verbosityInstruction} (${verbosityInstruction === 'terse' ? 'max 50 words' : verbosityInstruction === 'normal' ? 'max 150 words' : 'max 300 words'})
 
-Respond in JSON:
+Respond in JSON with template-aware fields (simple_waterfall):
 {
   "extractedInfo": {
     "confidence": 0.8,
-    "scope": "extracted scope or null",
-    "timeline": "extracted timeline or null", 
-    "budget": "extracted budget or null",
-    "deliverables": [],
-    "dependencies": [],
+    "templateArea": "objectives|tasks|budget|people|unknown",
+    "objectives": { "description": "...", "goals": [], "acceptanceCriteria": [] },
+    "tasks": { "tasks": [], "deadline": null, "dependencies": [] },
+    "budget": { "total": null, "spent": null, "lineItems": [] },
+    "people": { "stakeholders": [], "team": [] },
     "needsClarification": []
   },
   "responseMessage": "Your response following verbosity limits"
@@ -315,36 +266,27 @@ Respond in JSON:
     
     
     // Update project data with extracted information
-    async updateProjectData(projectId, projectData, extractedInfo) {
+    async updateProjectData(projectId, projectData, extractedInfo, template = null, actionPlan = null) {
         try {
             const updatedData = { ...projectData };
+            updatedData.templateData = { ...(updatedData.templateData || {}) };
             
             if (extractedInfo && extractedInfo.extractedFields) {
                 const fields = extractedInfo.extractedFields;
-                
-                // Update scope
-                if (fields.scope && fields.scope !== null) {
-                    updatedData.scope = fields.scope;
-                }
-                
-                // Update timeline
-                if (fields.timeline && fields.timeline !== null) {
-                    updatedData.timeline = fields.timeline;
-                }
-                
-                // Update budget
-                if (fields.budget && fields.budget !== null) {
-                    updatedData.budget = fields.budget;
-                }
-                
-                // Update deliverables
-                if (fields.deliverables && Array.isArray(fields.deliverables)) {
-                    updatedData.deliverables = [...(updatedData.deliverables || []), ...fields.deliverables];
-                }
-                
-                // Update dependencies
-                if (fields.dependencies && Array.isArray(fields.dependencies)) {
-                    updatedData.dependencies = [...(updatedData.dependencies || []), ...fields.dependencies];
+                const areaId = fields.templateArea || (actionPlan?.targetArea) || null;
+                if (areaId) {
+                    const areaUpdate = {};
+                    // Merge known area payloads
+                    if (fields.objectives) areaUpdate.objectives = { ...(updatedData.templateData.objectives || {}), ...fields.objectives };
+                    if (fields.tasks) areaUpdate.tasks = { ...(updatedData.templateData.tasks || {}), ...fields.tasks };
+                    if (fields.budget) areaUpdate.budget = { ...(updatedData.templateData.budget || {}), ...fields.budget };
+                    if (fields.people) areaUpdate.people = { ...(updatedData.templateData.people || {}), ...fields.people };
+                    // Fallback: if no structured area object but areaId exists, attach additionalInfo minimally
+                    if (Object.keys(areaUpdate).length === 0) {
+                        updatedData.templateData[areaId] = { ...(updatedData.templateData[areaId] || {}), note: extractedInfo.additionalInfo || '' };
+                    } else {
+                        Object.assign(updatedData.templateData, areaUpdate);
+                    }
                 }
                 
                 // Update timestamp
@@ -425,13 +367,11 @@ Respond in JSON:
     
     // Calculate project completeness
     calculateCompleteness(projectData) {
-        const fields = [PROJECT_FIELDS.SCOPE, PROJECT_FIELDS.TIMELINE, PROJECT_FIELDS.BUDGET];
-        const completedFields = fields.filter(field => {
-            const value = projectData[field];
-            return value !== null && value !== undefined && value.toString().length > 5;
-        });
-        
-        return completedFields.length / fields.length;
+        const td = projectData?.templateData || {};
+        const areas = ['objectives','tasks','budget','people'];
+        const total = areas.length;
+        const filled = areas.filter(a => td[a] && Object.keys(td[a]).length > 0).length;
+        return total ? filled / total : 0;
     },
     
     // Get execution status
