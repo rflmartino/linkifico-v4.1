@@ -166,8 +166,13 @@ $w.onReady(async function () {
                 chatEl.postMessage({ action: 'displayMessage', type, content: m.content, timestamp: m.timestamp || new Date().toISOString() });
             });
             // If todos present, send them to the sidebar
+            console.log('Polling status:', status);
+            console.log('Status todos:', status.todos);
             if (Array.isArray(status.todos) && status.todos.length) {
+                console.log('Sending todos to chat UI:', status.todos);
                 chatEl.postMessage({ action: 'displayTodos', todos: status.todos });
+            } else {
+                console.log('No todos found in status');
             }
             chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
         };

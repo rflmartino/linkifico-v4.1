@@ -542,6 +542,7 @@
                         location.reload();
                         break;
                     case 'displayTodos':
+                        console.log('Chat UI received todos:', data.todos);
                         this.renderTodos(data.todos || []);
                         break;
                 }
