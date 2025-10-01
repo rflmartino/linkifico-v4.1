@@ -19,7 +19,20 @@ $w.onReady(async function () {
         session.setItem('chatSessionId', sessionId);
     }
 
-    chatEl.onMessage(async (event) => {
+	// Ensure project exists on first load
+	try {
+		const status = await processUserRequest({ op: 'status', projectId, userId }).catch(() => null);
+		if (!status || status.success === false) {
+			await processUserRequest({
+				op: 'init',
+				projectId,
+				userId,
+				payload: { projectName: 'Project Chat', templateName: 'simple_waterfall', initialMessage: 'Start' }
+			}).catch(() => null);
+		}
+	} catch (e) {}
+
+	chatEl.onMessage(async (event) => {
         const data = (event && event.data) || {};
         const action = data.action;
 
@@ -44,7 +57,7 @@ $w.onReady(async function () {
             return;
         }
 
-        if (action === 'sendMessage') {
+		if (action === 'sendMessage') {
             const userMessage = (data.message || '').trim();
             if (!userMessage) return;
 
@@ -57,37 +70,67 @@ $w.onReady(async function () {
 
             chatEl.postMessage({ action: 'updateStatus', status: 'processing' });
 
-        // Start processing (immediate return) and poll for completion
-        const start = await processUserRequest({
-            op: 'startProcessing',
-            projectId,
-            userId,
-            sessionId,
-            payload: { message: userMessage }
-        }).catch(() => ({ success: false }));
+		// Start processing (immediate return) and poll for completion
+		let start = await processUserRequest({
+			op: 'startProcessing',
+			projectId,
+			userId,
+			sessionId,
+			payload: { message: userMessage }
+		}).catch(() => ({ success: false }));
 
-        if (!start || !start.success) {
-            chatEl.postMessage({ action: 'displayMessage', type: 'assistant', content: 'Sorry, something went wrong.', timestamp: new Date().toISOString() });
-            chatEl.postMessage({ action: 'updateStatus', status: 'error' });
-            return;
-        }
+		// Retry once if start failed
+		if (!start || !start.success) {
+			await new Promise(r => setTimeout(r, 1000));
+			start = await processUserRequest({
+				op: 'startProcessing',
+				projectId,
+				userId,
+				sessionId,
+				payload: { message: userMessage }
+			}).catch(() => ({ success: false }));
+		}
+
+		// If still failing, fallback to direct sendMessage (synchronous path)
+		if (!start || !start.success) {
+			const direct = await processUserRequest({
+				op: 'sendMessage',
+				projectId,
+				userId,
+				sessionId,
+				payload: { message: userMessage }
+			}).catch(() => null);
+			if (direct && direct.success) {
+				chatEl.postMessage({ action: 'displayMessage', type: 'assistant', content: direct.message || 'Done.', timestamp: new Date().toISOString() });
+				if (Array.isArray(direct.todos) && direct.todos.length) {
+					const checklist = direct.todos.slice(0, 5).map(t => `• ${t.title} (${t.priority})`).join('\n');
+					chatEl.postMessage({ action: 'displayMessage', type: 'assistant', content: `Next steps:\n${checklist}`, timestamp: new Date().toISOString() });
+				}
+				chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
+				return;
+			}
+			// As a last resort, show a softer system update and stop
+			chatEl.postMessage({ action: 'displayMessage', type: 'system', content: 'Still working on it, please try again.', timestamp: new Date().toISOString() });
+			chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
+			return;
+		}
 
         const processingId = start.processingId;
         const startedAt = Date.now();
         const intervalMs = 2000;
         const timeoutMs = 90000;
 
-        const poll = async () => {
-            const status = await processUserRequest({ op: 'getProcessingStatus', projectId, userId, sessionId, payload: { processingId } }).catch(() => null);
-            if (!status) {
-                if (Date.now() - startedAt > timeoutMs) {
-                    chatEl.postMessage({ action: 'displayMessage', type: 'system', content: 'Processing timed out. Please try again.', timestamp: new Date().toISOString() });
-                    chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
-                    return;
-                }
-                setTimeout(poll, intervalMs);
-                return;
-            }
+		const poll = async () => {
+			const status = await processUserRequest({ op: 'getProcessingStatus', projectId, userId, sessionId, payload: { processingId } }).catch(() => null);
+			if (!status) {
+				if (Date.now() - startedAt > timeoutMs) {
+					chatEl.postMessage({ action: 'displayMessage', type: 'system', content: 'Processing timed out. Please try again.', timestamp: new Date().toISOString() });
+					chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
+					return;
+				}
+				setTimeout(poll, intervalMs);
+				return;
+			}
             if (status.status === 'processing') {
                 // Update progress from backend stage if available
                 if (status.stage) {
@@ -110,11 +153,12 @@ $w.onReady(async function () {
                 setTimeout(poll, intervalMs);
                 return;
             }
-            if (status.status === 'error') {
-                chatEl.postMessage({ action: 'displayMessage', type: 'assistant', content: 'Sorry, something went wrong.', timestamp: new Date().toISOString() });
-                chatEl.postMessage({ action: 'updateStatus', status: 'error' });
-                return;
-            }
+			if (status.status === 'error') {
+				// Only show a hard error if backend explicitly reports error
+				chatEl.postMessage({ action: 'displayMessage', type: 'assistant', content: (status.error ? `Error: ${status.error}` : 'Sorry, something went wrong.'), timestamp: new Date().toISOString() });
+				chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
+				return;
+			}
             // complete
             const msgs = status.conversation?.messages || status.conversation || [];
             (msgs || []).forEach((m) => {
