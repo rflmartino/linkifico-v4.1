@@ -9,6 +9,7 @@ import {
     saveGapData, 
     getGapData
 } from 'backend/data/projectData.js';
+import nlpManager from 'backend/nlp/nlpManager.js';
 
 async function callClaude(prompt, systemPrompt = null) {
     return await askClaude({
@@ -31,8 +32,29 @@ export const gapDetectionController = {
                 .filter(a => !projectData?.templateData?.[a.id] || Object.keys(projectData.templateData[a.id]).length === 0)
                 .map(a => a.id);
             
-            // Analyze gaps and determine next action in one API call
-            const gapAnalysisAndAction = await this.analyzeGapsAndDetermineAction(projectData, analysis, missingFields);
+            // Try NLP first with confidence gate
+            const nlpStart = Date.now();
+            const nlpResult = await this.tryNLPProcessing(projectData, analysis, missingFields);
+            Logger.info('gapDetectionController', 'timing:nlpProcessingMs', { ms: Date.now() - nlpStart });
+            
+            let gapAnalysisAndAction;
+            if (nlpResult.success) {
+                Logger.info('gapDetectionController', 'nlpSuccess', { 
+                    intent: nlpResult.intent, 
+                    confidence: nlpResult.confidence,
+                    usedNLP: true 
+                });
+                
+                gapAnalysisAndAction = nlpResult.gapAnalysis;
+            } else {
+                // Fallback to Haiku for low confidence or unknown intents
+                Logger.info('gapDetectionController', 'nlpFallback', { 
+                    reason: nlpResult.reason,
+                    usedNLP: false 
+                });
+                
+                gapAnalysisAndAction = await this.analyzeGapsAndDetermineAction(projectData, analysis, missingFields);
+            }
             
             // Extract results
             const gapAnalysis = gapAnalysisAndAction.gapAnalysis;
@@ -80,6 +102,266 @@ export const gapDetectionController = {
                 gapAnalysis: null
             };
         }
+    },
+    
+    // Try NLP processing first with confidence gate
+    async tryNLPProcessing(projectData, analysis, missingFields) {
+        try {
+            const confidenceThreshold = 0.8; // 80% confidence threshold
+            
+            // Build context string for NLP processing
+            const contextString = this.buildNLPContextString(projectData, analysis, missingFields);
+            
+            // Get complete analysis from NLP (includes intent, confidence, and response)
+            const nlpResult = await nlpManager.processInput(contextString);
+            
+            if (!nlpResult || nlpResult.confidence < confidenceThreshold) {
+                return {
+                    success: false,
+                    reason: `Low confidence: ${nlpResult?.confidence || 0} < ${confidenceThreshold}`,
+                    confidence: nlpResult?.confidence || 0
+                };
+            }
+            
+            // Check if NLP provided a response
+            if (!nlpResult.answer) {
+                return {
+                    success: false,
+                    reason: `No response from NLP for intent: ${nlpResult.intent}`,
+                    confidence: nlpResult.confidence
+                };
+            }
+            
+            // Convert NLP intent to gap analysis
+            const gapAnalysis = this.convertNLPToGapAnalysis(nlpResult, projectData, analysis, missingFields);
+            
+            return {
+                success: true,
+                intent: nlpResult.intent,
+                confidence: nlpResult.confidence,
+                gapAnalysis: gapAnalysis
+            };
+            
+        } catch (error) {
+            Logger.error('gapDetectionController', 'tryNLPProcessing:error', error);
+            return {
+                success: false,
+                reason: `NLP error: ${error.message}`,
+                confidence: 0
+            };
+        }
+    },
+    
+    // Build context string for NLP processing
+    buildNLPContextString(projectData, analysis, missingFields) {
+        const parts = [];
+        
+        // Add missing fields information
+        if (missingFields && missingFields.length > 0) {
+            parts.push(missingFields.join(' ') + ' missing');
+        }
+        
+        // Add analysis information
+        if (analysis) {
+            if (analysis.completeness !== undefined) {
+                const completenessLevel = analysis.completeness > 0.8 ? 'complete' : 
+                                        analysis.completeness > 0.5 ? 'partial' : 'incomplete';
+                parts.push(completenessLevel);
+            }
+            
+            if (analysis.missingFields && analysis.missingFields.length > 0) {
+                parts.push(analysis.missingFields.join(' ') + ' incomplete');
+            }
+        }
+        
+        // Add project data completeness
+        if (projectData && projectData.templateData) {
+            const completedAreas = Object.keys(projectData.templateData).filter(area => 
+                projectData.templateData[area] && Object.keys(projectData.templateData[area]).length > 0
+            );
+            const emptyAreas = Object.keys(projectData.templateData).filter(area => 
+                !projectData.templateData[area] || Object.keys(projectData.templateData[area]).length === 0
+            );
+            
+            if (completedAreas.length > 0) {
+                parts.push(completedAreas.join(' ') + ' complete');
+            }
+            if (emptyAreas.length > 0) {
+                parts.push(emptyAreas.join(' ') + ' empty');
+            }
+        }
+        
+        return parts.join(' ');
+    },
+    
+    // Convert NLP result to gap analysis
+    convertNLPToGapAnalysis(nlpResult, projectData, analysis, missingFields) {
+        const intent = nlpResult.intent;
+        const confidence = nlpResult.confidence;
+        
+        // Map NLP intent to gap analysis structure
+        const gapMappings = {
+            'gap.critical_objectives': {
+                gapAnalysis: {
+                    gaps: [
+                        {
+                            field: 'objectives',
+                            criticality: 'critical',
+                            reasoning: 'Objectives are missing - this is critical and blocks all planning.',
+                            impact: 'blocks_everything'
+                        }
+                    ],
+                    overallCompleteness: analysis?.completeness || 0.2,
+                    criticalGapsCount: 1
+                },
+                prioritizedGaps: ['objectives'],
+                nextAction: {
+                    action: 'ask_about_objectives',
+                    reasoning: 'Objectives are the foundation - we need to define them first.',
+                    priority: 'critical'
+                }
+            },
+            'gap.high_priority_budget': {
+                gapAnalysis: {
+                    gaps: [
+                        {
+                            field: 'budget',
+                            criticality: 'high',
+                            reasoning: 'Budget information is missing - this is high priority for planning.',
+                            impact: 'blocks_execution_planning'
+                        }
+                    ],
+                    overallCompleteness: analysis?.completeness || 0.4,
+                    criticalGapsCount: 0
+                },
+                prioritizedGaps: ['budget'],
+                nextAction: {
+                    action: 'ask_about_budget',
+                    reasoning: 'Budget is needed to determine project feasibility and scope.',
+                    priority: 'high'
+                }
+            },
+            'gap.medium_tasks': {
+                gapAnalysis: {
+                    gaps: [
+                        {
+                            field: 'tasks',
+                            criticality: 'medium',
+                            reasoning: 'Tasks and deliverables need to be defined for execution planning.',
+                            impact: 'blocks_execution_delivery'
+                        }
+                    ],
+                    overallCompleteness: analysis?.completeness || 0.6,
+                    criticalGapsCount: 0
+                },
+                prioritizedGaps: ['tasks'],
+                nextAction: {
+                    action: 'ask_about_tasks',
+                    reasoning: 'Task definition is needed to understand project scope.',
+                    priority: 'medium'
+                }
+            },
+            'gap.low_people': {
+                gapAnalysis: {
+                    gaps: [
+                        {
+                            field: 'people',
+                            criticality: 'low',
+                            reasoning: 'Stakeholder and team information would help with coordination.',
+                            impact: 'affects_coordination'
+                        }
+                    ],
+                    overallCompleteness: analysis?.completeness || 0.8,
+                    criticalGapsCount: 0
+                },
+                prioritizedGaps: ['people'],
+                nextAction: {
+                    action: 'ask_about_people',
+                    reasoning: 'Team structure affects project coordination and success.',
+                    priority: 'low'
+                }
+            },
+            'gap.prioritize_multiple': {
+                gapAnalysis: {
+                    gaps: missingFields.map(field => ({
+                        field: field,
+                        criticality: this.determineCriticality(field),
+                        reasoning: `Multiple gaps detected - ${field} needs attention.`,
+                        impact: this.determineImpact(field)
+                    })),
+                    overallCompleteness: analysis?.completeness || 0.3,
+                    criticalGapsCount: missingFields.filter(f => this.determineCriticality(f) === 'critical').length
+                },
+                prioritizedGaps: this.prioritizeGaps(missingFields),
+                nextAction: {
+                    action: 'ask_about_objectives', // Default to objectives if multiple gaps
+                    reasoning: 'Multiple gaps require prioritization based on project impact.',
+                    priority: 'critical'
+                }
+            },
+            'gap.all_complete': {
+                gapAnalysis: {
+                    gaps: [],
+                    overallCompleteness: 1.0,
+                    criticalGapsCount: 0
+                },
+                prioritizedGaps: [],
+                nextAction: {
+                    action: 'provide_recommendation',
+                    reasoning: 'All areas are well-defined - project is ready for execution.',
+                    priority: 'low'
+                }
+            }
+        };
+        
+        // Get base gap analysis from mapping
+        let gapAnalysis = gapMappings[intent] || {
+            gapAnalysis: {
+                gaps: missingFields.map(field => ({
+                    field: field,
+                    criticality: 'medium',
+                    reasoning: `Gap analysis for ${field}.`,
+                    impact: 'affects_planning'
+                })),
+                overallCompleteness: analysis?.completeness || 0.5,
+                criticalGapsCount: 0
+            },
+            prioritizedGaps: missingFields,
+            nextAction: {
+                action: 'ask_about_objectives',
+                reasoning: 'Default gap analysis for unrecognized intent.',
+                priority: 'medium'
+            }
+        };
+        
+        return gapAnalysis;
+    },
+    
+    // Helper methods for gap analysis
+    determineCriticality(field) {
+        const criticalityMap = {
+            'objectives': 'critical',
+            'budget': 'high',
+            'tasks': 'medium',
+            'people': 'low'
+        };
+        return criticalityMap[field] || 'medium';
+    },
+    
+    determineImpact(field) {
+        const impactMap = {
+            'objectives': 'blocks_everything',
+            'budget': 'blocks_execution_planning',
+            'tasks': 'blocks_execution_delivery',
+            'people': 'affects_coordination'
+        };
+        return impactMap[field] || 'affects_planning';
+    },
+    
+    prioritizeGaps(fields) {
+        // Priority order: objectives (critical), budget (high), tasks (medium), people (low)
+        const priorityOrder = ['objectives', 'budget', 'tasks', 'people'];
+        return priorityOrder.filter(field => fields.includes(field));
     },
     
     // Build a simple TODO checklist from prioritized gaps

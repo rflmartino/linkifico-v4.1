@@ -366,6 +366,170 @@ export const trainingData = [
     { text: 'mixed completion some areas done others need work', intent: 'action.continue_planning' },
     { text: 'objectives set budget partial tasks undefined', intent: 'action.continue_planning' },
     { text: 'partial information gaps remain continue planning', intent: 'action.continue_planning' },
+    
+    // Gap Detection Intents - Single critical gaps
+    { text: 'objectives missing empty template area critical gap', intent: 'gap.critical_objectives' },
+    { text: 'objectives area empty no goals defined critical priority', intent: 'gap.critical_objectives' },
+    { text: 'objectives undefined scope missing critical gap', intent: 'gap.critical_objectives' },
+    { text: 'no objectives defined project goals missing critical', intent: 'gap.critical_objectives' },
+    { text: 'objectives gap critical blocks everything planning', intent: 'gap.critical_objectives' },
+    { text: 'objectives missing critical priority immediate attention', intent: 'gap.critical_objectives' },
+    { text: 'objectives empty template incomplete critical gap', intent: 'gap.critical_objectives' },
+    { text: 'objectives undefined critical dependency blocks all', intent: 'gap.critical_objectives' },
+    { text: 'objectives missing critical foundation needed', intent: 'gap.critical_objectives' },
+    { text: 'objectives area empty critical gap blocks planning', intent: 'gap.critical_objectives' },
+    
+    { text: 'budget missing high priority gap financial planning', intent: 'gap.high_priority_budget' },
+    { text: 'budget area empty high priority cost planning needed', intent: 'gap.high_priority_budget' },
+    { text: 'budget undefined high priority financial resources unclear', intent: 'gap.high_priority_budget' },
+    { text: 'budget gap high priority blocks execution planning', intent: 'gap.high_priority_budget' },
+    { text: 'budget missing high priority cost estimation needed', intent: 'gap.high_priority_budget' },
+    { text: 'budget area empty high priority spending plan required', intent: 'gap.high_priority_budget' },
+    { text: 'budget gap high priority medium impact blocks execution', intent: 'gap.high_priority_budget' },
+    { text: 'budget missing high priority financial planning needed', intent: 'gap.high_priority_budget' },
+    { text: 'budget undefined high priority cost planning required', intent: 'gap.high_priority_budget' },
+    { text: 'budget gap high priority financial resources unclear', intent: 'gap.high_priority_budget' },
+    
+    { text: 'tasks missing medium priority gap timeline unclear', intent: 'gap.medium_tasks' },
+    { text: 'tasks area empty medium priority deliverables missing', intent: 'gap.medium_tasks' },
+    { text: 'tasks undefined medium priority deadline planning needed', intent: 'gap.medium_tasks' },
+    { text: 'tasks gap medium priority execution plan work breakdown', intent: 'gap.medium_tasks' },
+    { text: 'tasks missing medium priority schedule planning required', intent: 'gap.medium_tasks' },
+    { text: 'tasks area empty medium priority timeline planning needed', intent: 'gap.medium_tasks' },
+    { text: 'tasks gap medium priority blocks execution delivery', intent: 'gap.medium_tasks' },
+    { text: 'tasks missing medium priority work plan undefined', intent: 'gap.medium_tasks' },
+    { text: 'tasks undefined medium priority execution planning needed', intent: 'gap.medium_tasks' },
+    { text: 'tasks gap medium priority work breakdown needed', intent: 'gap.medium_tasks' },
+    
+    { text: 'people missing low priority gap stakeholders unclear', intent: 'gap.low_people' },
+    { text: 'people area empty low priority team planning needed', intent: 'gap.low_people' },
+    { text: 'people undefined low priority stakeholder identification', intent: 'gap.low_people' },
+    { text: 'people gap low priority team composition planning', intent: 'gap.low_people' },
+    { text: 'people missing low priority role assignment needed', intent: 'gap.low_people' },
+    { text: 'people area empty low priority resource allocation unclear', intent: 'gap.low_people' },
+    { text: 'people gap low priority minor impact team structure', intent: 'gap.low_people' },
+    { text: 'people missing low priority collaboration planning needed', intent: 'gap.low_people' },
+    { text: 'people undefined low priority responsibility planning', intent: 'gap.low_people' },
+    { text: 'people gap low priority minor impact coordination', intent: 'gap.low_people' },
+    
+    // Multiple gap combinations
+    { text: 'objectives missing budget missing tasks incomplete', intent: 'gap.prioritize_multiple' },
+    { text: 'objectives empty budget undefined tasks missing people unclear', intent: 'gap.prioritize_multiple' },
+    { text: 'multiple gaps objectives budget tasks people missing', intent: 'gap.prioritize_multiple' },
+    { text: 'objectives missing budget gap tasks incomplete people undefined', intent: 'gap.prioritize_multiple' },
+    { text: 'objectives empty budget missing tasks undefined people gap', intent: 'gap.prioritize_multiple' },
+    { text: 'objectives gap budget missing tasks incomplete people missing', intent: 'gap.prioritize_multiple' },
+    { text: 'objectives undefined budget empty tasks missing people unclear', intent: 'gap.prioritize_multiple' },
+    { text: 'objectives missing budget gap tasks undefined people incomplete', intent: 'gap.prioritize_multiple' },
+    { text: 'objectives empty budget missing tasks gap people undefined', intent: 'gap.prioritize_multiple' },
+    { text: 'objectives gap budget empty tasks missing people incomplete', intent: 'gap.prioritize_multiple' },
+    
+    // Dependency-based gaps
+    { text: 'tasks depend on objectives objectives missing critical dependency', intent: 'gap.analyze_dependencies' },
+    { text: 'budget depends on objectives objectives missing dependency analysis', intent: 'gap.analyze_dependencies' },
+    { text: 'people depend on tasks tasks missing dependency blocks team', intent: 'gap.analyze_dependencies' },
+    { text: 'tasks depend on budget budget missing dependency affects timeline', intent: 'gap.analyze_dependencies' },
+    { text: 'objectives foundation for all objectives missing dependency blocks', intent: 'gap.analyze_dependencies' },
+    { text: 'tasks depend on objectives budget tasks missing dependency chain', intent: 'gap.analyze_dependencies' },
+    { text: 'people depend on tasks objectives tasks missing dependency affects team', intent: 'gap.analyze_dependencies' },
+    { text: 'budget depends on objectives tasks objectives missing dependency blocks', intent: 'gap.analyze_dependencies' },
+    { text: 'tasks depend on objectives people objectives missing dependency chain', intent: 'gap.analyze_dependencies' },
+    { text: 'multiple dependencies objectives missing blocks all other areas', intent: 'gap.analyze_dependencies' },
+    
+    // Completion-based analysis
+    { text: 'objectives complete budget set tasks missing people incomplete', intent: 'gap.partial_completion' },
+    { text: 'objectives set budget complete tasks missing people undefined', intent: 'gap.partial_completion' },
+    { text: 'objectives complete budget missing tasks set people incomplete', intent: 'gap.partial_completion' },
+    { text: 'objectives set budget missing tasks complete people undefined', intent: 'gap.partial_completion' },
+    { text: 'objectives missing budget complete tasks set people incomplete', intent: 'gap.partial_completion' },
+    { text: 'objectives incomplete budget set tasks missing people complete', intent: 'gap.partial_completion' },
+    { text: 'objectives set budget incomplete tasks missing people complete', intent: 'gap.partial_completion' },
+    { text: 'objectives missing budget incomplete tasks set people complete', intent: 'gap.partial_completion' },
+    { text: 'objectives incomplete budget missing tasks complete people set', intent: 'gap.partial_completion' },
+    { text: 'objectives complete budget incomplete tasks missing people set', intent: 'gap.partial_completion' },
+    
+    { text: 'objectives complete budget complete tasks complete people complete', intent: 'gap.all_complete' },
+    { text: 'all areas complete project fully defined no gaps remain', intent: 'gap.all_complete' },
+    { text: 'objectives set budget defined tasks planned people assigned', intent: 'gap.all_complete' },
+    { text: 'project fully defined comprehensive information complete planning', intent: 'gap.all_complete' },
+    { text: 'all gaps resolved project information complete comprehensive', intent: 'gap.all_complete' },
+    { text: 'objectives clear budget set tasks planned stakeholders identified', intent: 'gap.all_complete' },
+    { text: 'project well defined all areas complete comprehensive planning', intent: 'gap.all_complete' },
+    { text: 'objectives defined budget set tasks clear people assigned', intent: 'gap.all_complete' },
+    { text: 'project information complete all areas defined comprehensive', intent: 'gap.all_complete' },
+    { text: 'objectives set budget planned tasks defined team assigned', intent: 'gap.all_complete' },
+    
+    // Priority scoring scenarios
+    { text: 'objectives critical budget high tasks medium people low priority', intent: 'gap.priority_scoring' },
+    { text: 'objectives critical priority budget high priority tasks medium people low', intent: 'gap.priority_scoring' },
+    { text: 'objectives critical impact budget high impact tasks medium people low', intent: 'gap.priority_scoring' },
+    { text: 'objectives blocks everything budget blocks planning tasks blocks execution', intent: 'gap.priority_scoring' },
+    { text: 'objectives critical dependency budget high dependency tasks medium people low', intent: 'gap.priority_scoring' },
+    { text: 'objectives immediate attention budget plan soon tasks schedule people monitor', intent: 'gap.priority_scoring' },
+    { text: 'objectives critical gap budget high gap tasks medium gap people low gap', intent: 'gap.priority_scoring' },
+    { text: 'objectives critical priority score budget high priority score tasks medium', intent: 'gap.priority_scoring' },
+    { text: 'objectives critical impact score budget high impact score tasks medium', intent: 'gap.priority_scoring' },
+    { text: 'objectives critical blocks all budget high blocks planning tasks medium', intent: 'gap.priority_scoring' },
+    
+    // Impact analysis scenarios
+    { text: 'objectives missing blocks everything prevents all planning', intent: 'gap.impact_analysis' },
+    { text: 'budget missing blocks execution planning affects timeline', intent: 'gap.impact_analysis' },
+    { text: 'tasks missing blocks execution delivery affects completion', intent: 'gap.impact_analysis' },
+    { text: 'people missing minor impact affects coordination only', intent: 'gap.impact_analysis' },
+    { text: 'objectives missing blocks everything budget tasks people', intent: 'gap.impact_analysis' },
+    { text: 'budget missing blocks planning execution timeline delivery', intent: 'gap.impact_analysis' },
+    { text: 'tasks missing blocks execution delivery completion timeline', intent: 'gap.impact_analysis' },
+    { text: 'people missing minor impact coordination team structure', intent: 'gap.impact_analysis' },
+    { text: 'objectives missing critical impact blocks all other areas', intent: 'gap.impact_analysis' },
+    { text: 'budget missing high impact blocks execution planning', intent: 'gap.impact_analysis' },
+    
+    // Template area analysis
+    { text: 'template areas empty objectives empty budget empty tasks empty', intent: 'gap.template_analysis' },
+    { text: 'template areas missing objectives missing budget missing tasks missing', intent: 'gap.template_analysis' },
+    { text: 'template areas undefined objectives undefined budget undefined tasks undefined', intent: 'gap.template_analysis' },
+    { text: 'template areas incomplete objectives incomplete budget incomplete tasks incomplete', intent: 'gap.template_analysis' },
+    { text: 'template areas partial objectives partial budget partial tasks partial', intent: 'gap.template_analysis' },
+    { text: 'template areas empty missing undefined incomplete partial', intent: 'gap.template_analysis' },
+    { text: 'template areas need completion objectives need completion budget need', intent: 'gap.template_analysis' },
+    { text: 'template areas require definition objectives require budget require tasks require', intent: 'gap.template_analysis' },
+    { text: 'template areas need planning objectives need budget need tasks need', intent: 'gap.template_analysis' },
+    { text: 'template areas need clarification objectives need budget need tasks need', intent: 'gap.template_analysis' },
+    
+    // Gap reasoning scenarios
+    { text: 'objectives missing reasoning blocks all planning prevents progress', intent: 'gap.reasoning_analysis' },
+    { text: 'budget missing reasoning blocks execution planning affects resources', intent: 'gap.reasoning_analysis' },
+    { text: 'tasks missing reasoning blocks execution delivery affects timeline', intent: 'gap.reasoning_analysis' },
+    { text: 'people missing reasoning affects coordination team structure minor', intent: 'gap.reasoning_analysis' },
+    { text: 'objectives missing reasoning critical foundation blocks everything', intent: 'gap.reasoning_analysis' },
+    { text: 'budget missing reasoning high priority affects execution planning', intent: 'gap.reasoning_analysis' },
+    { text: 'tasks missing reasoning medium priority affects delivery execution', intent: 'gap.reasoning_analysis' },
+    { text: 'people missing reasoning low priority affects coordination only', intent: 'gap.reasoning_analysis' },
+    { text: 'objectives missing reasoning without scope cannot plan timeline budget', intent: 'gap.reasoning_analysis' },
+    { text: 'budget missing reasoning without budget cannot plan execution timeline', intent: 'gap.reasoning_analysis' },
+    
+    // Gap resolution scenarios
+    { text: 'objectives gap resolved budget gap remains tasks gap remains', intent: 'gap.resolution_analysis' },
+    { text: 'objectives complete budget gap resolved tasks gap remains people gap', intent: 'gap.resolution_analysis' },
+    { text: 'objectives resolved budget resolved tasks gap remains people gap remains', intent: 'gap.resolution_analysis' },
+    { text: 'objectives complete budget complete tasks gap resolved people gap remains', intent: 'gap.resolution_analysis' },
+    { text: 'objectives resolved budget gap resolved tasks resolved people gap remains', intent: 'gap.resolution_analysis' },
+    { text: 'objectives complete budget gap resolved tasks gap resolved people gap resolved', intent: 'gap.resolution_analysis' },
+    { text: 'objectives resolved budget resolved tasks resolved people resolved all complete', intent: 'gap.resolution_analysis' },
+    { text: 'objectives gap resolved budget gap resolved tasks gap resolved people gap resolved', intent: 'gap.resolution_analysis' },
+    { text: 'objectives complete budget complete tasks complete people complete all resolved', intent: 'gap.resolution_analysis' },
+    { text: 'objectives resolved budget resolved tasks resolved people resolved project complete', intent: 'gap.resolution_analysis' },
+    
+    // Gap evolution scenarios
+    { text: 'objectives gap evolved budget gap new tasks gap changed people gap updated', intent: 'gap.evolution_analysis' },
+    { text: 'objectives gap changed budget gap evolved tasks gap new people gap updated', intent: 'gap.evolution_analysis' },
+    { text: 'objectives gap updated budget gap changed tasks gap evolved people gap new', intent: 'gap.evolution_analysis' },
+    { text: 'objectives gap new budget gap updated tasks gap changed people gap evolved', intent: 'gap.evolution_analysis' },
+    { text: 'objectives gap changed budget gap new tasks gap updated people gap evolved', intent: 'gap.evolution_analysis' },
+    { text: 'objectives gap evolved budget gap changed tasks gap new people gap updated', intent: 'gap.evolution_analysis' },
+    { text: 'objectives gap updated budget gap evolved tasks gap changed people gap new', intent: 'gap.evolution_analysis' },
+    { text: 'objectives gap new budget gap changed tasks gap evolved people gap updated', intent: 'gap.evolution_analysis' },
+    { text: 'objectives gap changed budget gap updated tasks gap new people gap evolved', intent: 'gap.evolution_analysis' },
+    { text: 'objectives gap evolved budget gap new tasks gap updated people gap changed', intent: 'gap.evolution_analysis' },
 ];
 
 // Response templates for each intent
@@ -521,6 +685,78 @@ export const responseTemplates = {
         'This looks straightforward - let\'s keep it simple.',
         'For this project, we can use a streamlined approach.',
         'Let\'s plan this with a simple, effective strategy.'
+    ],
+    
+    // Gap Detection Response Templates
+    'gap.critical_objectives': [
+        'Objectives are missing - this is critical and blocks all planning.',
+        'Without objectives, we cannot proceed with timeline or budget planning.',
+        'Objectives are the foundation - we need to define them first.'
+    ],
+    'gap.high_priority_budget': [
+        'Budget information is missing - this is high priority for planning.',
+        'Without budget constraints, we cannot plan resource allocation.',
+        'Budget is needed to determine project feasibility and scope.'
+    ],
+    'gap.medium_tasks': [
+        'Tasks and deliverables need to be defined for execution planning.',
+        'Without tasks, we cannot create a realistic timeline.',
+        'Task definition is needed to understand project scope.'
+    ],
+    'gap.low_people': [
+        'Stakeholder and team information would help with coordination.',
+        'Knowing who\'s involved helps with communication planning.',
+        'Team structure affects project coordination and success.'
+    ],
+    'gap.prioritize_multiple': [
+        'Multiple gaps detected - let\'s prioritize them systematically.',
+        'Several areas need attention - we\'ll address them in order of importance.',
+        'Multiple gaps require prioritization based on project impact.'
+    ],
+    'gap.analyze_dependencies': [
+        'Gap dependencies need to be analyzed for proper sequencing.',
+        'Some gaps block others - we need to address dependencies first.',
+        'Dependency analysis is crucial for effective gap resolution.'
+    ],
+    'gap.partial_completion': [
+        'Some areas are complete while others need attention.',
+        'Partial completion - let\'s focus on the remaining gaps.',
+        'Mixed completion status - we\'ll address the missing pieces.'
+    ],
+    'gap.all_complete': [
+        'All areas are well-defined - project is ready for execution.',
+        'No critical gaps remain - project planning is comprehensive.',
+        'Project is fully defined and ready to proceed.'
+    ],
+    'gap.priority_scoring': [
+        'Gap priority scoring based on impact and dependencies.',
+        'Prioritizing gaps by criticality and project impact.',
+        'Scoring gaps to determine resolution order.'
+    ],
+    'gap.impact_analysis': [
+        'Analyzing gap impact on project success and timeline.',
+        'Each gap has different impact levels on project execution.',
+        'Impact analysis helps prioritize gap resolution efforts.'
+    ],
+    'gap.template_analysis': [
+        'Analyzing template areas for completeness and gaps.',
+        'Template area analysis reveals missing project components.',
+        'Systematic analysis of all project template areas.'
+    ],
+    'gap.reasoning_analysis': [
+        'Analyzing reasoning behind each gap and its implications.',
+        'Understanding why each gap matters for project success.',
+        'Reasoning analysis helps prioritize and resolve gaps effectively.'
+    ],
+    'gap.resolution_analysis': [
+        'Analyzing gap resolution progress and remaining work.',
+        'Tracking which gaps have been resolved and which remain.',
+        'Resolution analysis shows progress in gap closure.'
+    ],
+    'gap.evolution_analysis': [
+        'Analyzing how gaps evolve and change over time.',
+        'Tracking gap evolution and adapting resolution strategies.',
+        'Evolution analysis helps anticipate future gap changes.'
     ]
 };
 
@@ -557,7 +793,23 @@ export const intentActionMap = {
     'action.request_clarification': 'REQUEST_CLARIFICATION',
     'action.continue_planning': 'CONTINUE_PLANNING',
     'action.escalate_complexity': 'ESCALATE_COMPLEXITY',
-    'action.simplify_approach': 'SIMPLIFY_APPROACH'
+    'action.simplify_approach': 'SIMPLIFY_APPROACH',
+    
+    // Gap Detection Intent Mappings
+    'gap.critical_objectives': 'CRITICAL_OBJECTIVES_GAP',
+    'gap.high_priority_budget': 'HIGH_PRIORITY_BUDGET_GAP',
+    'gap.medium_tasks': 'MEDIUM_PRIORITY_TASKS_GAP',
+    'gap.low_people': 'LOW_PRIORITY_PEOPLE_GAP',
+    'gap.prioritize_multiple': 'PRIORITIZE_MULTIPLE_GAPS',
+    'gap.analyze_dependencies': 'ANALYZE_GAP_DEPENDENCIES',
+    'gap.partial_completion': 'PARTIAL_COMPLETION_ANALYSIS',
+    'gap.all_complete': 'ALL_AREAS_COMPLETE',
+    'gap.priority_scoring': 'GAP_PRIORITY_SCORING',
+    'gap.impact_analysis': 'GAP_IMPACT_ANALYSIS',
+    'gap.template_analysis': 'TEMPLATE_AREA_ANALYSIS',
+    'gap.reasoning_analysis': 'GAP_REASONING_ANALYSIS',
+    'gap.resolution_analysis': 'GAP_RESOLUTION_ANALYSIS',
+    'gap.evolution_analysis': 'GAP_EVOLUTION_ANALYSIS'
 };
 
 // Future: Sentiment analysis configuration
