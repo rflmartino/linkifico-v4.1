@@ -182,6 +182,190 @@ export const trainingData = [
     { text: 'team member', intent: 'stakeholder.add' },
     { text: 'collaborator', intent: 'stakeholder.add' },
     { text: 'project member', intent: 'stakeholder.add' },
+    
+    // Action Planning Intents - Gap-based planning
+    { text: 'objectives missing budget set tasks incomplete', intent: 'action.ask_objectives' },
+    { text: 'critical gap objectives no goals defined', intent: 'action.ask_objectives' },
+    { text: 'objectives empty scope undefined', intent: 'action.ask_objectives' },
+    { text: 'no objectives defined project goals missing', intent: 'action.ask_objectives' },
+    { text: 'objectives gap critical priority', intent: 'action.ask_objectives' },
+    { text: 'objectives missing high priority gap', intent: 'action.ask_objectives' },
+    { text: 'objectives undefined need clarification', intent: 'action.ask_objectives' },
+    { text: 'objectives area empty template incomplete', intent: 'action.ask_objectives' },
+    { text: 'objectives missing blocks planning', intent: 'action.ask_objectives' },
+    { text: 'objectives critical gap immediate attention', intent: 'action.ask_objectives' },
+    
+    { text: 'budget missing objectives set tasks incomplete', intent: 'action.ask_budget' },
+    { text: 'budget gap high priority no financial plan', intent: 'action.ask_budget' },
+    { text: 'budget undefined cost planning needed', intent: 'action.ask_budget' },
+    { text: 'budget missing medium priority gap', intent: 'action.ask_budget' },
+    { text: 'budget area empty financial planning', intent: 'action.ask_budget' },
+    { text: 'budget gap blocks execution planning', intent: 'action.ask_budget' },
+    { text: 'budget missing cost estimation needed', intent: 'action.ask_budget' },
+    { text: 'budget undefined spending plan required', intent: 'action.ask_budget' },
+    { text: 'budget gap medium priority impact', intent: 'action.ask_budget' },
+    { text: 'budget missing financial resources unclear', intent: 'action.ask_budget' },
+    
+    { text: 'tasks missing objectives set budget set', intent: 'action.ask_tasks' },
+    { text: 'tasks gap high priority timeline unclear', intent: 'action.ask_tasks' },
+    { text: 'tasks undefined deliverables missing', intent: 'action.ask_tasks' },
+    { text: 'tasks missing deadline planning needed', intent: 'action.ask_tasks' },
+    { text: 'tasks gap medium priority execution plan', intent: 'action.ask_tasks' },
+    { text: 'tasks area empty work breakdown needed', intent: 'action.ask_tasks' },
+    { text: 'tasks missing schedule planning required', intent: 'action.ask_tasks' },
+    { text: 'tasks undefined timeline planning needed', intent: 'action.ask_tasks' },
+    { text: 'tasks gap blocks execution delivery', intent: 'action.ask_tasks' },
+    { text: 'tasks missing work plan undefined', intent: 'action.ask_tasks' },
+    
+    { text: 'people missing objectives set budget set tasks set', intent: 'action.ask_people' },
+    { text: 'people gap low priority stakeholders unclear', intent: 'action.ask_people' },
+    { text: 'people undefined team planning needed', intent: 'action.ask_people' },
+    { text: 'people missing stakeholder identification', intent: 'action.ask_people' },
+    { text: 'people gap team composition planning', intent: 'action.ask_people' },
+    { text: 'people area empty role assignment needed', intent: 'action.ask_people' },
+    { text: 'people missing resource allocation unclear', intent: 'action.ask_people' },
+    { text: 'people undefined responsibility planning', intent: 'action.ask_people' },
+    { text: 'people gap minor impact team structure', intent: 'action.ask_people' },
+    { text: 'people missing collaboration planning needed', intent: 'action.ask_people' },
+    
+    // Conversation stage planning
+    { text: 'initial conversation 2 messages low engagement', intent: 'action.ask_objectives' },
+    { text: 'early stage 5 messages exploration phase', intent: 'action.ask_objectives' },
+    { text: 'beginning conversation 3 messages basic info', intent: 'action.ask_objectives' },
+    { text: 'startup phase 4 messages foundation needed', intent: 'action.ask_objectives' },
+    { text: 'introductory stage 1 message new user', intent: 'action.ask_objectives' },
+    { text: 'initial contact 2 messages scope definition', intent: 'action.ask_objectives' },
+    { text: 'early planning 3 messages basic requirements', intent: 'action.ask_objectives' },
+    { text: 'conversation start 4 messages project initiation', intent: 'action.ask_objectives' },
+    { text: 'new project 1 message fresh start', intent: 'action.ask_objectives' },
+    { text: 'project beginning 2 messages initial planning', intent: 'action.ask_objectives' },
+    
+    { text: 'planning stage 10 messages detailed planning', intent: 'action.ask_budget' },
+    { text: 'development phase 12 messages execution planning', intent: 'action.ask_tasks' },
+    { text: 'detailed conversation 15 messages comprehensive planning', intent: 'action.ask_people' },
+    { text: 'advanced stage 18 messages final planning', intent: 'action.provide_recommendation' },
+    { text: 'mature conversation 20 messages optimization', intent: 'action.provide_recommendation' },
+    { text: 'established project 25 messages maintenance', intent: 'action.provide_recommendation' },
+    { text: 'ongoing project 30 messages monitoring', intent: 'action.provide_recommendation' },
+    { text: 'active project 35 messages continuous improvement', intent: 'action.provide_recommendation' },
+    { text: 'stable project 40 messages refinement', intent: 'action.provide_recommendation' },
+    { text: 'long running project 50 messages evolution', intent: 'action.provide_recommendation' },
+    
+    // User engagement adaptation
+    { text: 'high engagement detailed responses 100 word average', intent: 'action.ask_detailed' },
+    { text: 'high engagement comprehensive answers thorough planning', intent: 'action.ask_detailed' },
+    { text: 'high engagement detailed communication style', intent: 'action.ask_detailed' },
+    { text: 'high engagement comprehensive responses', intent: 'action.ask_detailed' },
+    { text: 'high engagement thorough communication', intent: 'action.ask_detailed' },
+    { text: 'high engagement detailed interaction pattern', intent: 'action.ask_detailed' },
+    { text: 'high engagement comprehensive planning style', intent: 'action.ask_detailed' },
+    { text: 'high engagement thorough response pattern', intent: 'action.ask_detailed' },
+    { text: 'high engagement detailed question style', intent: 'action.ask_detailed' },
+    { text: 'high engagement comprehensive approach', intent: 'action.ask_detailed' },
+    
+    { text: 'low engagement brief responses 20 word average', intent: 'action.ask_direct' },
+    { text: 'low engagement short answers minimal planning', intent: 'action.ask_direct' },
+    { text: 'low engagement brief communication style', intent: 'action.ask_direct' },
+    { text: 'low engagement concise responses', intent: 'action.ask_direct' },
+    { text: 'low engagement minimal communication', intent: 'action.ask_direct' },
+    { text: 'low engagement brief interaction pattern', intent: 'action.ask_direct' },
+    { text: 'low engagement concise planning style', intent: 'action.ask_direct' },
+    { text: 'low engagement minimal response pattern', intent: 'action.ask_direct' },
+    { text: 'low engagement brief question style', intent: 'action.ask_direct' },
+    { text: 'low engagement concise approach', intent: 'action.ask_direct' },
+    
+    { text: 'medium engagement mixed responses 50 word average', intent: 'action.ask_balanced' },
+    { text: 'medium engagement moderate answers balanced planning', intent: 'action.ask_balanced' },
+    { text: 'medium engagement mixed communication style', intent: 'action.ask_balanced' },
+    { text: 'medium engagement moderate responses', intent: 'action.ask_balanced' },
+    { text: 'medium engagement balanced communication', intent: 'action.ask_balanced' },
+    { text: 'medium engagement mixed interaction pattern', intent: 'action.ask_balanced' },
+    { text: 'medium engagement moderate planning style', intent: 'action.ask_balanced' },
+    { text: 'medium engagement balanced response pattern', intent: 'action.ask_balanced' },
+    { text: 'medium engagement mixed question style', intent: 'action.ask_balanced' },
+    { text: 'medium engagement moderate approach', intent: 'action.ask_balanced' },
+    
+    // Project complexity planning
+    { text: 'high complexity project multiple stakeholders complex requirements', intent: 'action.escalate_complexity' },
+    { text: 'complex project intricate dependencies advanced planning', intent: 'action.escalate_complexity' },
+    { text: 'high complexity multiple phases complex deliverables', intent: 'action.escalate_complexity' },
+    { text: 'complex project advanced requirements sophisticated planning', intent: 'action.escalate_complexity' },
+    { text: 'high complexity intricate project detailed planning needed', intent: 'action.escalate_complexity' },
+    { text: 'complex project multiple teams advanced coordination', intent: 'action.escalate_complexity' },
+    { text: 'high complexity sophisticated requirements detailed analysis', intent: 'action.escalate_complexity' },
+    { text: 'complex project intricate workflow advanced management', intent: 'action.escalate_complexity' },
+    { text: 'high complexity multiple components sophisticated planning', intent: 'action.escalate_complexity' },
+    { text: 'complex project advanced coordination detailed planning', intent: 'action.escalate_complexity' },
+    
+    { text: 'low complexity simple project basic requirements', intent: 'action.simplify_approach' },
+    { text: 'simple project minimal stakeholders basic planning', intent: 'action.simplify_approach' },
+    { text: 'low complexity straightforward requirements simple planning', intent: 'action.simplify_approach' },
+    { text: 'simple project basic deliverables minimal complexity', intent: 'action.simplify_approach' },
+    { text: 'low complexity uncomplicated project basic approach', intent: 'action.simplify_approach' },
+    { text: 'simple project minimal dependencies straightforward planning', intent: 'action.simplify_approach' },
+    { text: 'low complexity basic requirements simple coordination', intent: 'action.simplify_approach' },
+    { text: 'simple project straightforward workflow basic management', intent: 'action.simplify_approach' },
+    { text: 'low complexity minimal components basic planning', intent: 'action.simplify_approach' },
+    { text: 'simple project basic coordination straightforward approach', intent: 'action.simplify_approach' },
+    
+    // Urgency planning
+    { text: 'high urgency immediate deadline critical timeline', intent: 'action.ask_direct' },
+    { text: 'urgent project tight deadline immediate action', intent: 'action.ask_direct' },
+    { text: 'high urgency critical timeline fast execution', intent: 'action.ask_direct' },
+    { text: 'urgent project immediate requirements quick planning', intent: 'action.ask_direct' },
+    { text: 'high urgency time sensitive critical delivery', intent: 'action.ask_direct' },
+    { text: 'urgent project fast timeline immediate response', intent: 'action.ask_direct' },
+    { text: 'high urgency critical deadline immediate planning', intent: 'action.ask_direct' },
+    { text: 'urgent project time critical fast execution', intent: 'action.ask_direct' },
+    { text: 'high urgency immediate action critical timeline', intent: 'action.ask_direct' },
+    { text: 'urgent project critical urgency fast delivery', intent: 'action.ask_direct' },
+    
+    { text: 'low urgency flexible timeline relaxed planning', intent: 'action.ask_exploratory' },
+    { text: 'relaxed project flexible deadline thoughtful planning', intent: 'action.ask_exploratory' },
+    { text: 'low urgency comfortable timeline exploratory approach', intent: 'action.ask_exploratory' },
+    { text: 'flexible project relaxed requirements thoughtful approach', intent: 'action.ask_exploratory' },
+    { text: 'low urgency comfortable timeline exploratory planning', intent: 'action.ask_exploratory' },
+    { text: 'relaxed project flexible schedule thoughtful execution', intent: 'action.ask_exploratory' },
+    { text: 'low urgency comfortable deadline exploratory approach', intent: 'action.ask_exploratory' },
+    { text: 'flexible project relaxed timeline thoughtful planning', intent: 'action.ask_exploratory' },
+    { text: 'low urgency comfortable schedule exploratory delivery', intent: 'action.ask_exploratory' },
+    { text: 'relaxed project flexible requirements thoughtful execution', intent: 'action.ask_exploratory' },
+    
+    // Recommendation scenarios
+    { text: 'objectives complete budget set tasks defined people assigned', intent: 'action.provide_recommendation' },
+    { text: 'all areas complete project well defined comprehensive planning', intent: 'action.provide_recommendation' },
+    { text: 'objectives set budget defined tasks planned people identified', intent: 'action.provide_recommendation' },
+    { text: 'project fully defined comprehensive information complete planning', intent: 'action.provide_recommendation' },
+    { text: 'all gaps resolved project information complete', intent: 'action.provide_recommendation' },
+    { text: 'objectives clear budget set tasks planned stakeholders identified', intent: 'action.provide_recommendation' },
+    { text: 'project well defined all areas complete comprehensive planning', intent: 'action.provide_recommendation' },
+    { text: 'objectives defined budget set tasks clear people assigned', intent: 'action.provide_recommendation' },
+    { text: 'project information complete all areas defined', intent: 'action.provide_recommendation' },
+    { text: 'objectives set budget planned tasks defined team assigned', intent: 'action.provide_recommendation' },
+    
+    // Clarification scenarios
+    { text: 'unclear response ambiguous answer need clarification', intent: 'action.request_clarification' },
+    { text: 'confusing response unclear meaning clarification needed', intent: 'action.request_clarification' },
+    { text: 'ambiguous answer unclear intent need more info', intent: 'action.request_clarification' },
+    { text: 'unclear response confusing message clarification required', intent: 'action.request_clarification' },
+    { text: 'ambiguous answer unclear meaning need clarification', intent: 'action.request_clarification' },
+    { text: 'confusing response unclear intent clarification needed', intent: 'action.request_clarification' },
+    { text: 'unclear answer ambiguous message need more details', intent: 'action.request_clarification' },
+    { text: 'confusing response unclear meaning clarification required', intent: 'action.request_clarification' },
+    { text: 'ambiguous answer unclear intent need clarification', intent: 'action.request_clarification' },
+    { text: 'unclear response confusing meaning clarification needed', intent: 'action.request_clarification' },
+    
+    // Continue planning scenarios
+    { text: 'objectives partial budget missing tasks incomplete', intent: 'action.continue_planning' },
+    { text: 'partial information some gaps remain planning continues', intent: 'action.continue_planning' },
+    { text: 'objectives set budget partial tasks incomplete', intent: 'action.continue_planning' },
+    { text: 'some areas complete others need attention continue planning', intent: 'action.continue_planning' },
+    { text: 'objectives clear budget missing tasks partial', intent: 'action.continue_planning' },
+    { text: 'partial completion some gaps resolved continue planning', intent: 'action.continue_planning' },
+    { text: 'objectives defined budget unclear tasks incomplete', intent: 'action.continue_planning' },
+    { text: 'mixed completion some areas done others need work', intent: 'action.continue_planning' },
+    { text: 'objectives set budget partial tasks undefined', intent: 'action.continue_planning' },
+    { text: 'partial information gaps remain continue planning', intent: 'action.continue_planning' },
 ];
 
 // Response templates for each intent
@@ -270,6 +454,73 @@ export const responseTemplates = {
         'I\'ll add a team member.',
         'Adding the new team member.',
         'Team member added successfully.'
+    ],
+    
+    // Action Planning Response Templates
+    'action.ask_objectives': [
+        'What are your main objectives for this project?',
+        'Could you describe the goals you want to achieve?',
+        'What do you hope to accomplish with this project?'
+    ],
+    'action.ask_budget': [
+        'What budget do you have available for this project?',
+        'What financial resources are allocated for this work?',
+        'What\'s your budget range for this project?'
+    ],
+    'action.ask_tasks': [
+        'What specific tasks or deliverables do you need?',
+        'What are the key activities for this project?',
+        'What work needs to be completed?'
+    ],
+    'action.ask_people': [
+        'Who will be involved in this project?',
+        'What team members or stakeholders need to be included?',
+        'Who are the key people for this project?'
+    ],
+    'action.ask_detailed': [
+        'Could you provide more detailed information about this?',
+        'I\'d like to understand this better - can you elaborate?',
+        'Let me get a comprehensive understanding of your needs.'
+    ],
+    'action.ask_direct': [
+        'What\'s your budget?',
+        'When do you need this completed?',
+        'Who\'s involved?'
+    ],
+    'action.ask_balanced': [
+        'Tell me about your project requirements.',
+        'What are the key details I should know?',
+        'Help me understand your project needs.'
+    ],
+    'action.ask_exploratory': [
+        'Let\'s explore this together - what\'s your vision?',
+        'I\'d love to understand more about your goals.',
+        'Tell me more about what you\'re thinking.'
+    ],
+    'action.provide_recommendation': [
+        'Based on what we\'ve discussed, here are my recommendations.',
+        'Your project looks well-defined. Here\'s what I suggest.',
+        'Great progress! Here\'s my recommended next steps.'
+    ],
+    'action.request_clarification': [
+        'I want to make sure I understand correctly - could you clarify?',
+        'Let me make sure I have this right - can you explain more?',
+        'I need a bit more clarity on this - could you elaborate?'
+    ],
+    'action.continue_planning': [
+        'Let\'s continue building your project plan.',
+        'We\'re making good progress - let\'s keep going.',
+        'Let\'s work on the next part of your project.'
+    ],
+    'action.escalate_complexity': [
+        'This looks like a complex project - let\'s plan it thoroughly.',
+        'Given the complexity, we\'ll need a detailed approach.',
+        'This requires advanced planning - let\'s break it down systematically.'
+    ],
+    'action.simplify_approach': [
+        'This looks straightforward - let\'s keep it simple.',
+        'For this project, we can use a streamlined approach.',
+        'Let\'s plan this with a simple, effective strategy.'
     ]
 };
 
@@ -291,7 +542,22 @@ export const intentActionMap = {
     'general.thanks': 'ACKNOWLEDGE',
     'project.status': 'GET_STATUS',
     'timeline.query': 'SHOW_TIMELINE',
-    'stakeholder.add': 'ADD_STAKEHOLDER'
+    'stakeholder.add': 'ADD_STAKEHOLDER',
+    
+    // Action Planning Intent Mappings
+    'action.ask_objectives': 'ASK_ABOUT_OBJECTIVES',
+    'action.ask_budget': 'ASK_ABOUT_BUDGET',
+    'action.ask_tasks': 'ASK_ABOUT_TASKS',
+    'action.ask_people': 'ASK_ABOUT_PEOPLE',
+    'action.ask_detailed': 'ASK_DETAILED_QUESTION',
+    'action.ask_direct': 'ASK_DIRECT_QUESTION',
+    'action.ask_balanced': 'ASK_BALANCED_QUESTION',
+    'action.ask_exploratory': 'ASK_EXPLORATORY_QUESTION',
+    'action.provide_recommendation': 'PROVIDE_RECOMMENDATION',
+    'action.request_clarification': 'REQUEST_CLARIFICATION',
+    'action.continue_planning': 'CONTINUE_PLANNING',
+    'action.escalate_complexity': 'ESCALATE_COMPLEXITY',
+    'action.simplify_approach': 'SIMPLIFY_APPROACH'
 };
 
 // Future: Sentiment analysis configuration

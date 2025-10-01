@@ -9,6 +9,7 @@ import {
     saveLearningData,
     createLearningData 
 } from 'backend/data/projectData.js';
+import nlpManager from 'backend/nlp/nlpManager.js';
 
 async function callClaude(prompt, systemPrompt = null) {
     return await askClaude({
@@ -30,8 +31,29 @@ export const actionPlanningController = {
             // Analyze conversation context
             const conversationContext = await this.analyzeConversationContext(chatHistory, analysis);
             
-            // Plan optimal action based on gaps and user patterns
-            const actionPlan = await this.generateActionPlan(gaps, learningData, conversationContext, analysis);
+            // Try NLP first with confidence gate
+            const nlpStart = Date.now();
+            const nlpResult = await this.tryNLPProcessing(gaps, conversationContext, analysis);
+            Logger.info('actionPlanningController', 'timing:nlpProcessingMs', { ms: Date.now() - nlpStart });
+            
+            let actionPlan;
+            if (nlpResult.success) {
+                Logger.info('actionPlanningController', 'nlpSuccess', { 
+                    intent: nlpResult.intent, 
+                    confidence: nlpResult.confidence,
+                    usedNLP: true 
+                });
+                
+                actionPlan = nlpResult.actionPlan;
+            } else {
+                // Fallback to Haiku for low confidence or unknown intents
+                Logger.info('actionPlanningController', 'nlpFallback', { 
+                    reason: nlpResult.reason,
+                    usedNLP: false 
+                });
+                
+                actionPlan = await this.generateActionPlan(gaps, learningData, conversationContext, analysis);
+            }
             
             // Update learning data with planning decision (don't save, just update in memory)
             this.updateLearningFromPlanning(userId, actionPlan, learningData);
@@ -52,6 +74,204 @@ export const actionPlanningController = {
                 confidence: 0.5
             };
         }
+    },
+    
+    // Try NLP processing first with confidence gate
+    async tryNLPProcessing(gaps, conversationContext, analysis) {
+        try {
+            const confidenceThreshold = 0.8; // 80% confidence threshold
+            
+            // Build context string for NLP processing
+            const contextString = this.buildNLPContextString(gaps, conversationContext, analysis);
+            
+            // Get complete analysis from NLP (includes intent, confidence, and response)
+            const nlpResult = await nlpManager.processInput(contextString);
+            
+            if (!nlpResult || nlpResult.confidence < confidenceThreshold) {
+                return {
+                    success: false,
+                    reason: `Low confidence: ${nlpResult?.confidence || 0} < ${confidenceThreshold}`,
+                    confidence: nlpResult?.confidence || 0
+                };
+            }
+            
+            // Check if NLP provided a response
+            if (!nlpResult.answer) {
+                return {
+                    success: false,
+                    reason: `No response from NLP for intent: ${nlpResult.intent}`,
+                    confidence: nlpResult.confidence
+                };
+            }
+            
+            // Convert NLP intent to action plan
+            const actionPlan = this.convertNLPToActionPlan(nlpResult, gaps, conversationContext);
+            
+            return {
+                success: true,
+                intent: nlpResult.intent,
+                confidence: nlpResult.confidence,
+                actionPlan: actionPlan
+            };
+            
+        } catch (error) {
+            Logger.error('actionPlanningController', 'tryNLPProcessing:error', error);
+            return {
+                success: false,
+                reason: `NLP error: ${error.message}`,
+                confidence: 0
+            };
+        }
+    },
+    
+    // Build context string for NLP processing
+    buildNLPContextString(gaps, conversationContext, analysis) {
+        const parts = [];
+        
+        // Add gap information
+        if (gaps && gaps.criticalGaps && gaps.criticalGaps.length > 0) {
+            parts.push(gaps.criticalGaps.join(' ') + ' missing');
+        }
+        
+        // Add conversation stage
+        if (conversationContext) {
+            parts.push(conversationContext.conversationStage || 'initial');
+            parts.push(conversationContext.totalMessages || '0');
+            parts.push('messages');
+            
+            // Add engagement level
+            if (conversationContext.userEngagement) {
+                parts.push(conversationContext.userEngagement);
+                parts.push('engagement');
+            }
+            
+            // Add response pattern
+            if (conversationContext.responsePattern) {
+                parts.push(conversationContext.responsePattern);
+                parts.push('responses');
+            }
+        }
+        
+        // Add analysis information
+        if (analysis) {
+            if (analysis.completeness !== undefined) {
+                const completenessLevel = analysis.completeness > 0.8 ? 'complete' : 
+                                        analysis.completeness > 0.5 ? 'partial' : 'incomplete';
+                parts.push(completenessLevel);
+            }
+            
+            if (analysis.missingFields && analysis.missingFields.length > 0) {
+                parts.push(analysis.missingFields.join(' ') + ' incomplete');
+            }
+        }
+        
+        return parts.join(' ');
+    },
+    
+    // Convert NLP result to action plan
+    convertNLPToActionPlan(nlpResult, gaps, conversationContext) {
+        const intent = nlpResult.intent;
+        const confidence = nlpResult.confidence;
+        
+        // Map NLP intent to action plan structure
+        const actionMappings = {
+            'action.ask_objectives': {
+                action: 'ask_about_objectives',
+                question: 'What are your main objectives for this project?',
+                reasoning: 'Objectives are critical foundation for planning',
+                timing: 'immediate',
+                confidence: confidence
+            },
+            'action.ask_budget': {
+                action: 'ask_about_budget',
+                question: 'What budget do you have available for this project?',
+                reasoning: 'Budget information needed for resource planning',
+                timing: 'immediate',
+                confidence: confidence
+            },
+            'action.ask_tasks': {
+                action: 'ask_about_tasks',
+                question: 'What specific tasks or deliverables do you need?',
+                reasoning: 'Task definition required for execution planning',
+                timing: 'immediate',
+                confidence: confidence
+            },
+            'action.ask_people': {
+                action: 'ask_about_people',
+                question: 'Who will be involved in this project?',
+                reasoning: 'Stakeholder identification needed for coordination',
+                timing: 'immediate',
+                confidence: confidence
+            },
+            'action.provide_recommendation': {
+                action: 'provide_recommendation',
+                question: 'Based on our discussion, here are my recommendations.',
+                reasoning: 'Project is well-defined, ready for recommendations',
+                timing: 'immediate',
+                confidence: confidence
+            },
+            'action.request_clarification': {
+                action: 'request_clarification',
+                question: 'I want to make sure I understand correctly - could you clarify?',
+                reasoning: 'Clarification needed for better understanding',
+                timing: 'immediate',
+                confidence: confidence
+            },
+            'action.continue_planning': {
+                action: 'continue_planning',
+                question: 'Let\'s continue building your project plan.',
+                reasoning: 'Partial information available, continue planning',
+                timing: 'immediate',
+                confidence: confidence
+            }
+        };
+        
+        // Get base action plan from mapping
+        let actionPlan = actionMappings[intent] || {
+            action: 'ask_about_objectives',
+            question: 'What are your main objectives for this project?',
+            reasoning: 'Default action for unrecognized intent',
+            timing: 'immediate',
+            confidence: confidence
+        };
+        
+        // Adapt question style based on conversation context
+        if (conversationContext && conversationContext.userEngagement) {
+            actionPlan = this.adaptQuestionStyle(actionPlan, conversationContext.userEngagement);
+        }
+        
+        return actionPlan;
+    },
+    
+    // Adapt question style based on user engagement
+    adaptQuestionStyle(actionPlan, engagementLevel) {
+        const adaptedPlan = { ...actionPlan };
+        
+        switch (engagementLevel) {
+            case 'high':
+                // More detailed questions for engaged users
+                if (actionPlan.action === 'ask_about_objectives') {
+                    adaptedPlan.question = 'Could you describe in detail what you want to achieve with this project?';
+                } else if (actionPlan.action === 'ask_about_budget') {
+                    adaptedPlan.question = 'What financial resources are allocated for this project, and are there any budget constraints?';
+                }
+                break;
+                
+            case 'low':
+                // More direct questions for less engaged users
+                if (actionPlan.action === 'ask_about_objectives') {
+                    adaptedPlan.question = 'What\'s the main goal?';
+                } else if (actionPlan.action === 'ask_about_budget') {
+                    adaptedPlan.question = 'What\'s your budget?';
+                }
+                break;
+                
+            default:
+                // Keep original question for medium engagement
+                break;
+        }
+        
+        return adaptedPlan;
     },
     
     // Analyze conversation context
