@@ -108,6 +108,13 @@ async function processChatMessage(projectId, userId, message, sessionId, process
             projectData: allData.projectData
         };
         Logger.info('entrypoint.web', 'processChatMessage:result', { ok: true, todos: result.todos?.length || 0 });
+        Logger.info('entrypoint.web', 'processChatMessage:todosDebug', { 
+            hasAnalysis: !!response.analysis,
+            hasGaps: !!(response.analysis && response.analysis.gaps),
+            hasTodos: !!(response.analysis && response.analysis.gaps && response.analysis.gaps.todos),
+            todosCount: result.todos?.length || 0,
+            todosData: result.todos
+        });
         return result;
 
     } catch (error) {

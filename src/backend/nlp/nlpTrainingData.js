@@ -780,11 +780,11 @@ export const responseTemplates = {
         'Creating a new project now.'
     ],
     'scope.define': [
-        'Perfect! I can see you\'re planning a hardware store project. Let\'s build a comprehensive plan for your business.',
-        'Excellent! A hardware store is a great business venture. I\'ll help you create a detailed project plan.',
-        'Great choice! Hardware stores are essential businesses. Let\'s develop a strategic plan for your store.',
-        'Fantastic! I\'ll help you create a complete business plan for your hardware store project.',
-        'Wonderful! Let\'s build a comprehensive strategy for your new hardware store business.'
+        'Perfect! I can see you\'re planning a new project. Let\'s build a comprehensive plan for your venture.',
+        'Excellent! This sounds like an interesting project. I\'ll help you create a detailed project plan.',
+        'Great choice! Let\'s develop a strategic plan for your project.',
+        'Fantastic! I\'ll help you create a complete project plan.',
+        'Wonderful! Let\'s build a comprehensive strategy for your new project.'
     ],
     'budget.set': [
         'Excellent! I\'ve noted your budget allocation. This will help us plan resources and scope appropriately.',
