@@ -20,8 +20,13 @@
         }
         
         #chatContainer {
-            display: flex;
-            flex-direction: column;
+            display: grid;
+            grid-template-columns: 1fr 280px;
+            grid-template-rows: auto 1fr auto;
+            grid-template-areas:
+                "header header"
+                "messages sidebar"
+                "input sidebar";
             height: 100%;
             background: white;
             border-radius: 8px;
@@ -37,6 +42,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            grid-area: header;
         }
         
         #status {
@@ -52,6 +58,7 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
+            grid-area: messages;
         }
         
         .message {
@@ -168,6 +175,51 @@
             border-top: 1px solid #e0e0e0;
             display: flex;
             gap: 12px;
+            grid-area: input;
+        }
+
+        /* Sidebar for Todos */
+        #sidebar {
+            grid-area: sidebar;
+            border-left: 1px solid #eee;
+            background: #fafafa;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            gap: 12px;
+        }
+        #sidebar h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #555;
+        }
+        #todosList {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 0;
+            margin: 0;
+        }
+        .todo-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            font-size: 13px;
+            color: #444;
+        }
+        .todo-checkbox {
+            width: 14px;
+            height: 14px;
+            margin-top: 2px;
+        }
+        .todo-title.completed {
+            text-decoration: line-through;
+            color: #999;
+        }
+        .todo-meta {
+            font-size: 11px;
+            color: #888;
         }
         
         #messageInput {
@@ -232,6 +284,10 @@
         </div>
         
         <div id="messagesContainer"></div>
+        <aside id="sidebar">
+            <h3>Todos</h3>
+            <ul id="todosList"></ul>
+        </aside>
         
         <div id="typingIndicator">
             <div class="typing-dots">
@@ -262,6 +318,7 @@
                 this.status = document.getElementById('status');
                 this.projectName = document.getElementById('projectName');
                 this.typingIndicator = document.getElementById('typingIndicator');
+                this.todosList = document.getElementById('todosList');
                 
                 this.sessionId = null;
                 this.projectId = null;
@@ -463,6 +520,10 @@
                         
                     case 'displayMessage':
                         this.displayMessage(data.type, data.content, data.timestamp);
+                        // If todos are included, render them
+                        if (Array.isArray(data.todos)) {
+                            this.renderTodos(data.todos);
+                        }
                         break;
                         
                     case 'updateStatus':
@@ -480,6 +541,9 @@
                     case 'refresh':
                         location.reload();
                         break;
+                    case 'displayTodos':
+                        this.renderTodos(data.todos || []);
+                        break;
                 }
             }
             
@@ -493,6 +557,41 @@
                 history.forEach(item => {
                     const type = item.role === 'user' ? 'user' : 'assistant';
                     this.displayMessage(type, item.message, item.timestamp);
+                });
+            }
+
+            renderTodos(todos) {
+                if (!this.todosList) return;
+                this.todosList.innerHTML = '';
+                todos.forEach(t => {
+                    const li = document.createElement('li');
+                    li.className = 'todo-item';
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'todo-checkbox';
+                    checkbox.checked = !!t.completed;
+                    checkbox.disabled = true; // Read-only reflective state
+
+                    const title = document.createElement('div');
+                    title.className = 'todo-title' + (t.completed ? ' completed' : '');
+                    title.textContent = t.title || t.id;
+
+                    const meta = document.createElement('div');
+                    meta.className = 'todo-meta';
+                    const priority = t.priority ? `priority: ${t.priority}` : '';
+                    const reason = t.reason ? ` – ${t.reason}` : '';
+                    meta.textContent = [priority, reason].filter(Boolean).join(' ');
+
+                    const content = document.createElement('div');
+                    content.style.display = 'flex';
+                    content.style.flexDirection = 'column';
+                    content.appendChild(title);
+                    if (meta.textContent) content.appendChild(meta);
+
+                    li.appendChild(checkbox);
+                    li.appendChild(content);
+                    this.todosList.appendChild(li);
                 });
             }
             

@@ -39,8 +39,8 @@ export const gapDetectionController = {
             const prioritizedGaps = gapAnalysisAndAction.prioritizedGaps;
             const nextAction = gapAnalysisAndAction.nextAction;
             
-            // Build todos from prioritized gaps
-            const todos = this.buildTodosFromGaps(prioritizedGaps, gapAnalysis, nextAction);
+            // Build todos from prioritized gaps (include completion state based on current projectData)
+            const todos = this.buildTodosFromGaps(prioritizedGaps, gapAnalysis, nextAction, projectData);
 
             // Create or update gap data structure
             const gapData = existingGapData || createGapData(projectId, {
@@ -83,7 +83,7 @@ export const gapDetectionController = {
     },
     
     // Build a simple TODO checklist from prioritized gaps
-    buildTodosFromGaps(prioritizedGaps, gapAnalysis, nextAction) {
+    buildTodosFromGaps(prioritizedGaps, gapAnalysis, nextAction, projectData) {
         const byField = new Map();
         if (gapAnalysis && gapAnalysis.gaps) {
             gapAnalysis.gaps.forEach(g => byField.set(g.field, g));
@@ -94,15 +94,48 @@ export const gapDetectionController = {
             return prioritizedGaps.map(field => {
             const gap = byField.get(field) || { criticality: 'high', reasoning: '' };
                 const action = `ask_about_${field}`;
+            const completed = this.isAreaCompleted(field, projectData && projectData.templateData ? projectData.templateData : {});
             return {
                 id: `todo_${field}`,
                     title: titleMap[field] || `Clarify ${field}`,
                 reason: gap.reasoning || `Clarify ${field} to progress`,
                 priority: priorityMap[gap.criticality] || 'high',
                 action: action,
-                isNext: nextAction && nextAction.action === action
+                isNext: nextAction && nextAction.action === action,
+                completed: !!completed
             };
         });
+    },
+
+    // Determine if a template area is considered completed based on available data
+    isAreaCompleted(areaId, templateData) {
+        try {
+            const td = templateData || {};
+            switch (areaId) {
+                case 'objectives': {
+                    const obj = td.objectives || {};
+                    return !!(obj.description && obj.description.trim().length > 0) || Array.isArray(obj.goals) && obj.goals.length > 0 || Array.isArray(obj.acceptanceCriteria) && obj.acceptanceCriteria.length > 0;
+                }
+                case 'tasks': {
+                    const tasks = td.tasks || {};
+                    return Array.isArray(tasks.tasks) && tasks.tasks.length > 0 || !!tasks.deadline || Array.isArray(tasks.dependencies) && tasks.dependencies.length > 0;
+                }
+                case 'budget': {
+                    const budget = td.budget || {};
+                    return budget.total != null && budget.total !== '' || (Array.isArray(budget.lineItems) && budget.lineItems.length > 0) || (typeof budget.spent === 'number' && budget.spent > 0);
+                }
+                case 'people': {
+                    const people = td.people || {};
+                    return Array.isArray(people.stakeholders) && people.stakeholders.length > 0 || Array.isArray(people.team) && people.team.length > 0;
+                }
+                default:
+                    // For unknown areas, consider incomplete unless there is any key present
+                    const area = td[areaId];
+                    return !!(area && Object.keys(area).length > 0);
+            }
+        } catch (_) {
+            return false;
+        }
     },
     
     // Combined method: Analyze gaps and determine next action in one API call

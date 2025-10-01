@@ -83,15 +83,8 @@ async function processChatMessage(projectId, userId, message, sessionId, process
         // Process through intelligence controllers
         const response = await processIntelligenceLoop(projectId, userId, message, processingId);
 
-        // Optionally append inline TODO checklist to assistant message
-        let finalMessage = response.message;
-        if (response.analysis && response.analysis.gaps && response.analysis.gaps.todos && response.analysis.gaps.todos.length) {
-            const checklist = response.analysis.gaps.todos
-                .slice(0, 5)
-                .map(t => `• ${t.title} (${t.priority})`)
-                .join('\n');
-            finalMessage = `${finalMessage}\n\nNext steps:\n${checklist}`;
-        }
+        // Do not inline todos into the assistant message; keep narrative separate from structured todos
+        const finalMessage = response.message;
 
         // Add AI response to history
         chatHistory.push({
