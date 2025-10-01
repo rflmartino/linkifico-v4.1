@@ -642,6 +642,134 @@ export const trainingData = [
     { text: 'objectives gap new budget gap changed tasks gap evolved people gap updated', intent: 'gap.evolution_analysis' },
     { text: 'objectives gap changed budget gap updated tasks gap new people gap evolved', intent: 'gap.evolution_analysis' },
     { text: 'objectives gap evolved budget gap new tasks gap updated people gap changed', intent: 'gap.evolution_analysis' },
+    
+    // Additional Action Planning Examples (100 more)
+    
+    // Complex gap scenarios (20 examples)
+    { text: 'objectives missing budget undefined tasks incomplete people unclear multiple gaps', intent: 'action.ask_objectives' },
+    { text: 'objectives empty budget gap tasks missing people undefined complex situation', intent: 'action.ask_objectives' },
+    { text: 'objectives undefined budget missing tasks incomplete people unclear multiple areas', intent: 'action.ask_objectives' },
+    { text: 'objectives missing budget gap tasks undefined people missing complex gaps', intent: 'action.ask_objectives' },
+    { text: 'objectives empty budget missing tasks gap people undefined multiple issues', intent: 'action.ask_objectives' },
+    { text: 'objectives gap budget undefined tasks missing people incomplete complex scenario', intent: 'action.ask_objectives' },
+    { text: 'objectives missing budget empty tasks undefined people gap multiple problems', intent: 'action.ask_objectives' },
+    { text: 'objectives undefined budget missing tasks incomplete people unclear complex gaps', intent: 'action.ask_objectives' },
+    { text: 'objectives missing budget gap tasks missing people undefined multiple areas', intent: 'action.ask_objectives' },
+    { text: 'objectives empty budget missing tasks undefined people gap complex situation', intent: 'action.ask_objectives' },
+    { text: 'objectives gap budget missing tasks incomplete people undefined multiple gaps', intent: 'action.ask_objectives' },
+    { text: 'objectives missing budget undefined tasks gap people missing complex scenario', intent: 'action.ask_objectives' },
+    { text: 'objectives undefined budget missing tasks missing people unclear multiple issues', intent: 'action.ask_objectives' },
+    { text: 'objectives missing budget gap tasks undefined people incomplete complex gaps', intent: 'action.ask_objectives' },
+    { text: 'objectives empty budget missing tasks gap people undefined multiple problems', intent: 'action.ask_objectives' },
+    { text: 'objectives gap budget undefined tasks missing people unclear complex situation', intent: 'action.ask_objectives' },
+    { text: 'objectives missing budget missing tasks incomplete people undefined multiple areas', intent: 'action.ask_objectives' },
+    { text: 'objectives undefined budget gap tasks missing people gap complex gaps', intent: 'action.ask_objectives' },
+    { text: 'objectives missing budget missing tasks gap people unclear multiple issues', intent: 'action.ask_objectives' },
+    { text: 'objectives empty budget undefined tasks missing people missing complex scenario', intent: 'action.ask_objectives' },
+    
+    // High engagement detailed scenarios (15 examples)
+    { text: 'high engagement detailed responses comprehensive planning thorough analysis', intent: 'action.ask_detailed' },
+    { text: 'high engagement detailed communication comprehensive approach thorough planning', intent: 'action.ask_detailed' },
+    { text: 'high engagement detailed interaction comprehensive analysis thorough approach', intent: 'action.ask_detailed' },
+    { text: 'high engagement detailed responses comprehensive strategy thorough planning', intent: 'action.ask_detailed' },
+    { text: 'high engagement detailed communication comprehensive analysis thorough approach', intent: 'action.ask_detailed' },
+    { text: 'high engagement detailed interaction comprehensive planning thorough strategy', intent: 'action.ask_detailed' },
+    { text: 'high engagement detailed responses comprehensive approach thorough analysis', intent: 'action.ask_detailed' },
+    { text: 'high engagement detailed communication comprehensive strategy thorough planning', intent: 'action.ask_detailed' },
+    { text: 'high engagement detailed interaction comprehensive analysis thorough strategy', intent: 'action.ask_detailed' },
+    { text: 'high engagement detailed responses comprehensive planning thorough approach', intent: 'action.ask_detailed' },
+    { text: 'high engagement detailed communication comprehensive approach thorough strategy', intent: 'action.ask_detailed' },
+    { text: 'high engagement detailed interaction comprehensive strategy thorough analysis', intent: 'action.ask_detailed' },
+    { text: 'high engagement detailed responses comprehensive analysis thorough planning', intent: 'action.ask_detailed' },
+    { text: 'high engagement detailed communication comprehensive planning thorough analysis', intent: 'action.ask_detailed' },
+    { text: 'high engagement detailed interaction comprehensive approach thorough planning', intent: 'action.ask_detailed' },
+    
+    // Low engagement direct scenarios (15 examples)
+    { text: 'low engagement brief responses minimal planning concise approach', intent: 'action.ask_direct' },
+    { text: 'low engagement brief communication minimal approach concise planning', intent: 'action.ask_direct' },
+    { text: 'low engagement brief interaction minimal strategy concise approach', intent: 'action.ask_direct' },
+    { text: 'low engagement brief responses minimal analysis concise planning', intent: 'action.ask_direct' },
+    { text: 'low engagement brief communication minimal planning concise strategy', intent: 'action.ask_direct' },
+    { text: 'low engagement brief interaction minimal approach concise analysis', intent: 'action.ask_direct' },
+    { text: 'low engagement brief responses minimal strategy concise approach', intent: 'action.ask_direct' },
+    { text: 'low engagement brief communication minimal analysis concise planning', intent: 'action.ask_direct' },
+    { text: 'low engagement brief interaction minimal planning concise strategy', intent: 'action.ask_direct' },
+    { text: 'low engagement brief responses minimal approach concise analysis', intent: 'action.ask_direct' },
+    { text: 'low engagement brief communication minimal strategy concise planning', intent: 'action.ask_direct' },
+    { text: 'low engagement brief interaction minimal analysis concise approach', intent: 'action.ask_direct' },
+    { text: 'low engagement brief responses minimal planning concise strategy', intent: 'action.ask_direct' },
+    { text: 'low engagement brief communication minimal approach concise analysis', intent: 'action.ask_direct' },
+    { text: 'low engagement brief interaction minimal strategy concise planning', intent: 'action.ask_direct' },
+    
+    // Medium engagement balanced scenarios (15 examples)
+    { text: 'medium engagement moderate responses balanced planning moderate approach', intent: 'action.ask_balanced' },
+    { text: 'medium engagement moderate communication balanced approach moderate planning', intent: 'action.ask_balanced' },
+    { text: 'medium engagement moderate interaction balanced strategy moderate analysis', intent: 'action.ask_balanced' },
+    { text: 'medium engagement moderate responses balanced analysis moderate planning', intent: 'action.ask_balanced' },
+    { text: 'medium engagement moderate communication balanced planning moderate strategy', intent: 'action.ask_balanced' },
+    { text: 'medium engagement moderate interaction balanced approach moderate analysis', intent: 'action.ask_balanced' },
+    { text: 'medium engagement moderate responses balanced strategy moderate planning', intent: 'action.ask_balanced' },
+    { text: 'medium engagement moderate communication balanced analysis moderate approach', intent: 'action.ask_balanced' },
+    { text: 'medium engagement moderate interaction balanced planning moderate strategy', intent: 'action.ask_balanced' },
+    { text: 'medium engagement moderate responses balanced approach moderate analysis', intent: 'action.ask_balanced' },
+    { text: 'medium engagement moderate communication balanced strategy moderate planning', intent: 'action.ask_balanced' },
+    { text: 'medium engagement moderate interaction balanced analysis moderate approach', intent: 'action.ask_balanced' },
+    { text: 'medium engagement moderate responses balanced planning moderate strategy', intent: 'action.ask_balanced' },
+    { text: 'medium engagement moderate communication balanced approach moderate analysis', intent: 'action.ask_balanced' },
+    { text: 'medium engagement moderate interaction balanced strategy moderate planning', intent: 'action.ask_balanced' },
+    
+    // Urgency-based scenarios (15 examples)
+    { text: 'high urgency immediate deadline critical timeline fast execution urgent', intent: 'action.ask_direct' },
+    { text: 'urgent project tight deadline immediate action critical timeline fast', intent: 'action.ask_direct' },
+    { text: 'high urgency critical timeline immediate response urgent project fast', intent: 'action.ask_direct' },
+    { text: 'urgent project immediate requirements critical deadline fast execution', intent: 'action.ask_direct' },
+    { text: 'high urgency time sensitive immediate action critical timeline urgent', intent: 'action.ask_direct' },
+    { text: 'urgent project fast timeline critical deadline immediate response fast', intent: 'action.ask_direct' },
+    { text: 'high urgency critical deadline immediate planning urgent project fast', intent: 'action.ask_direct' },
+    { text: 'urgent project time critical immediate action fast execution critical', intent: 'action.ask_direct' },
+    { text: 'high urgency immediate action critical timeline urgent project fast', intent: 'action.ask_direct' },
+    { text: 'urgent project critical urgency immediate response fast delivery critical', intent: 'action.ask_direct' },
+    { text: 'high urgency immediate deadline critical timeline fast execution urgent', intent: 'action.ask_direct' },
+    { text: 'urgent project tight deadline immediate action critical timeline fast', intent: 'action.ask_direct' },
+    { text: 'high urgency critical timeline immediate response urgent project fast', intent: 'action.ask_direct' },
+    { text: 'urgent project immediate requirements critical deadline fast execution', intent: 'action.ask_direct' },
+    { text: 'high urgency time sensitive immediate action critical timeline urgent', intent: 'action.ask_direct' },
+    
+    // Low urgency exploratory scenarios (10 examples)
+    { text: 'low urgency comfortable timeline exploratory planning relaxed approach', intent: 'action.ask_exploratory' },
+    { text: 'flexible project relaxed requirements thoughtful approach exploratory planning', intent: 'action.ask_exploratory' },
+    { text: 'low urgency comfortable deadline exploratory approach relaxed planning', intent: 'action.ask_exploratory' },
+    { text: 'flexible project relaxed timeline thoughtful execution exploratory approach', intent: 'action.ask_exploratory' },
+    { text: 'low urgency comfortable schedule exploratory delivery relaxed planning', intent: 'action.ask_exploratory' },
+    { text: 'relaxed project flexible requirements thoughtful execution exploratory planning', intent: 'action.ask_exploratory' },
+    { text: 'low urgency comfortable timeline exploratory approach relaxed execution', intent: 'action.ask_exploratory' },
+    { text: 'flexible project relaxed deadline thoughtful planning exploratory execution', intent: 'action.ask_exploratory' },
+    { text: 'low urgency comfortable requirements exploratory delivery relaxed approach', intent: 'action.ask_exploratory' },
+    { text: 'relaxed project flexible timeline thoughtful approach exploratory planning', intent: 'action.ask_exploratory' },
+    
+    // Project complexity scenarios (10 examples)
+    { text: 'complex project multiple stakeholders advanced requirements sophisticated planning', intent: 'action.escalate_complexity' },
+    { text: 'sophisticated project advanced complexity multiple dependencies complex planning', intent: 'action.escalate_complexity' },
+    { text: 'complex project advanced requirements multiple stakeholders sophisticated approach', intent: 'action.escalate_complexity' },
+    { text: 'sophisticated project complex dependencies advanced planning multiple stakeholders', intent: 'action.escalate_complexity' },
+    { text: 'complex project advanced complexity sophisticated requirements multiple dependencies', intent: 'action.escalate_complexity' },
+    { text: 'sophisticated project complex planning advanced stakeholders multiple requirements', intent: 'action.escalate_complexity' },
+    { text: 'complex project advanced dependencies sophisticated planning multiple stakeholders', intent: 'action.escalate_complexity' },
+    { text: 'sophisticated project complex requirements advanced planning multiple dependencies', intent: 'action.escalate_complexity' },
+    { text: 'complex project advanced stakeholders sophisticated dependencies multiple planning', intent: 'action.escalate_complexity' },
+    { text: 'sophisticated project complex approach advanced requirements multiple stakeholders', intent: 'action.escalate_complexity' },
+    
+    // Simple project scenarios (10 examples)
+    { text: 'simple project straightforward requirements basic planning streamlined approach', intent: 'action.simplify_approach' },
+    { text: 'straightforward project basic requirements simple planning streamlined execution', intent: 'action.simplify_approach' },
+    { text: 'simple project basic requirements straightforward planning streamlined approach', intent: 'action.simplify_approach' },
+    { text: 'straightforward project simple requirements basic planning streamlined execution', intent: 'action.simplify_approach' },
+    { text: 'simple project streamlined requirements basic planning straightforward approach', intent: 'action.simplify_approach' },
+    { text: 'straightforward project streamlined requirements simple planning basic execution', intent: 'action.simplify_approach' },
+    { text: 'simple project basic planning straightforward requirements streamlined execution', intent: 'action.simplify_approach' },
+    { text: 'straightforward project simple approach basic requirements streamlined planning', intent: 'action.simplify_approach' },
+    { text: 'simple project streamlined approach basic requirements straightforward execution', intent: 'action.simplify_approach' },
+    { text: 'straightforward project basic approach simple requirements streamlined planning', intent: 'action.simplify_approach' },
 ];
 
 // Response templates for each intent
@@ -652,19 +780,25 @@ export const responseTemplates = {
         'Creating a new project now.'
     ],
     'scope.define': [
-        'Great! I understand you want to work on this project.',
-        'Perfect! Let\'s define the scope for your project.',
-        'Excellent! I\'ll help you plan this project.'
+        'Perfect! I can see you\'re planning a hardware store project. Let\'s build a comprehensive plan for your business.',
+        'Excellent! A hardware store is a great business venture. I\'ll help you create a detailed project plan.',
+        'Great choice! Hardware stores are essential businesses. Let\'s develop a strategic plan for your store.',
+        'Fantastic! I\'ll help you create a complete business plan for your hardware store project.',
+        'Wonderful! Let\'s build a comprehensive strategy for your new hardware store business.'
     ],
     'budget.set': [
-        'I\'ll set your budget.',
-        'Budget updated successfully.',
-        'Setting your project budget.'
+        'Excellent! I\'ve noted your budget allocation. This will help us plan resources and scope appropriately.',
+        'Perfect! Budget information is crucial for project planning. I\'ll factor this into our strategy.',
+        'Great! Having a clear budget helps us make informed decisions about project scope and timeline.',
+        'Outstanding! Budget clarity enables us to plan effectively and avoid scope creep.',
+        'Wonderful! With your budget defined, we can now plan realistic deliverables and timeline.'
     ],
     'timeline.set': [
-        'I\'ll set your project timeline.',
-        'Timeline updated successfully.',
-        'Setting your project schedule.'
+        'Perfect! I\'ve recorded your timeline requirements. This helps us plan milestones and deliverables.',
+        'Excellent! Timeline clarity is essential for project success. I\'ll structure our plan accordingly.',
+        'Great! With your deadline in mind, we can prioritize tasks and allocate resources effectively.',
+        'Fantastic! A clear timeline helps us create realistic project milestones and checkpoints.',
+        'Outstanding! Timeline definition enables us to plan backward from your delivery date.'
     ],
     'tasks.create': [
         'Let me add tasks to your project.',

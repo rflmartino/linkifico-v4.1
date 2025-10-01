@@ -103,8 +103,7 @@ $w.onReady(async function () {
 			if (direct && direct.success) {
 				chatEl.postMessage({ action: 'displayMessage', type: 'assistant', content: direct.message || 'Done.', timestamp: new Date().toISOString() });
 				if (Array.isArray(direct.todos) && direct.todos.length) {
-					const checklist = direct.todos.slice(0, 5).map(t => `• ${t.title} (${t.priority})`).join('\n');
-					chatEl.postMessage({ action: 'displayMessage', type: 'assistant', content: `Next steps:\n${checklist}`, timestamp: new Date().toISOString() });
+					chatEl.postMessage({ action: 'displayTodos', todos: direct.todos });
 				}
 				chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
 				return;
@@ -166,10 +165,9 @@ $w.onReady(async function () {
                 const type = m.type === 'system' ? 'system' : 'assistant';
                 chatEl.postMessage({ action: 'displayMessage', type, content: m.content, timestamp: m.timestamp || new Date().toISOString() });
             });
-            // If todos present, append quick checklist line
+            // If todos present, send them to the sidebar
             if (Array.isArray(status.todos) && status.todos.length) {
-                const checklist = status.todos.slice(0, 5).map(t => `• ${t.title} (${t.priority})`).join('\n');
-                chatEl.postMessage({ action: 'displayMessage', type: 'assistant', content: `Next steps:\n${checklist}`, timestamp: new Date().toISOString() });
+                chatEl.postMessage({ action: 'displayTodos', todos: status.todos });
             }
             chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
         };
