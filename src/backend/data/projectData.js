@@ -197,6 +197,20 @@ export async function saveChatHistory(projectId, chatHistory) {
     const t = Date.now();
     const client = await getRedisClient();
     const key = REDIS_KEYS.CHAT_HISTORY(projectId);
+    
+    // Debug logging to see what we're saving
+    try {
+        Logger.info('projectData', 'saveChatHistory:debug', {
+            projectId,
+            redisKey: key,
+            historyLength: chatHistory ? chatHistory.length : 0,
+            historyType: typeof chatHistory,
+            historySample: chatHistory && chatHistory.length > 0 ? chatHistory.slice(0, 2) : 'empty',
+            jsonString: JSON.stringify(chatHistory),
+            jsonLength: JSON.stringify(chatHistory).length
+        });
+    } catch {}
+    
     await client.set(key, JSON.stringify(chatHistory));
     const ms = Date.now() - t;
     try { Logger.info('projectData', 'timing:saveChatHistoryMs', { ms }); } catch {}
