@@ -198,6 +198,12 @@ export async function saveChatHistory(projectId, chatHistory) {
     const client = await getRedisClient();
     const key = REDIS_KEYS.CHAT_HISTORY(projectId);
     
+    // Skip saving if chatHistory is undefined (not initialized yet)
+    if (chatHistory === undefined) {
+        try { Logger.info('projectData', 'saveChatHistory:skipped', { projectId, reason: 'undefined' }); } catch {}
+        return;
+    }
+    
     // Debug logging to see what we're saving
     try {
         Logger.info('projectData', 'saveChatHistory:debug', {

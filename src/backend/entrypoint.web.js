@@ -336,14 +336,17 @@ export async function initializeProject(projectId, userId, initialMessage, templ
         allData.projectData.email = email;
         allData.projectData.emailId = emailId;
         
-        // Save project data, email mapping, and add to user's project list atomically
+        // Save project data (without chat history), email mapping, and add to user's project list atomically
+        const dataToSave = { ...allData };
+        delete dataToSave.chatHistory; // Don't save empty chat history initially
+        
         await Promise.all([
-            redisData.saveAllData(projectId, userId, allData),
+            redisData.saveAllData(projectId, userId, dataToSave),
             redisData.saveEmailMapping(email, projectId),
             addProjectToUser(userId, projectId, 'active')
         ]);
         
-        // Process initial message
+        // Process initial message (this will save the chat history with messages)
         return await processChatMessage(projectId, userId, initialMessage, `session_${Date.now()}`, null);
         
     } catch (error) {
