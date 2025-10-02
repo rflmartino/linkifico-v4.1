@@ -219,26 +219,26 @@ $w.onReady(async function () {
                         } else {
                             debugLog('NEW PROJECT: No user message found in history');
                         }
-                        
-                        // Set processing state and start polling for AI response
-                        debugLog('NEW PROJECT: Setting processing state and starting polling');
-                        
-                        await logToBackend('Project-Workspace', 'chatInitialize', { 
-                            message: 'NEW PROJECT FLOW: Setting processing state and starting polling'
-                        });
-                        
-                        chatEl.postMessage({ action: 'updateStatus', status: 'processing' });
-                        
-                        // Start polling for the AI response
-                        setTimeout(() => {
-                            debugLog('NEW PROJECT: Starting polling for AI response');
-                            pollForNewProjectResponse();
-                        }, 1000);
                     } else {
                         await logToBackend('Project-Workspace', 'chatInitialize', { 
                             message: 'NEW PROJECT FLOW: No history found, may need to wait for backend processing'
                         });
                     }
+                    
+                    // Always start polling for new projects (regardless of history length)
+                    debugLog('NEW PROJECT: Setting processing state and starting polling');
+                    
+                    await logToBackend('Project-Workspace', 'chatInitialize', { 
+                        message: 'NEW PROJECT FLOW: Setting processing state and starting polling'
+                    });
+                    
+                    chatEl.postMessage({ action: 'updateStatus', status: 'processing' });
+                    
+                    // Start polling for the AI response
+                    setTimeout(() => {
+                        debugLog('NEW PROJECT: Starting polling for AI response');
+                        pollForNewProjectResponse();
+                    }, 1000);
                 } else if (isNewSession) {
                     // Send welcome message for completely new sessions
                     chatEl.postMessage({
