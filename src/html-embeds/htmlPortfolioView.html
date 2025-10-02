@@ -997,33 +997,41 @@
 
         // Project action functions
         function createNewProject() {
-            // console.log('🆕 Portfolio View: Opening new project modal...');
+            debugLog('🆕 createNewProject function called');
             showNewProjectModal();
         }
 
         // New project modal functions
         function showNewProjectModal() {
-            // console.log('🚀 Portfolio View: Opening new project modal...');
+            debugLog('🚀 showNewProjectModal function called');
             
             const modal = document.getElementById('newProjectModal');
+            if (!modal) {
+                debugLog('❌ Modal element not found');
+                return;
+            }
+            
+            debugLog('✅ Modal element found, opening...');
             modal.classList.remove('hidden');
             modal.style.display = 'flex'; // Explicitly set display
             
             // Reset to template selection step
+            debugLog('🔄 Resetting modal to template selection step');
             document.getElementById('templateStep').classList.remove('hidden');
             document.getElementById('inputStep').classList.add('hidden');
             
             // Reset form state
+            debugLog('🔄 Resetting form state');
             selectedTemplate = null;
             document.getElementById('projectInput').value = '';
             clearTemplateSelection();
             
-            // console.log('🔄 Portfolio View: Modal state reset, setting up template selection...');
+            debugLog('🔄 Setting up template selection...');
             
             // Set up template selection
             setupTemplateSelection();
             
-            // console.log('✅ Portfolio View: New project modal opened - template selection ready');
+            debugLog('✅ New project modal opened - template selection ready');
         }
 
         function closeNewProjectModal() {
@@ -1037,32 +1045,48 @@
             document.getElementById('createProjectBtn').disabled = true;
             
             // Reset template selection
+            clearTemplateSelection();
+        }
+
+        function clearTemplateSelection() {
+            debugLog('🧹 clearTemplateSelection called');
             document.querySelectorAll('.template-card').forEach(card => {
                 card.classList.remove('selected');
             });
+            selectedTemplate = null;
+            debugLog('✅ Template selection cleared');
         }
 
         function setupTemplateSelection() {
-            // console.log('🔧 Portfolio View: Setting up template selection...');
+            debugLog('🔧 setupTemplateSelection function called');
+            
+            // Find all template cards
+            const templateCards = document.querySelectorAll('.template-card');
+            debugLog('🔍 Found ' + templateCards.length + ' template cards');
             
             // Add click handlers to template cards
-            document.querySelectorAll('.template-card').forEach(card => {
+            templateCards.forEach((card, index) => {
+                debugLog('🔧 Setting up card ' + index + ': ' + card.dataset.template);
+                
                 if (!card.classList.contains('disabled')) {
                     // Remove existing onclick if any
                     card.onclick = null;
                     
                     // Add new click handler
                     card.onclick = function() {
-                        // console.log('🎯 Portfolio View: Template card clicked:', this.dataset.template);
+                        debugLog('🎯 Template card clicked: ' + this.dataset.template);
                         
                         // Remove previous selection
-                        document.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
+                        document.querySelectorAll('.template-card').forEach(c => {
+                            c.classList.remove('selected');
+                        });
                         
                         // Select this template
                         this.classList.add('selected');
                         selectedTemplate = this.dataset.template;
                         
-                        // console.log('✅ Portfolio View: Template selected:', selectedTemplate);
+                        debugLog('✅ Template selected: ' + selectedTemplate);
+                        debugLog('🔄 Moving to input step in 200ms...');
                         
                         // Move to input step after a short delay
                         setTimeout(() => {
@@ -1070,25 +1094,33 @@
                         }, 200);
                     };
                     
-                    // console.log('✅ Portfolio View: Added click handler to template:', card.dataset.template);
+                    debugLog('✅ Added click handler to template: ' + card.dataset.template);
+                } else {
+                    debugLog('⚠️ Skipping disabled template: ' + card.dataset.template);
                 }
             });
+            
+            debugLog('✅ Template selection setup complete');
         }
         
         function showInputStep(templateKey) {
-            // console.log('📝 Portfolio View: Showing input step for template:', templateKey);
+            debugLog('📝 showInputStep called for template: ' + templateKey);
             
             // Hide template selection step
+            debugLog('🔄 Hiding template selection step');
             document.getElementById('templateStep').classList.add('hidden');
             
             // Show input step
+            debugLog('🔄 Showing input step');
             const inputStep = document.getElementById('inputStep');
             inputStep.classList.remove('hidden');
             
             // Update input section based on template
+            debugLog('🔄 Updating input section for template');
             updateInputSection(templateKey);
             
             // Set up input validation
+            debugLog('🔄 Setting up input validation');
             setupInputValidation();
             
             // Focus on textarea
@@ -1096,10 +1128,13 @@
                 const textarea = document.getElementById('projectInput');
                 if (textarea) {
                     textarea.focus();
+                    debugLog('✅ Textarea focused');
+                } else {
+                    debugLog('❌ Textarea not found for focus');
                 }
             }, 100);
             
-            // console.log('✅ Portfolio View: Input step displayed successfully');
+            debugLog('✅ Input step displayed successfully');
         }
         
         function goBackToTemplates() {
@@ -1376,8 +1411,8 @@
     </script>
     
     <!-- Debug Panel -->
-    <div id="debugPanel" style="position: fixed; bottom: 0; left: 0; right: 0; background: #000; color: #0f0; font-family: monospace; font-size: 10px; padding: 5px; max-height: 100px; overflow-y: auto; z-index: 9999; border-top: 1px solid #333;">
-        <div style="font-weight: bold; margin-bottom: 3px;">🐛 DEBUG LOG:</div>
+    <div id="debugPanel" style="position: fixed; bottom: 0; left: 0; right: 0; background: #000; color: #0f0; font-family: monospace; font-size: 9px; padding: 3px; max-height: 60px; overflow-y: auto; z-index: 999; border-top: 1px solid #333;">
+        <div style="font-weight: bold; margin-bottom: 2px; font-size: 10px;">🐛 DEBUG LOG:</div>
         <div id="debugLog">Starting debug...</div>
     </div>
 </body>
