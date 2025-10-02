@@ -6,6 +6,15 @@ import wixLocation from 'wix-location';
 import { session } from 'wix-storage';
 import { logToBackend } from 'backend/utils/webLogger.web.js';
 
+// Debug logging function
+function debugLog(message, data = null) {
+    const timestamp = new Date().toLocaleTimeString();
+    const logMessage = `[${timestamp}] 🔧 WORKSPACE: ${message}`;
+    console.log(logMessage, data || '');
+    // Also log to backend for persistence
+    logToBackend('Project-Workspace-Debug', 'debug', { message, data });
+}
+
 $w.onReady(async function () {
     const pageLoadStartTime = Date.now();
     const chatEl = $w('#mainChatDisplay');
@@ -26,8 +35,11 @@ $w.onReady(async function () {
     const projectId = wixLocation.query.projectId || generateNewProjectId();
     const userId = wixLocation.query.userId;
     
+    debugLog('Page parameters extracted', { projectId, userId, hasProjectId: !!wixLocation.query.projectId });
+    
     // Validate required parameters
     if (!userId) {
+        debugLog('ERROR: Missing userId parameter');
         await logToBackend('Project-Workspace', 'onReady', null, new Error('NAVIGATION ERROR: Missing userId parameter in URL'));
         wixLocation.to('/project-portfolio'); // Redirect back to portfolio
         return;
@@ -73,30 +85,41 @@ $w.onReady(async function () {
 		existingHistory = historyResult?.history || [];
 		isNewSession = existingHistory.length === 0;
 		
-		// Determine if this is a newly created project (from portfolio)
-		isNewProject = !status || status.success === false || (existingHistory.length <= 2 && isProjectJustCreated());
+        // Determine if this is a newly created project (from portfolio)
+        const projectJustCreated = isProjectJustCreated();
+        isNewProject = !status || status.success === false || (existingHistory.length <= 2 && projectJustCreated);
+        
+        debugLog('Project status analysis', {
+            hasStatus: !!status,
+            statusSuccess: status?.success,
+            historyLength: existingHistory.length,
+            projectJustCreated: projectJustCreated,
+            isNewProject: isNewProject,
+            isNewSession: isNewSession
+        });
+        
+        await logToBackend('Project-Workspace', 'checkProjectStatus', {
+            message: 'BACKEND CHECK COMPLETE: Project status and history retrieved',
+            projectExists: !!status?.success,
+            historyLength: existingHistory.length,
+            isNewProject: isNewProject,
+            isNewSession: isNewSession,
+            projectJustCreated: projectJustCreated,
+            statusCheckDurationMs: statusDuration,
+            historyCheckDurationMs: historyDuration,
+            totalBackendCheckMs: statusDuration + historyDuration,
+            pageLoadStartTime: pageLoadStartTime,
+            referrerTransitionId: referrerTransitionId
+        });
 		
-		await logToBackend('Project-Workspace', 'checkProjectStatus', {
-			message: 'BACKEND CHECK COMPLETE: Project status and history retrieved',
-			projectExists: !!status?.success,
-			historyLength: existingHistory.length,
-			isNewProject: isNewProject,
-			isNewSession: isNewSession,
-			statusCheckDurationMs: statusDuration,
-			historyCheckDurationMs: historyDuration,
-			totalBackendCheckMs: statusDuration + historyDuration,
-			pageLoadStartTime: pageLoadStartTime,
-			referrerTransitionId: referrerTransitionId
-		});
-		
-		// Update page elements based on project status (if returning user)
-		if (!isNewSession && status?.success && !isNewProject) {
-			await logToBackend('Project-Workspace', 'updatePageElements', {
-				message: 'EXISTING PROJECT: Updating page elements for returning user',
-				projectId: projectId
-			});
-			updatePageElements(status);
-		}
+        // Update page elements based on project status (if returning user)
+        if (!isNewSession && status?.success && !isNewProject) {
+            await logToBackend('Project-Workspace', 'updatePageElements', {
+                message: 'EXISTING PROJECT: Updating page elements for returning user',
+                projectId: projectId
+            });
+            await updatePageElements(status);
+        }
 	} catch (e) {
 		await logToBackend('Project-Workspace', 'checkProjectStatus', null, new Error(`BACKEND CHECK ERROR: ${e.message} (PageLoadTime: ${Date.now() - pageLoadStartTime}ms)`));
 	}
@@ -158,9 +181,16 @@ $w.onReady(async function () {
             }
             
             // Send appropriate content based on session type (determined on page load)
-            setTimeout(() => {
+            setTimeout(async () => {
+                debugLog('Chat initialization - determining flow', {
+                    isNewProject: isNewProject,
+                    isNewSession: isNewSession,
+                    historyLength: existingHistory.length
+                });
+                
                 if (isNewProject) {
                     // Handle new project created from portfolio
+                    debugLog('NEW PROJECT FLOW: Starting new project initialization');
                     await logToBackend('Project-Workspace', 'chatInitialize', { 
                         message: 'NEW PROJECT FLOW: Initializing new project from portfolio',
                         historyLength: existingHistory.length,
@@ -170,9 +200,19 @@ $w.onReady(async function () {
                     
                     // Show user input and processing state
                     if (existingHistory.length > 0) {
+                        debugLog('NEW PROJECT: Found existing history', { 
+                            historyLength: existingHistory.length,
+                            messages: existingHistory.map(msg => ({ role: msg.role, length: msg.message?.length }))
+                        });
+                        
                         // Show the user's initial message and set processing state
                         const userMessage = existingHistory.find(msg => msg.role === 'user');
                         if (userMessage) {
+                            debugLog('NEW PROJECT: Displaying user message', {
+                                messageLength: userMessage.message.length,
+                                timestamp: userMessage.timestamp
+                            });
+                            
                             await logToBackend('Project-Workspace', 'chatInitialize', { 
                                 message: 'NEW PROJECT FLOW: Displaying user input message',
                                 userMessageLength: userMessage.message.length
@@ -184,9 +224,13 @@ $w.onReady(async function () {
                                 content: userMessage.message,
                                 timestamp: userMessage.timestamp
                             });
+                        } else {
+                            debugLog('NEW PROJECT: No user message found in history');
                         }
                         
                         // Set processing state and start polling for AI response
+                        debugLog('NEW PROJECT: Setting processing state and starting polling');
+                        
                         await logToBackend('Project-Workspace', 'chatInitialize', { 
                             message: 'NEW PROJECT FLOW: Setting processing state and starting polling'
                         });
@@ -195,6 +239,7 @@ $w.onReady(async function () {
                         
                         // Start polling for the AI response
                         setTimeout(() => {
+                            debugLog('NEW PROJECT: Starting polling for AI response');
                             pollForNewProjectResponse();
                         }, 1000);
                     } else {
@@ -294,11 +339,11 @@ $w.onReady(async function () {
 				if (Array.isArray(direct.todos) && direct.todos.length) {
 					chatEl.postMessage({ action: 'displayTodos', todos: direct.todos });
 				}
-				// Update project name if it changed
-				if (direct.projectName && direct.projectName !== 'Project Chat') {
-					chatEl.postMessage({ action: 'updateProjectName', projectName: direct.projectName });
-					updatePageTitle(direct.projectName);
-				}
+                // Update project name if it changed
+                if (direct.projectName && direct.projectName !== 'Project Chat') {
+                    chatEl.postMessage({ action: 'updateProjectName', projectName: direct.projectName });
+                    await updatePageTitle(direct.projectName);
+                }
 				// Update project email if available
 				if (direct.projectEmail) {
 					chatEl.postMessage({ action: 'updateProjectEmail', projectEmail: direct.projectEmail });
@@ -383,7 +428,7 @@ $w.onReady(async function () {
     }
 
     // Function to update page title with project name
-    function updatePageTitle(projectName) {
+    async function updatePageTitle(projectName) {
         try {
             if (projectName && projectName !== 'Project Chat' && projectName !== 'Untitled Project') {
                 const isTest = TEST_MODE ? '[TEST] ' : '';
@@ -395,11 +440,11 @@ $w.onReady(async function () {
     }
 
     // Function to update page elements for returning users
-    function updatePageElements(projectStatus) {
+    async function updatePageElements(projectStatus) {
         try {
             // Update project name/title if available
             if (projectStatus?.projectData?.name) {
-                updatePageTitle(projectStatus.projectData.name);
+                await updatePageTitle(projectStatus.projectData.name);
             }
             
             // TODO: Update other HTML elements based on project status
@@ -454,6 +499,12 @@ $w.onReady(async function () {
                 // Check if we have an AI response (more than just the user message)
                 const aiResponses = currentHistory.filter(msg => msg.role === 'assistant');
                 
+                debugLog(`POLLING ATTEMPT ${attempts}`, {
+                    historyLength: currentHistory.length,
+                    aiResponseCount: aiResponses.length,
+                    currentHistory: currentHistory.map(msg => ({ role: msg.role, length: msg.message?.length }))
+                });
+                
                 await logToBackend('Project-Workspace', 'pollForNewProjectResponse', {
                     message: `POLLING ATTEMPT ${attempts}: Checking for AI response`,
                     historyLength: currentHistory.length,
@@ -464,6 +515,11 @@ $w.onReady(async function () {
                 
                 if (aiResponses.length > 0) {
                     // We have AI response(s), display them
+                    debugLog('POLLING SUCCESS: AI response found', {
+                        responseCount: aiResponses.length,
+                        responses: aiResponses.map(r => ({ length: r.message?.length, timestamp: r.timestamp }))
+                    });
+                    
                     await logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
                         message: 'POLLING SUCCESS: AI response received, displaying content',
                         responseCount: aiResponses.length,
@@ -472,7 +528,12 @@ $w.onReady(async function () {
                     });
                     
                     // Display the AI response(s)
-                    aiResponses.forEach(response => {
+                    aiResponses.forEach((response, index) => {
+                        debugLog(`POLLING: Displaying AI response ${index + 1}`, {
+                            messageLength: response.message?.length,
+                            timestamp: response.timestamp
+                        });
+                        
                         chatEl.postMessage({
                             action: 'displayMessage',
                             type: 'assistant',
@@ -504,7 +565,7 @@ $w.onReady(async function () {
                             action: 'updateProjectName', 
                             projectName: currentStatus.projectData.name 
                         });
-                        updatePageTitle(currentStatus.projectData.name);
+                        await updatePageTitle(currentStatus.projectData.name);
                     }
                     
                     // Set status to ready
