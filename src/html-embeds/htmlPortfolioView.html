@@ -337,6 +337,59 @@
         .template-selection {
             margin-bottom: 30px;
         }
+        
+        .step-header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .step-header h3 {
+            margin: 0 0 8px 0;
+            color: #004080;
+            font-size: 1.3rem;
+        }
+        
+        .step-header p {
+            margin: 0;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .back-btn {
+            background: none;
+            border: 1px solid #ddd;
+            color: #666;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+            transition: all 0.2s ease;
+        }
+        
+        .back-btn:hover {
+            background: #f5f5f5;
+            border-color: #004080;
+            color: #004080;
+        }
+        
+        .input-validation {
+            margin-top: 10px;
+            text-align: right;
+        }
+        
+        .char-count {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        .char-count.valid {
+            color: #28a745;
+        }
+        
+        .char-count.invalid {
+            color: #dc3545;
+        }
 
         .template-grid {
             display: grid;
@@ -577,32 +630,27 @@
                     <p class="modal-subtitle">Choose a template and describe your project</p>
                 </div>
 
-                <div class="template-selection">
+                <!-- Step 1: Template Selection -->
+                <div class="template-selection" id="templateStep">
+                    <div class="step-header">
+                        <h3>Step 1: Choose Your Project Template</h3>
+                        <p>Select the template that best fits your project type</p>
+                    </div>
                     <div class="template-grid">
                         <div class="template-card" data-template="simple_waterfall">
                             <div class="template-icon">📋</div>
                             <div class="template-name">Basic Project</div>
                             <div class="template-description">Perfect for straightforward projects with clear objectives and timelines</div>
-                            <div class="template-badge">Available</div>
-                        </div>
-                        
-                        <div class="template-card disabled" data-template="pmi_standard">
-                            <div class="template-icon">🏗️</div>
-                            <div class="template-name">PMI Project</div>
-                            <div class="template-description">Professional project management following PMI standards</div>
-                            <div class="template-badge">Coming Soon</div>
-                        </div>
-                        
-                        <div class="template-card disabled" data-template="agile_scrum">
-                            <div class="template-icon">🚀</div>
-                            <div class="template-name">Agile Project</div>
-                            <div class="template-description">Iterative development with sprints and user stories</div>
-                            <div class="template-badge">Coming Soon</div>
                         </div>
                     </div>
                 </div>
-
-                <div class="project-input-section">
+                
+                <!-- Step 2: Project Input (hidden initially) -->
+                <div class="project-input-section hidden" id="inputStep">
+                    <div class="step-header">
+                        <h3>Step 2: Describe Your Project</h3>
+                        <button class="back-btn" onclick="goBackToTemplates()">← Back to Templates</button>
+                    </div>
                     <label class="input-label" id="inputLabel">Describe Your Project</label>
                     <div class="input-instruction" id="inputInstruction">
                         Tell us about your project in natural language. Include your objectives, timeline, budget, and who's involved.
@@ -610,8 +658,11 @@
                     <textarea 
                         id="projectInput" 
                         class="project-input" 
-                        placeholder="Example: I want to build a coffee shop in downtown. Budget is $50,000 and I want to open in 6 months. I need help with permits, suppliers, and hiring staff..."
+                        placeholder="Example: I want to build a coffee shop in downtown. Budget is $50,000 and I want to open in 6 months. I need to coordinate permits, suppliers, and hiring staff..."
                     ></textarea>
+                    <div class="input-validation" id="inputValidation">
+                        <span class="char-count">0 characters (minimum 50 required)</span>
+                    </div>
                 </div>
 
                 <div class="modal-actions">
@@ -862,20 +913,19 @@
             modal.classList.remove('hidden');
             modal.style.display = 'flex'; // Explicitly set display
             
-            // Set up template selection
-            setupTemplateSelection();
-            
-            // Set up input validation
-            setupInputValidation();
+            // Reset to template selection step
+            document.getElementById('templateStep').classList.remove('hidden');
+            document.getElementById('inputStep').classList.add('hidden');
             
             // Reset form state
             selectedTemplate = null;
             document.getElementById('projectInput').value = '';
             clearTemplateSelection();
-            updateInputSection('simple_waterfall'); // Default to basic template
-            validateForm();
             
-            console.log('📋 Portfolio View: New project modal opened');
+            // Set up template selection
+            setupTemplateSelection();
+            
+            console.log('📋 Portfolio View: New project modal opened - showing template selection');
         }
 
         function closeNewProjectModal() {
@@ -910,16 +960,47 @@
                         this.classList.add('selected');
                         selectedTemplate = this.dataset.template;
                         
-                        // Update input section based on template
-                        updateInputSection(selectedTemplate);
-                        
-                        // Validate form
-                        validateForm();
+                        // Move to input step
+                        showInputStep(selectedTemplate);
                         
                         console.log('📋 Portfolio View: Template selected -', selectedTemplate);
                     });
                 }
             });
+        }
+        
+        function showInputStep(templateKey) {
+            // Hide template selection step
+            document.getElementById('templateStep').classList.add('hidden');
+            
+            // Show input step
+            const inputStep = document.getElementById('inputStep');
+            inputStep.classList.remove('hidden');
+            
+            // Update input section based on template
+            updateInputSection(templateKey);
+            
+            // Set up input validation
+            setupInputValidation();
+            
+            // Focus on textarea
+            setTimeout(() => {
+                document.getElementById('projectInput').focus();
+            }, 100);
+        }
+        
+        function goBackToTemplates() {
+            // Show template selection step
+            document.getElementById('templateStep').classList.remove('hidden');
+            
+            // Hide input step
+            document.getElementById('inputStep').classList.add('hidden');
+            
+            // Reset selection
+            selectedTemplate = null;
+            document.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
+            document.getElementById('projectInput').value = '';
+            validateForm();
         }
 
         function updateInputSection(templateKey) {
@@ -933,15 +1014,52 @@
 
         function setupInputValidation() {
             const input = document.getElementById('projectInput');
-            input.addEventListener('input', validateForm);
+            const createBtn = document.getElementById('createProjectBtn');
+            
+            input.addEventListener('input', function() {
+                updateCharCount();
+                validateForm();
+            });
+            
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && e.ctrlKey) {
+                    if (!createBtn.disabled) {
+                        submitNewProject();
+                    }
+                }
+            });
+            
+            // Initial validation
+            updateCharCount();
+            validateForm();
+        }
+
+        function updateCharCount() {
+            const input = document.getElementById('projectInput');
+            const charCount = document.querySelector('.char-count');
+            const currentLength = input.value.trim().length;
+            const minLength = 50;
+            
+            if (charCount) {
+                charCount.textContent = `${currentLength} characters (minimum ${minLength} required)`;
+                
+                if (currentLength >= minLength) {
+                    charCount.className = 'char-count valid';
+                } else {
+                    charCount.className = 'char-count invalid';
+                }
+            }
         }
 
         function validateForm() {
-            const input = document.getElementById('projectInput').value.trim();
+            const input = document.getElementById('projectInput');
             const createBtn = document.getElementById('createProjectBtn');
             
-            const isValid = selectedTemplate && input.length >= 10;
-            createBtn.disabled = !isValid;
+            const hasTemplate = selectedTemplate !== null;
+            const inputText = input.value.trim();
+            const hasValidInput = inputText.length >= 50 && inputText.split(' ').length >= 5; // At least 50 chars and 5 words
+            
+            createBtn.disabled = !(hasTemplate && hasValidInput);
         }
 
         function submitNewProject() {
