@@ -104,8 +104,9 @@ async function processChatMessage(projectId, userId, message, sessionId, process
         // Update chat history in allData
         allData.chatHistory = chatHistory;
 
-        // Process through intelligence controllers
-        const response = await processIntelligenceLoop(projectId, userId, message, processingId);
+        // CRITICAL: Pass the updated chat history to processIntelligenceLoop
+        // so it doesn't get overwritten when loading fresh data from Redis
+        const response = await processIntelligenceLoop(projectId, userId, message, processingId, allData);
 
         // Do not inline todos into the assistant message; keep narrative separate from structured todos
         const finalMessage = response.message;
@@ -170,13 +171,13 @@ async function processChatMessage(projectId, userId, message, sessionId, process
 }
 
 // Intelligence processing loop
-async function processIntelligenceLoop(projectId, userId, message, processingId) {
+async function processIntelligenceLoop(projectId, userId, message, processingId, existingAllData = null) {
     Logger.info('entrypoint.web', 'processIntelligenceLoop:start', { projectId });
     const loopStart = Date.now();
     
-    // Load all data in a single Redis operation
+    // Load all data in a single Redis operation (or use existing data if provided)
     const dataLoadStart = Date.now();
-    let allData = await redisData.loadAllData(projectId, userId);
+    let allData = existingAllData || await redisData.loadAllData(projectId, userId);
     Logger.info('entrypoint.web', 'timing:dataLoadMs', { ms: Date.now() - dataLoadStart });
     
     // Initialize default data structures if needed
