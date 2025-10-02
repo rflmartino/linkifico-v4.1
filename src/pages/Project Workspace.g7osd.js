@@ -14,7 +14,7 @@ $w.onReady(async function () {
     const urlParams = new URLSearchParams(window.location.search);
     const referrerTransitionId = document.referrer.includes('project-portfolio') ? Date.now() : null;
 
-    logToBackend('Project-Workspace', 'onReady', {
+    await logToBackend('Project-Workspace', 'onReady', {
         message: 'PAGE LOAD START: Project Workspace initializing',
         pageLoadStartTime: pageLoadStartTime,
         referrer: document.referrer,
@@ -28,12 +28,12 @@ $w.onReady(async function () {
     
     // Validate required parameters
     if (!userId) {
-        logToBackend('Project-Workspace', 'onReady', null, new Error('NAVIGATION ERROR: Missing userId parameter in URL'));
+        await logToBackend('Project-Workspace', 'onReady', null, new Error('NAVIGATION ERROR: Missing userId parameter in URL'));
         wixLocation.to('/project-portfolio'); // Redirect back to portfolio
         return;
     }
     
-    logToBackend('Project-Workspace', 'onReady', {
+    await logToBackend('Project-Workspace', 'onReady', {
         message: 'PAGE LOAD: Parameters validated, starting initialization',
         projectId: projectId,
         userId: userId,
@@ -54,7 +54,7 @@ $w.onReady(async function () {
 	let isNewProject = false;
 	
 	try {
-		logToBackend('Project-Workspace', 'checkProjectStatus', {
+		await logToBackend('Project-Workspace', 'checkProjectStatus', {
 			message: 'BACKEND CHECK START: Checking project status and history',
 			projectId: projectId,
 			pageLoadStartTime: pageLoadStartTime
@@ -76,7 +76,7 @@ $w.onReady(async function () {
 		// Determine if this is a newly created project (from portfolio)
 		isNewProject = !status || status.success === false || (existingHistory.length <= 2 && isProjectJustCreated());
 		
-		logToBackend('Project-Workspace', 'checkProjectStatus', {
+		await logToBackend('Project-Workspace', 'checkProjectStatus', {
 			message: 'BACKEND CHECK COMPLETE: Project status and history retrieved',
 			projectExists: !!status?.success,
 			historyLength: existingHistory.length,
@@ -91,14 +91,14 @@ $w.onReady(async function () {
 		
 		// Update page elements based on project status (if returning user)
 		if (!isNewSession && status?.success && !isNewProject) {
-			logToBackend('Project-Workspace', 'updatePageElements', {
+			await logToBackend('Project-Workspace', 'updatePageElements', {
 				message: 'EXISTING PROJECT: Updating page elements for returning user',
 				projectId: projectId
 			});
 			updatePageElements(status);
 		}
 	} catch (e) {
-		logToBackend('Project-Workspace', 'checkProjectStatus', null, new Error(`BACKEND CHECK ERROR: ${e.message} (PageLoadTime: ${Date.now() - pageLoadStartTime}ms)`));
+		await logToBackend('Project-Workspace', 'checkProjectStatus', null, new Error(`BACKEND CHECK ERROR: ${e.message} (PageLoadTime: ${Date.now() - pageLoadStartTime}ms)`));
 	}
 
 	chatEl.onMessage(async (event) => {
@@ -108,7 +108,7 @@ $w.onReady(async function () {
         if (action === 'ready') {
             const chatInitStartTime = Date.now();
             
-            logToBackend('Project-Workspace', 'chatInitialize', {
+            await logToBackend('Project-Workspace', 'chatInitialize', {
                 message: 'CHAT INIT START: Chat UI ready, initializing project data',
                 projectId: projectId,
                 pageLoadStartTime: pageLoadStartTime,
@@ -131,7 +131,7 @@ $w.onReady(async function () {
                     currentProjectEmail = status.projectEmail;
                 }
                 
-                logToBackend('Project-Workspace', 'chatInitialize', {
+                await logToBackend('Project-Workspace', 'chatInitialize', {
                     message: 'CHAT INIT: Project info retrieved',
                     projectName: currentProjectName,
                     hasEmail: !!currentProjectEmail,
@@ -139,7 +139,7 @@ $w.onReady(async function () {
                 });
                 
             } catch (e) {
-                logToBackend('Project-Workspace', 'getProjectInfo', null, e);
+                await logToBackend('Project-Workspace', 'getProjectInfo', null, e);
             }
             
             chatEl.postMessage({
@@ -161,7 +161,7 @@ $w.onReady(async function () {
             setTimeout(() => {
                 if (isNewProject) {
                     // Handle new project created from portfolio
-                    logToBackend('Project-Workspace', 'chatInitialize', { 
+                    await logToBackend('Project-Workspace', 'chatInitialize', { 
                         message: 'NEW PROJECT FLOW: Initializing new project from portfolio',
                         historyLength: existingHistory.length,
                         pageLoadStartTime: pageLoadStartTime,
@@ -173,7 +173,7 @@ $w.onReady(async function () {
                         // Show the user's initial message and set processing state
                         const userMessage = existingHistory.find(msg => msg.role === 'user');
                         if (userMessage) {
-                            logToBackend('Project-Workspace', 'chatInitialize', { 
+                            await logToBackend('Project-Workspace', 'chatInitialize', { 
                                 message: 'NEW PROJECT FLOW: Displaying user input message',
                                 userMessageLength: userMessage.message.length
                             });
@@ -187,7 +187,7 @@ $w.onReady(async function () {
                         }
                         
                         // Set processing state and start polling for AI response
-                        logToBackend('Project-Workspace', 'chatInitialize', { 
+                        await logToBackend('Project-Workspace', 'chatInitialize', { 
                             message: 'NEW PROJECT FLOW: Setting processing state and starting polling'
                         });
                         
@@ -198,7 +198,7 @@ $w.onReady(async function () {
                             pollForNewProjectResponse();
                         }, 1000);
                     } else {
-                        logToBackend('Project-Workspace', 'chatInitialize', { 
+                        await logToBackend('Project-Workspace', 'chatInitialize', { 
                             message: 'NEW PROJECT FLOW: No history found, may need to wait for backend processing'
                         });
                     }
@@ -228,7 +228,7 @@ $w.onReady(async function () {
                                 });
                             }
                         } catch (error) {
-                            logToBackend('Project-Workspace', 'loadExistingTodos', null, error);
+                            await logToBackend('Project-Workspace', 'loadExistingTodos', null, error);
                         }
                     }, 500);
                 }
@@ -390,7 +390,7 @@ $w.onReady(async function () {
                 document.title = `${isTest}${projectName} - PMaaS`;
             }
         } catch (error) {
-            logToBackend('Project-Workspace', 'updatePageTitle', null, error);
+            await logToBackend('Project-Workspace', 'updatePageTitle', null, error);
         }
     }
 
@@ -408,14 +408,14 @@ $w.onReady(async function () {
             // - Display current project phase
             // - Update any status badges or indicators
             
-            logToBackend('Project-Workspace', 'updatePageElements', { 
+            await logToBackend('Project-Workspace', 'updatePageElements', { 
                 message: 'Project status for page updates',
                 projectStatus: projectStatus
             });
             
             // This is where we'll add more HTML element updates
         } catch (error) {
-            logToBackend('Project-Workspace', 'updatePageElements', null, error);
+            await logToBackend('Project-Workspace', 'updatePageElements', null, error);
         }
     }
 
@@ -435,7 +435,7 @@ $w.onReady(async function () {
         let attempts = 0;
         const pollStartTime = Date.now();
         
-        logToBackend('Project-Workspace', 'pollForNewProjectResponse', {
+        await logToBackend('Project-Workspace', 'pollForNewProjectResponse', {
             message: 'POLLING START: Starting to poll for AI response',
             maxAttempts: maxAttempts,
             pollStartTime: pollStartTime,
@@ -454,7 +454,7 @@ $w.onReady(async function () {
                 // Check if we have an AI response (more than just the user message)
                 const aiResponses = currentHistory.filter(msg => msg.role === 'assistant');
                 
-                logToBackend('Project-Workspace', 'pollForNewProjectResponse', {
+                await logToBackend('Project-Workspace', 'pollForNewProjectResponse', {
                     message: `POLLING ATTEMPT ${attempts}: Checking for AI response`,
                     historyLength: currentHistory.length,
                     aiResponseCount: aiResponses.length,
@@ -464,7 +464,7 @@ $w.onReady(async function () {
                 
                 if (aiResponses.length > 0) {
                     // We have AI response(s), display them
-                    logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
+                    await logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
                         message: 'POLLING SUCCESS: AI response received, displaying content',
                         responseCount: aiResponses.length,
                         totalPollingTimeMs: Date.now() - pollStartTime,
@@ -484,7 +484,7 @@ $w.onReady(async function () {
                     // Load todos if available
                     const currentStatus = await processUserRequest({ op: 'status', projectId, userId }).catch(() => null);
                     if (currentStatus?.todos && currentStatus.todos.length > 0) {
-                        logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
+                        await logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
                             message: 'POLLING SUCCESS: Displaying todos',
                             todoCount: currentStatus.todos.length
                         });
@@ -496,7 +496,7 @@ $w.onReady(async function () {
                     
                     // Update project name if it changed
                     if (currentStatus?.projectData?.name && currentStatus.projectData.name !== 'Untitled Project') {
-                        logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
+                        await logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
                             message: 'POLLING SUCCESS: Updating project name',
                             newProjectName: currentStatus.projectData.name
                         });
@@ -510,7 +510,7 @@ $w.onReady(async function () {
                     // Set status to ready
                     chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
                     
-                    logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
+                    await logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
                         message: 'POLLING COMPLETE: New project initialization finished successfully',
                         totalTransitionTimeMs: Date.now() - pageLoadStartTime,
                         totalPollingTimeMs: Date.now() - pollStartTime
@@ -523,7 +523,7 @@ $w.onReady(async function () {
                     setTimeout(poll, 2000); // Poll every 2 seconds
                 } else {
                     // Timeout
-                    logToBackend('Project-Workspace', 'pollForNewProjectResponse', null, new Error(`POLLING TIMEOUT: No AI response after ${attempts} attempts (${Date.now() - pollStartTime}ms)`));
+                    await logToBackend('Project-Workspace', 'pollForNewProjectResponse', null, new Error(`POLLING TIMEOUT: No AI response after ${attempts} attempts (${Date.now() - pollStartTime}ms)`));
                     chatEl.postMessage({
                         action: 'displayMessage',
                         type: 'system',
@@ -534,7 +534,7 @@ $w.onReady(async function () {
                 }
                 
             } catch (error) {
-                logToBackend('Project-Workspace', 'pollForNewProjectResponse', null, new Error(`POLLING ERROR: ${error.message} (Attempt ${attempts}, TotalTime: ${Date.now() - pollStartTime}ms)`));
+                await logToBackend('Project-Workspace', 'pollForNewProjectResponse', null, new Error(`POLLING ERROR: ${error.message} (Attempt ${attempts}, TotalTime: ${Date.now() - pollStartTime}ms)`));
                 chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
             }
         };

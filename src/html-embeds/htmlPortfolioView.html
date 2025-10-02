@@ -700,7 +700,6 @@
 
         // Initialize portfolio
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🏠 Portfolio View: Initializing...');
             
             // Set up message listener for Velo communication
             window.addEventListener('message', handlePortfolioMessage);
@@ -710,7 +709,6 @@
             if (modal) {
                 modal.classList.add('hidden');
                 modal.style.display = 'none'; // Double ensure it's hidden
-                console.log('🔒 Portfolio View: Modal forced to hidden state');
             }
             
             // Show loading state initially
@@ -735,7 +733,6 @@
         function handlePortfolioMessage(event) {
             const { type, data, error } = event.data;
             
-            console.log(`📨 Portfolio View: Received message - ${type}`, data);
             
             switch (type) {
                 case 'PORTFOLIO_DATA':
@@ -743,9 +740,9 @@
                     if (data && data.success) {
                         portfolioData = data.data;
                         renderPortfolio();
-                        console.log(`✅ Portfolio View: Data loaded - ${data.data.totalProjects} projects`);
+                        // console.log(`✅ Portfolio View: Data loaded - ${data.data.totalProjects} projects`);
                     } else {
-                        console.error('❌ Portfolio View: Invalid data received', data);
+                        // console.error('❌ Portfolio View: Invalid data received', data);
                         showError('Failed to load projects: ' + (data?.error || 'Invalid response'));
                     }
                     break;
@@ -772,13 +769,13 @@
                     break;
                     
                 default:
-                    console.warn(`⚠️ Portfolio View: Unknown message type - ${type}`);
+                    // console.warn(`⚠️ Portfolio View: Unknown message type - ${type}`);
             }
         }
 
         // Send message to Velo
         function sendToVelo(type, data) {
-            console.log(`📤 Portfolio View: Sending to Velo - ${type}`);
+            // console.log(`📤 Portfolio View: Sending to Velo - ${type}`);
             window.parent.postMessage({
                 type: type,
                 data: data
@@ -787,7 +784,7 @@
 
         // Load portfolio data
         function loadPortfolio() {
-            console.log('🔄 Portfolio View: Requesting data reload...');
+            // console.log('🔄 Portfolio View: Requesting data reload...');
             sendToVelo('LOAD_PORTFOLIO', {});
         }
 
@@ -795,7 +792,7 @@
         function renderPortfolio() {
             const { activeProjects, archivedProjects } = portfolioData;
             
-            console.log(`📊 Portfolio View: Rendering ${activeProjects.length} active, ${archivedProjects.length} archived`);
+            // console.log(`📊 Portfolio View: Rendering ${activeProjects.length} active, ${archivedProjects.length} archived`);
             
             // Hide loading state
             hideLoading();
@@ -889,7 +886,7 @@
             document.getElementById('archivedToggle').classList.remove('active');
             document.getElementById('activeSection').classList.remove('hidden');
             document.getElementById('archivedSection').classList.add('hidden');
-            console.log('👁️ Portfolio View: Switched to active projects');
+            // console.log('👁️ Portfolio View: Switched to active projects');
         }
 
         function showArchivedProjects() {
@@ -898,17 +895,19 @@
             document.getElementById('activeToggle').classList.remove('active');
             document.getElementById('archivedSection').classList.remove('hidden');
             document.getElementById('activeSection').classList.add('hidden');
-            console.log('👁️ Portfolio View: Switched to archived projects');
+            // console.log('👁️ Portfolio View: Switched to archived projects');
         }
 
         // Project action functions
         function createNewProject() {
-            console.log('🆕 Portfolio View: Opening new project modal...');
+            // console.log('🆕 Portfolio View: Opening new project modal...');
             showNewProjectModal();
         }
 
         // New project modal functions
         function showNewProjectModal() {
+            // console.log('🚀 Portfolio View: Opening new project modal...');
+            
             const modal = document.getElementById('newProjectModal');
             modal.classList.remove('hidden');
             modal.style.display = 'flex'; // Explicitly set display
@@ -922,10 +921,12 @@
             document.getElementById('projectInput').value = '';
             clearTemplateSelection();
             
+            // console.log('🔄 Portfolio View: Modal state reset, setting up template selection...');
+            
             // Set up template selection
             setupTemplateSelection();
             
-            console.log('📋 Portfolio View: New project modal opened - showing template selection');
+            // console.log('✅ Portfolio View: New project modal opened - template selection ready');
         }
 
         function closeNewProjectModal() {
@@ -945,14 +946,18 @@
         }
 
         function setupTemplateSelection() {
-            // Remove any existing event listeners to prevent duplicates
+            // console.log('🔧 Portfolio View: Setting up template selection...');
+            
+            // Add click handlers to template cards
             document.querySelectorAll('.template-card').forEach(card => {
                 if (!card.classList.contains('disabled')) {
-                    // Clone node to remove existing event listeners
-                    const newCard = card.cloneNode(true);
-                    card.parentNode.replaceChild(newCard, card);
+                    // Remove existing onclick if any
+                    card.onclick = null;
                     
-                    newCard.addEventListener('click', function() {
+                    // Add new click handler
+                    card.onclick = function() {
+                        // console.log('🎯 Portfolio View: Template card clicked:', this.dataset.template);
+                        
                         // Remove previous selection
                         document.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
                         
@@ -960,16 +965,22 @@
                         this.classList.add('selected');
                         selectedTemplate = this.dataset.template;
                         
-                        // Move to input step
-                        showInputStep(selectedTemplate);
+                        // console.log('✅ Portfolio View: Template selected:', selectedTemplate);
                         
-                        console.log('📋 Portfolio View: Template selected -', selectedTemplate);
-                    });
+                        // Move to input step after a short delay
+                        setTimeout(() => {
+                            showInputStep(selectedTemplate);
+                        }, 200);
+                    };
+                    
+                    // console.log('✅ Portfolio View: Added click handler to template:', card.dataset.template);
                 }
             });
         }
         
         function showInputStep(templateKey) {
+            // console.log('📝 Portfolio View: Showing input step for template:', templateKey);
+            
             // Hide template selection step
             document.getElementById('templateStep').classList.add('hidden');
             
@@ -985,8 +996,13 @@
             
             // Focus on textarea
             setTimeout(() => {
-                document.getElementById('projectInput').focus();
+                const textarea = document.getElementById('projectInput');
+                if (textarea) {
+                    textarea.focus();
+                }
             }, 100);
+            
+            // console.log('✅ Portfolio View: Input step displayed successfully');
         }
         
         function goBackToTemplates() {
@@ -1055,22 +1071,37 @@
             const input = document.getElementById('projectInput');
             const createBtn = document.getElementById('createProjectBtn');
             
+            if (!input || !createBtn) {
+                // console.log('⚠️ Portfolio View: Form elements not found during validation');
+                return;
+            }
+            
             const hasTemplate = selectedTemplate !== null;
             const inputText = input.value.trim();
             const hasValidInput = inputText.length >= 50 && inputText.split(' ').length >= 5; // At least 50 chars and 5 words
             
+            // console.log('🔍 Portfolio View: Form validation -', {
+                hasTemplate: hasTemplate,
+                selectedTemplate: selectedTemplate,
+                inputLength: inputText.length,
+                wordCount: inputText.split(' ').length,
+                hasValidInput: hasValidInput
+            });
+            
             createBtn.disabled = !(hasTemplate && hasValidInput);
+            
+            // console.log('🎛️ Portfolio View: Create button disabled:', createBtn.disabled);
         }
 
         function submitNewProject() {
             const userInput = document.getElementById('projectInput').value.trim();
             
             if (!selectedTemplate || !userInput) {
-                console.error('❌ Portfolio View: Missing template or input');
+                // console.error('❌ Portfolio View: Missing template or input');
                 return;
             }
             
-            console.log('🚀 Portfolio View: Creating project with template:', selectedTemplate);
+            // console.log('🚀 Portfolio View: Creating project with template:', selectedTemplate);
             
             // Close modal
             closeNewProjectModal();
@@ -1083,26 +1114,26 @@
         }
 
         function openProject(projectId) {
-            console.log('📂 Portfolio View: Opening project:', projectId);
+            // console.log('📂 Portfolio View: Opening project:', projectId);
             sendToVelo('OPEN_PROJECT', { projectId });
         }
 
         function archiveProject(projectId) {
             if (!confirm('Are you sure you want to archive this project?')) return;
             
-            console.log('📦 Portfolio View: Archiving project:', projectId);
+            // console.log('📦 Portfolio View: Archiving project:', projectId);
             sendToVelo('ARCHIVE_PROJECT', { projectId });
         }
 
         function restoreProject(projectId) {
-            console.log('♻️ Portfolio View: Restoring project:', projectId);
+            // console.log('♻️ Portfolio View: Restoring project:', projectId);
             sendToVelo('RESTORE_PROJECT', { projectId });
         }
 
         function deleteProject(projectId, projectName) {
             if (!confirm(`Are you sure you want to permanently delete "${projectName}"?\n\nThis action cannot be undone.`)) return;
             
-            console.log('🗑️ Portfolio View: Deleting project:', projectId);
+            // console.log('🗑️ Portfolio View: Deleting project:', projectId);
             sendToVelo('DELETE_PROJECT', { projectId });
         }
 
@@ -1113,7 +1144,7 @@
 
         function showError(message) {
             hideLoading();
-            console.error('❌ Portfolio View: Error -', message);
+            // console.error('❌ Portfolio View: Error -', message);
             
             // Simple error display - you can enhance this with proper error UI
             const errorHtml = `
@@ -1133,14 +1164,14 @@
         }
         
         function loadPortfolio() {
-            console.log('🔄 Portfolio View: Requesting data reload...');
+            // console.log('🔄 Portfolio View: Requesting data reload...');
             showLoading();
             sendToVelo('LOAD_PORTFOLIO', {});
         }
 
         function showNotification(message, type) {
             const style = type === 'success' ? 'color: green; font-weight: bold;' : 'color: red; font-weight: bold;';
-            console.log(`%c📢 Portfolio View: ${message}`, style);
+            // console.log(`%c📢 Portfolio View: ${message}`, style);
             
             // Simple notification - you can enhance this with toast notifications
             // For now, just show in console and optionally alert for errors
@@ -1161,7 +1192,7 @@
                     minute: '2-digit'
                 });
             } catch (error) {
-                console.warn('⚠️ Portfolio View: Date formatting error:', error);
+                // console.warn('⚠️ Portfolio View: Date formatting error:', error);
                 return 'Invalid Date';
             }
         }

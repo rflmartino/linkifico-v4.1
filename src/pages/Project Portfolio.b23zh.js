@@ -1,7 +1,6 @@
 // Project Portfolio Page - Velo Frontend
 // Manages user project portfolio with HTML embed integration
 
-import { webMethod } from 'wix-web-module';
 import wixUsers from 'wix-users';
 import wixLocation from 'wix-location';
 import { processUserRequest } from 'backend/entrypoint.web.js';
@@ -41,27 +40,32 @@ let currentUser = null;
 let portfolioHtmlElement = null;
 
 $w.onReady(async function () {
-    logToBackend('Project-Portfolio', 'onReady', { message: 'Page loading...' });
-    
-    // Initialize user authentication
-    await initializeUser();
-    
-    // Initialize HTML embed
-    await initializePortfolioEmbed();
-    
-    // Load portfolio data automatically after HTML embed is ready
-    setTimeout(async () => {
-        await handleLoadPortfolio();
-    }, 1000);
-    
-    logToBackend('Project-Portfolio', 'onReady', { 
-        message: 'PAGE FULLY INITIALIZED: All systems ready',
-        testMode: TEST_MODE,
-        activeTestUser: TEST_MODE ? ACTIVE_TEST_USER : null,
-        userId: currentUser?.id,
-        htmlElementReady: !!portfolioHtmlElement,
-        timestamp: new Date().toISOString()
-    });
+    try {
+        await logToBackend('Project-Portfolio', 'onReady', { message: 'Page loading...' });
+        
+        // Initialize user authentication
+        await initializeUser();
+        
+        // Initialize HTML embed
+        await initializePortfolioEmbed();
+        
+        // Load portfolio data automatically after HTML embed is ready
+        setTimeout(async () => {
+            await handleLoadPortfolio();
+        }, 1000);
+        
+        await logToBackend('Project-Portfolio', 'onReady', { 
+            message: 'PAGE FULLY INITIALIZED: All systems ready',
+            testMode: TEST_MODE,
+            activeTestUser: TEST_MODE ? ACTIVE_TEST_USER : null,
+            userId: currentUser?.id,
+            htmlElementReady: !!portfolioHtmlElement,
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        await logToBackend('Project-Portfolio', 'onReady', null, error);
+    }
 });
 
 // Initialize user authentication
@@ -76,7 +80,7 @@ async function initializeUser() {
             
             currentUser = testUser;
             
-            logToBackend('Project-Portfolio', 'initializeUser', {
+            await logToBackend('Project-Portfolio', 'initializeUser', {
                 message: 'TEST MODE: Using hardcoded test user',
                 testMode: true,
                 userId: currentUser.id,
@@ -88,12 +92,12 @@ async function initializeUser() {
             currentUser = wixUsers.currentUser;
             
             if (!currentUser.loggedIn) {
-                logToBackend('Project-Portfolio', 'initializeUser', { message: 'User not logged in, redirecting...' });
+                await logToBackend('Project-Portfolio', 'initializeUser', { message: 'User not logged in, redirecting...' });
                 wixLocation.to('/login');
                 return;
             }
             
-            logToBackend('Project-Portfolio', 'initializeUser', {
+            await logToBackend('Project-Portfolio', 'initializeUser', {
                 message: 'PRODUCTION MODE: User authenticated',
                 testMode: false,
                 userId: currentUser.id,
@@ -102,7 +106,7 @@ async function initializeUser() {
         }
         
     } catch (error) {
-        logToBackend('Project-Portfolio', 'initializeUser', null, error);
+        await logToBackend('Project-Portfolio', 'initializeUser', null, error);
         if (!TEST_MODE) {
             wixLocation.to('/login');
         }
@@ -115,11 +119,11 @@ async function initializePortfolioEmbed() {
         portfolioHtmlElement = $w('#htmlPortfolioView');
         
         if (!portfolioHtmlElement) {
-            logToBackend('Project-Portfolio', 'initializePortfolioEmbed', null, new Error('HTML element #htmlPortfolioView not found'));
+            await logToBackend('Project-Portfolio', 'initializePortfolioEmbed', null, new Error('HTML element #htmlPortfolioView not found'));
             return;
         }
         
-        logToBackend('Project-Portfolio', 'initializePortfolioEmbed', { 
+        await logToBackend('Project-Portfolio', 'initializePortfolioEmbed', { 
             message: 'HTML element found, setting up communication',
             elementType: portfolioHtmlElement.type
         });
@@ -132,12 +136,12 @@ async function initializePortfolioEmbed() {
         // Set HTML content directly (alternative approach)
         // portfolioHtmlElement.html = `your HTML content here`;
         
-        logToBackend('Project-Portfolio', 'initializePortfolioEmbed', { 
+        await logToBackend('Project-Portfolio', 'initializePortfolioEmbed', { 
             message: 'HTML embed communication setup complete'
         });
         
     } catch (error) {
-        logToBackend('Project-Portfolio', 'initializePortfolioEmbed', null, error);
+        await logToBackend('Project-Portfolio', 'initializePortfolioEmbed', null, error);
     }
 }
 
@@ -145,7 +149,7 @@ async function initializePortfolioEmbed() {
 async function handlePortfolioMessage(event) {
     const { type, data } = event.data;
     
-    logToBackend('Project-Portfolio', 'handlePortfolioMessage', { type: type, message: 'Received message from embed' });
+    await logToBackend('Project-Portfolio', 'handlePortfolioMessage', { type: type, message: 'Received message from embed' });
     
     try {
         switch (type) {
@@ -178,7 +182,7 @@ async function handlePortfolioMessage(event) {
                 break;
                 
             default:
-                logToBackend('Project-Portfolio', 'handlePortfolioMessage', { 
+                await logToBackend('Project-Portfolio', 'handlePortfolioMessage', { 
                     message: 'Unknown message type received',
                     type: type,
                     level: 'warning'
@@ -186,15 +190,15 @@ async function handlePortfolioMessage(event) {
         }
         
     } catch (error) {
-        logToBackend('Project-Portfolio', 'handlePortfolioMessage', { type: type }, error);
-        sendToEmbed('ERROR', null, error.message);
+        await logToBackend('Project-Portfolio', 'handlePortfolioMessage', { type: type }, error);
+        await sendToEmbed('ERROR', null, error.message);
     }
 }
 
 // Load user's portfolio data
 async function handleLoadPortfolio() {
     try {
-        logToBackend('Project-Portfolio', 'handleLoadPortfolio', { 
+        await logToBackend('Project-Portfolio', 'handleLoadPortfolio', { 
             message: 'Loading portfolio data...',
             testMode: TEST_MODE,
             userId: currentUser.id
@@ -209,29 +213,29 @@ async function handleLoadPortfolio() {
             payload: {}
         });
         
-        logToBackend('Project-Portfolio', 'handleLoadPortfolio', { 
+        await logToBackend('Project-Portfolio', 'handleLoadPortfolio', { 
             message: TEST_MODE ? 'TEST MODE: Portfolio loaded from backend with test user' : 'PRODUCTION MODE: Portfolio loaded from backend',
             testMode: TEST_MODE,
             totalProjects: response.data?.totalProjects || 0
         });
         
         if (response.success) {
-            sendToEmbed('PORTFOLIO_DATA', response);
+            await sendToEmbed('PORTFOLIO_DATA', response);
         } else {
-            logToBackend('Project-Portfolio', 'handleLoadPortfolio', null, new Error('Failed to load portfolio: ' + (response.error || 'Unknown error')));
-            sendToEmbed('PORTFOLIO_ERROR', null, response.error || 'Failed to load portfolio');
+            await logToBackend('Project-Portfolio', 'handleLoadPortfolio', null, new Error('Failed to load portfolio: ' + (response.error || 'Unknown error')));
+            await sendToEmbed('PORTFOLIO_ERROR', null, response.error || 'Failed to load portfolio');
         }
         
     } catch (error) {
-        logToBackend('Project-Portfolio', 'handleLoadPortfolio', null, error);
-        sendToEmbed('PORTFOLIO_ERROR', null, error.message);
+        await logToBackend('Project-Portfolio', 'handleLoadPortfolio', null, error);
+        await sendToEmbed('PORTFOLIO_ERROR', null, error.message);
     }
 }
 
 // Handle new project creation (legacy - opens modal)
 async function handleNewProject() {
     try {
-        logToBackend('Project-Portfolio', 'handleNewProject', { 
+        await logToBackend('Project-Portfolio', 'handleNewProject', { 
             message: 'Opening new project modal...',
             testMode: TEST_MODE
         });
@@ -240,8 +244,8 @@ async function handleNewProject() {
         // This function is kept for compatibility
         
     } catch (error) {
-        logToBackend('Project-Portfolio', 'handleNewProject', null, error);
-        sendToEmbed('ERROR', null, error.message);
+        await logToBackend('Project-Portfolio', 'handleNewProject', null, error);
+        await sendToEmbed('ERROR', null, error.message);
     }
 }
 
@@ -250,7 +254,7 @@ async function handleCreateProject(templateName, userInput) {
     const transitionStartTime = Date.now();
     
     try {
-        logToBackend('Project-Portfolio', 'handleCreateProject', { 
+        await logToBackend('Project-Portfolio', 'handleCreateProject', { 
             message: 'TRANSITION START: Creating project with template',
             templateName: templateName,
             inputLength: userInput.length,
@@ -261,7 +265,7 @@ async function handleCreateProject(templateName, userInput) {
         // Generate new project ID
         const newProjectId = generateNewProjectId();
         
-        logToBackend('Project-Portfolio', 'handleCreateProject', { 
+        await logToBackend('Project-Portfolio', 'handleCreateProject', { 
             message: 'BACKEND CALL START: Calling processUserRequest init',
             projectId: newProjectId,
             transitionId: transitionStartTime
@@ -284,7 +288,7 @@ async function handleCreateProject(templateName, userInput) {
         const backendDuration = Date.now() - backendStartTime;
         
         if (response.success) {
-            logToBackend('Project-Portfolio', 'handleCreateProject', { 
+            await logToBackend('Project-Portfolio', 'handleCreateProject', { 
                 message: 'BACKEND CALL SUCCESS: Project created, preparing navigation',
                 projectId: newProjectId,
                 backendDurationMs: backendDuration,
@@ -295,13 +299,13 @@ async function handleCreateProject(templateName, userInput) {
             wixLocation.to('/project-workspace?projectId=' + newProjectId + '&userId=' + currentUser.id);
             
         } else {
-            logToBackend('Project-Portfolio', 'handleCreateProject', null, new Error('BACKEND CALL FAILED: ' + (response.error || 'Unknown error') + ' (Duration: ' + backendDuration + 'ms, TransitionId: ' + transitionStartTime + ')'));
-            sendToEmbed('ERROR', null, response.error || 'Failed to create project');
+            await logToBackend('Project-Portfolio', 'handleCreateProject', null, new Error('BACKEND CALL FAILED: ' + (response.error || 'Unknown error') + ' (Duration: ' + backendDuration + 'ms, TransitionId: ' + transitionStartTime + ')'));
+            await sendToEmbed('ERROR', null, response.error || 'Failed to create project');
         }
         
     } catch (error) {
-        logToBackend('Project-Portfolio', 'handleCreateProject', null, new Error('TRANSITION ERROR: ' + error.message + ' (TransitionId: ' + transitionStartTime + ', Duration: ' + (Date.now() - transitionStartTime) + 'ms)'));
-        sendToEmbed('ERROR', null, error.message);
+        await logToBackend('Project-Portfolio', 'handleCreateProject', null, new Error('TRANSITION ERROR: ' + error.message + ' (TransitionId: ' + transitionStartTime + ', Duration: ' + (Date.now() - transitionStartTime) + 'ms)'));
+        await sendToEmbed('ERROR', null, error.message);
     }
 }
 
@@ -317,7 +321,7 @@ async function handleOpenProject(projectId) {
     const transitionStartTime = Date.now();
     
     try {
-        logToBackend('Project-Portfolio', 'handleOpenProject', { 
+        await logToBackend('Project-Portfolio', 'handleOpenProject', { 
             message: 'TRANSITION START: Opening existing project',
             projectId: projectId, 
             testMode: TEST_MODE,
@@ -325,7 +329,7 @@ async function handleOpenProject(projectId) {
         });
         
         // Log navigation attempt
-        logToBackend('Project-Portfolio', 'handleOpenProject', { 
+        await logToBackend('Project-Portfolio', 'handleOpenProject', { 
             message: 'NAVIGATION START: Redirecting to workspace for existing project',
             projectId: projectId,
             userId: currentUser.id,
@@ -338,14 +342,14 @@ async function handleOpenProject(projectId) {
         
     } catch (error) {
         logToBackend('Project-Portfolio', 'handleOpenProject', null, new Error(`TRANSITION ERROR: ${error.message} (ProjectId: ${projectId}, TransitionId: ${transitionStartTime})`));
-        sendToEmbed('ERROR', null, error.message);
+        await sendToEmbed('ERROR', null, error.message);
     }
 }
 
 // Handle archiving a project
 async function handleArchiveProject(projectId) {
     try {
-        logToBackend('Project-Portfolio', 'handleArchiveProject', { 
+        await logToBackend('Project-Portfolio', 'handleArchiveProject', { 
             projectId: projectId, 
             message: 'Archiving project',
             testMode: TEST_MODE
@@ -360,18 +364,18 @@ async function handleArchiveProject(projectId) {
             payload: { projectId }
         });
         
-        sendToEmbed('ARCHIVE_RESPONSE', response);
+        await sendToEmbed('ARCHIVE_RESPONSE', response);
         
     } catch (error) {
-        logToBackend('Project-Portfolio', 'handleArchiveProject', { projectId: projectId }, error);
-        sendToEmbed('ERROR', null, error.message);
+        await logToBackend('Project-Portfolio', 'handleArchiveProject', { projectId: projectId }, error);
+        await sendToEmbed('ERROR', null, error.message);
     }
 }
 
 // Handle restoring a project
 async function handleRestoreProject(projectId) {
     try {
-        logToBackend('Project-Portfolio', 'handleRestoreProject', { 
+        await logToBackend('Project-Portfolio', 'handleRestoreProject', { 
             projectId: projectId, 
             message: 'Restoring project',
             testMode: TEST_MODE
@@ -386,18 +390,18 @@ async function handleRestoreProject(projectId) {
             payload: { projectId }
         });
         
-        sendToEmbed('RESTORE_RESPONSE', response);
+        await sendToEmbed('RESTORE_RESPONSE', response);
         
     } catch (error) {
-        logToBackend('Project-Portfolio', 'handleRestoreProject', { projectId: projectId }, error);
-        sendToEmbed('ERROR', null, error.message);
+        await logToBackend('Project-Portfolio', 'handleRestoreProject', { projectId: projectId }, error);
+        await sendToEmbed('ERROR', null, error.message);
     }
 }
 
 // Handle deleting a project
 async function handleDeleteProject(projectId) {
     try {
-        logToBackend('Project-Portfolio', 'handleDeleteProject', { 
+        await logToBackend('Project-Portfolio', 'handleDeleteProject', { 
             projectId: projectId, 
             message: 'Deleting project',
             testMode: TEST_MODE
@@ -412,19 +416,19 @@ async function handleDeleteProject(projectId) {
             payload: { projectId }
         });
         
-        sendToEmbed('DELETE_RESPONSE', response);
+        await sendToEmbed('DELETE_RESPONSE', response);
         
     } catch (error) {
-        logToBackend('Project-Portfolio', 'handleDeleteProject', { projectId: projectId }, error);
-        sendToEmbed('ERROR', null, error.message);
+        await logToBackend('Project-Portfolio', 'handleDeleteProject', { projectId: projectId }, error);
+        await sendToEmbed('ERROR', null, error.message);
     }
 }
 
 // Send message to HTML embed
-function sendToEmbed(type, data, error = null) {
+async function sendToEmbed(type, data, error = null) {
     try {
         if (!portfolioHtmlElement) {
-            logToBackend('Project-Portfolio', 'sendToEmbed', null, new Error('Cannot send message - HTML element not initialized'));
+            await logToBackend('Project-Portfolio', 'sendToEmbed', null, new Error('Cannot send message - HTML element not initialized'));
             return;
         }
         
@@ -434,11 +438,11 @@ function sendToEmbed(type, data, error = null) {
             error: error
         };
         
-        logToBackend('Project-Portfolio', 'sendToEmbed', { type: type, message: 'Sending to embed' });
+        await logToBackend('Project-Portfolio', 'sendToEmbed', { type: type, message: 'Sending to embed' });
         portfolioHtmlElement.postMessage(message);
         
     } catch (error) {
-        logToBackend('Project-Portfolio', 'sendToEmbed', null, error);
+        await logToBackend('Project-Portfolio', 'sendToEmbed', null, error);
     }
 }
 
