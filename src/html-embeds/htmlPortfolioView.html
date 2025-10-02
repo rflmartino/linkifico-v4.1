@@ -699,11 +699,12 @@
         };
 
         // Global message handler for Wix HTML embed communication
-        window.onMessage = function(event) {
-            if (event && event.data) {
+        window.addEventListener('message', function(event) {
+            // Check if this message is from our Velo page
+            if (event.data && event.data.type) {
                 handlePortfolioMessage(event);
             }
-        };
+        });
 
         // Initialize portfolio
         document.addEventListener('DOMContentLoaded', function() {
@@ -737,6 +738,11 @@
         function handlePortfolioMessage(event) {
             const { type, data, error } = event.data;
             
+            // Visual debug: Change loading text to show message received
+            const loadingEl = document.querySelector('.loading-text');
+            if (loadingEl) {
+                loadingEl.textContent = `📨 Message received: ${type}`;
+            }
             
             switch (type) {
                 case 'PORTFOLIO_DATA':
