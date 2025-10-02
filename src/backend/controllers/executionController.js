@@ -61,6 +61,18 @@ export const executionController = {
                         intent: nlpResult.intent
                     }
                 };
+                
+                // CRITICAL DEBUG: Log what NLP path is returning
+                Logger.info('executionController', 'executeAction:nlpResult', {
+                    projectId,
+                    userId,
+                    message: result.message,
+                    messageLength: result.message ? result.message.length : 0,
+                    hasAnalysis: !!result.analysis,
+                    analysis: result.analysis,
+                    fullResult: result
+                });
+                
                 Logger.info('executionController', 'executeAction:end:nlp', { ok: true });
                 return result;
             }
@@ -104,6 +116,18 @@ export const executionController = {
                     usedNLP: false
                 }
             };
+            
+            // CRITICAL DEBUG: Log what Haiku fallback path is returning
+            Logger.info('executionController', 'executeAction:haikuResult', {
+                projectId,
+                userId,
+                message: result.message,
+                messageLength: result.message ? result.message.length : 0,
+                hasAnalysis: !!result.analysis,
+                analysis: result.analysis,
+                fullResult: result
+            });
+            
             Logger.info('executionController', 'executeAction:end:haiku', { ok: true });
             return result;
             

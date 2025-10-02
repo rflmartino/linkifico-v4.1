@@ -110,6 +110,18 @@ async function processChatMessage(projectId, userId, message, sessionId, process
         // Do not inline todos into the assistant message; keep narrative separate from structured todos
         const finalMessage = response.message;
 
+        // CRITICAL DEBUG: Log what AI response we received
+        Logger.info('entrypoint.web', 'processChatMessage:aiResponse', {
+            projectId,
+            userId,
+            responseMessage: response.message,
+            responseMessageLength: response.message ? response.message.length : 0,
+            hasAnalysis: !!response.analysis,
+            hasTodos: !!(response.analysis && response.analysis.gaps && response.analysis.gaps.todos),
+            todoCount: response.analysis && response.analysis.gaps && response.analysis.gaps.todos ? response.analysis.gaps.todos.length : 0,
+            fullResponse: response
+        });
+
         // Add AI response to history
         chatHistory.push({
             role: 'assistant',
@@ -117,6 +129,17 @@ async function processChatMessage(projectId, userId, message, sessionId, process
             timestamp: new Date().toISOString(),
             sessionId: sessionId,
             analysis: response.analysis
+        });
+
+        // CRITICAL DEBUG: Log what we're about to save
+        Logger.info('entrypoint.web', 'processChatMessage:beforeSave', {
+            projectId,
+            userId,
+            chatHistoryLength: chatHistory.length,
+            chatHistoryType: typeof chatHistory,
+            chatHistoryIsArray: Array.isArray(chatHistory),
+            chatHistoryValue: chatHistory,
+            lastMessage: chatHistory[chatHistory.length - 1]
         });
 
         // Save final chat history (will be saved by data manager in processIntelligenceLoop)
@@ -237,9 +260,32 @@ async function processIntelligenceLoop(projectId, userId, message, processingId)
     const t4 = Date.now();
     const execution = await executionController.executeAction(projectId, userId, message, actionPlan, allData.projectData, template);
     Logger.info('entrypoint.web', 'timing:executionMs', { ms: Date.now() - t4 });
+    
+    // CRITICAL DEBUG: Log what execution controller generated
+    Logger.info('entrypoint.web', 'processIntelligenceLoop:executionResult', {
+        projectId,
+        userId,
+        executionMessage: execution.message,
+        executionMessageLength: execution.message ? execution.message.length : 0,
+        hasExecutionAnalysis: !!execution.analysis,
+        executionAnalysis: execution.analysis,
+        fullExecution: execution
+    });
+    
     // Attach gaps (including todos) into analysis for rendering inline checklist
     execution.analysis = execution.analysis || {};
     execution.analysis.gaps = gaps;
+    
+    // CRITICAL DEBUG: Log final execution result with gaps
+    Logger.info('entrypoint.web', 'processIntelligenceLoop:finalExecution', {
+        projectId,
+        userId,
+        finalMessage: execution.message,
+        finalAnalysis: execution.analysis,
+        hasGaps: !!execution.analysis.gaps,
+        hasTodos: !!(execution.analysis.gaps && execution.analysis.gaps.todos),
+        todoCount: execution.analysis.gaps && execution.analysis.gaps.todos ? execution.analysis.gaps.todos.length : 0
+    });
     if (processingId) {
         await redisData.saveProcessing(processingId, { 
             status: 'processing', 
