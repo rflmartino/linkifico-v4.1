@@ -219,6 +219,15 @@ export async function getChatHistory(projectId) {
             dataLength: data ? data.length : 0,
             dataType: typeof data
         });
+        
+        // Parse and log the actual data
+        const parsedData = data ? JSON.parse(data) : [];
+        Logger.info('projectData', 'getChatHistory:parsed', {
+            projectId,
+            parsedLength: parsedData.length,
+            parsedType: typeof parsedData,
+            parsedSample: parsedData.length > 0 ? parsedData.slice(0, 2) : 'empty'
+        });
     } catch {}
     
     return data ? JSON.parse(data) : [];

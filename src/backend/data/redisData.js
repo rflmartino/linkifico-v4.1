@@ -38,6 +38,15 @@ export const redisData = {
             
             Logger.info('dataManager', 'timing:loadAllDataMs', { ms: Date.now() - startTime });
             
+            // Debug logging to see what we're getting from each function
+            Logger.info('dataManager', 'loadAllData:debug', {
+                projectId,
+                userId,
+                chatHistoryLength: chatHistory ? chatHistory.length : 0,
+                chatHistoryType: typeof chatHistory,
+                chatHistorySample: chatHistory && chatHistory.length > 0 ? chatHistory.slice(0, 2) : 'empty'
+            });
+            
             return {
                 projectData: projectData || this.createDefaultProjectData(projectId),
                 chatHistory: chatHistory || [],
