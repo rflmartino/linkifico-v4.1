@@ -362,6 +362,18 @@ export async function initializeProject(projectId, userId, initialMessage, templ
         
         // Add user message to chat history and save immediately
         allData.chatHistory.push(userMessage);
+        
+        // CRITICAL DEBUG: Log what we're about to save
+        Logger.info('entrypoint.web', 'initializeProject:beforeSave', {
+            projectId,
+            userId,
+            chatHistoryType: typeof allData.chatHistory,
+            chatHistoryIsArray: Array.isArray(allData.chatHistory),
+            chatHistoryLength: allData.chatHistory.length,
+            chatHistoryValue: allData.chatHistory,
+            userMessage: userMessage
+        });
+        
         await redisData.saveAllData(projectId, userId, allData);
         
         // Process initial message (this will add AI response to existing chat history)

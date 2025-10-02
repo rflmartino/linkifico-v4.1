@@ -204,20 +204,31 @@ export async function saveChatHistory(projectId, chatHistory) {
         return;
     }
     
+    // CRITICAL DEBUG: Log exactly what we're receiving
+    try {
+        Logger.info('projectData', 'saveChatHistory:input', {
+            projectId,
+            chatHistoryType: typeof chatHistory,
+            chatHistoryIsArray: Array.isArray(chatHistory),
+            chatHistoryValue: chatHistory,
+            chatHistoryStringified: JSON.stringify(chatHistory),
+            chatHistoryLength: chatHistory ? chatHistory.length : 'N/A'
+        });
+    } catch {}
+    
     // Ensure chatHistory is an array
     const safeChatHistory = Array.isArray(chatHistory) ? chatHistory : [];
     
-    // Debug logging to see what we're saving
+    // CRITICAL DEBUG: Log what we're actually saving
     try {
-        Logger.info('projectData', 'saveChatHistory:debug', {
+        Logger.info('projectData', 'saveChatHistory:output', {
             projectId,
             redisKey: key,
-            historyLength: safeChatHistory.length,
-            historyType: typeof safeChatHistory,
-            isArray: Array.isArray(safeChatHistory),
-            historySample: safeChatHistory.length > 0 ? safeChatHistory.slice(0, 2) : 'empty',
-            jsonString: JSON.stringify(safeChatHistory),
-            jsonLength: JSON.stringify(safeChatHistory).length
+            safeHistoryType: typeof safeChatHistory,
+            safeHistoryIsArray: Array.isArray(safeChatHistory),
+            safeHistoryValue: safeChatHistory,
+            safeHistoryStringified: JSON.stringify(safeChatHistory),
+            safeHistoryLength: safeChatHistory.length
         });
     } catch {}
     
