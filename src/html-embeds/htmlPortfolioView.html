@@ -698,11 +698,15 @@
             }
         };
 
+        // Global message handler for Wix HTML embed communication
+        window.onMessage = function(event) {
+            if (event && event.data) {
+                handlePortfolioMessage(event);
+            }
+        };
+
         // Initialize portfolio
         document.addEventListener('DOMContentLoaded', function() {
-            
-            // Set up message listener for Velo communication
-            window.addEventListener('message', handlePortfolioMessage);
             
             // CRITICAL: Ensure modal is hidden on startup (force hidden state)
             const modal = document.getElementById('newProjectModal');
@@ -792,7 +796,6 @@
         function renderPortfolio() {
             const { activeProjects, archivedProjects } = portfolioData;
             
-            // console.log(`📊 Portfolio View: Rendering ${activeProjects.length} active, ${archivedProjects.length} archived`);
             
             // Hide loading state
             hideLoading();
