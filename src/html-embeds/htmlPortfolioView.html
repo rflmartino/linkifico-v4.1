@@ -16,11 +16,14 @@
             background: #f0f0f0;
             min-height: 100vh;
             padding: 20px;
+            margin: 0;
         }
 
         .portfolio-container {
-            max-width: 1200px;
-            margin: 0 auto;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
         }
 
         .portfolio-header {
@@ -651,25 +654,35 @@
             // Set up message listener for Velo communication
             window.addEventListener('message', handlePortfolioMessage);
             
+            // Show loading state initially
+            showLoading();
+            
             // Request initial data from Velo
             sendToVelo('LOAD_PORTFOLIO', {});
         });
+        
+        function showLoading() {
+            document.getElementById('loadingState').classList.remove('hidden');
+            document.getElementById('activeSection').classList.add('hidden');
+            document.getElementById('archivedSection').classList.add('hidden');
+        }
 
         // Handle messages from Velo
         function handlePortfolioMessage(event) {
             const { type, data, error } = event.data;
             
-            console.log(`📨 Portfolio View: Received message - ${type}`);
+            console.log(`📨 Portfolio View: Received message - ${type}`, data);
             
             switch (type) {
                 case 'PORTFOLIO_DATA':
                     hideLoading();
-                    if (data.success) {
+                    if (data && data.success) {
                         portfolioData = data.data;
                         renderPortfolio();
                         console.log(`✅ Portfolio View: Data loaded - ${data.data.totalProjects} projects`);
                     } else {
-                        showError('Failed to load projects: ' + data.error);
+                        console.error('❌ Portfolio View: Invalid data received', data);
+                        showError('Failed to load projects: ' + (data?.error || 'Invalid response'));
                     }
                     break;
                     
@@ -720,6 +733,9 @@
             
             console.log(`📊 Portfolio View: Rendering ${activeProjects.length} active, ${archivedProjects.length} archived`);
             
+            // Hide loading state
+            hideLoading();
+            
             // Update counts
             document.getElementById('activeCount').textContent = activeProjects.length;
             document.getElementById('archivedCount').textContent = archivedProjects.length;
@@ -728,12 +744,8 @@
             renderProjects('activeProjects', activeProjects, 'active');
             renderProjects('archivedProjects', archivedProjects, 'archived');
             
-            // Show appropriate section
-            if (currentView === 'active') {
-                showActiveProjects();
-            } else {
-                showArchivedProjects();
-            }
+            // Show appropriate section (default to active)
+            showActiveProjects();
         }
 
         // Render projects grid
@@ -970,6 +982,13 @@
             
             document.getElementById('activeProjects').innerHTML = errorHtml;
             document.getElementById('activeSection').classList.remove('hidden');
+            document.getElementById('archivedSection').classList.add('hidden');
+        }
+        
+        function loadPortfolio() {
+            console.log('🔄 Portfolio View: Requesting data reload...');
+            showLoading();
+            sendToVelo('LOAD_PORTFOLIO', {});
         }
 
         function showNotification(message, type) {

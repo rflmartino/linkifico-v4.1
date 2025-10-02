@@ -49,6 +49,11 @@ $w.onReady(async function () {
     // Initialize HTML embed
     await initializePortfolioEmbed();
     
+    // Load portfolio data automatically
+    setTimeout(async () => {
+        await handleLoadPortfolio();
+    }, 500);
+    
     logToBackend('Project-Portfolio', 'onReady', { message: 'Page ready' });
 });
 
