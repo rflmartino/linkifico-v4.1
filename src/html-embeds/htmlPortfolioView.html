@@ -700,9 +700,22 @@
 
         // Global message handler for Wix HTML embed communication
         window.addEventListener('message', function(event) {
+            // Debug: Show that message listener is working
+            const loadingEl = document.querySelector('.loading-text');
+            if (loadingEl) {
+                loadingEl.textContent = '🔍 Message listener triggered';
+            }
+            
             // Check if this message is from our Velo page
             if (event.data && event.data.type) {
+                if (loadingEl) {
+                    loadingEl.textContent = `📨 Valid message: ${event.data.type}`;
+                }
                 handlePortfolioMessage(event);
+            } else {
+                if (loadingEl) {
+                    loadingEl.textContent = '❌ Invalid message format';
+                }
             }
         });
 
@@ -719,8 +732,21 @@
             // Show loading state initially
             showLoading();
             
+            // Debug: Update loading text to show initialization
+            const loadingEl = document.querySelector('.loading-text');
+            if (loadingEl) {
+                loadingEl.textContent = '🚀 HTML embed initialized, requesting data...';
+            }
+            
             // Request initial data from Velo
             sendToVelo('LOAD_PORTFOLIO', {});
+            
+            // Debug: Update loading text after sending request
+            setTimeout(() => {
+                if (loadingEl && loadingEl.textContent.includes('🚀')) {
+                    loadingEl.textContent = '⏳ Waiting for Velo response...';
+                }
+            }, 100);
         });
         
         function showLoading() {
