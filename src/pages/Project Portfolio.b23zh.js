@@ -49,10 +49,10 @@ $w.onReady(async function () {
     // Initialize HTML embed
     await initializePortfolioEmbed();
     
-    // Load portfolio data automatically
+    // Load portfolio data automatically after HTML embed is ready
     setTimeout(async () => {
         await handleLoadPortfolio();
-    }, 500);
+    }, 1000);
     
     logToBackend('Project-Portfolio', 'onReady', { message: 'Page ready' });
 });
@@ -112,16 +112,22 @@ async function initializePortfolioEmbed() {
             return;
         }
         
+        logToBackend('Project-Portfolio', 'initializePortfolioEmbed', { 
+            message: 'HTML element found, setting up communication',
+            elementType: portfolioHtmlElement.type
+        });
+        
         // Set up message listener for HTML embed communication
         portfolioHtmlElement.onMessage((event) => {
             handlePortfolioMessage(event);
         });
         
-        // Load the HTML embed content
-        const htmlUrl = '/html-embeds/htmlPortfolioView.html';
-        portfolioHtmlElement.src = htmlUrl;
+        // Set HTML content directly (alternative approach)
+        // portfolioHtmlElement.html = `your HTML content here`;
         
-        logToBackend('Project-Portfolio', 'initializePortfolioEmbed', { message: 'HTML embed initialized' });
+        logToBackend('Project-Portfolio', 'initializePortfolioEmbed', { 
+            message: 'HTML embed communication setup complete'
+        });
         
     } catch (error) {
         logToBackend('Project-Portfolio', 'initializePortfolioEmbed', null, error);
