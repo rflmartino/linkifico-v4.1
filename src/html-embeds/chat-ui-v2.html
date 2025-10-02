@@ -294,9 +294,6 @@
         </div>
         <aside id="sidebar">
             <h3>Todos</h3>
-            <div id="debugInfo" style="font-size: 10px; color: #666; margin-bottom: 8px; padding: 4px; background: #f0f0f0; border-radius: 4px;">
-                Debug: No messages received yet
-            </div>
             <ul id="todosList"></ul>
         </aside>
         
@@ -322,7 +319,6 @@
                 this.projectName = document.getElementById('projectName');
                 this.typingIndicator = document.getElementById('typingIndicator');
                 this.todosList = document.getElementById('todosList');
-                this.debugInfo = document.getElementById('debugInfo');
                 
                 this.sessionId = null;
                 this.projectId = null;
@@ -512,11 +508,7 @@
             }
             
             handleParentMessage(data) {
-                this.updateDebug(`Received: ${data?.action || 'no action'}`);
-                if (!data || !data.action) {
-                    this.updateDebug('ERROR: Invalid message data');
-                    return;
-                }
+                if (!data || !data.action) return;
                 
                 switch (data.action) {
                     case 'initialize':
@@ -550,7 +542,6 @@
                         location.reload();
                         break;
                     case 'displayTodos':
-                        this.updateDebug(`Received ${data.todos?.length || 0} todos`);
                         this.renderTodos(data.todos || []);
                         break;
                 }
@@ -570,11 +561,7 @@
             }
 
             renderTodos(todos) {
-                this.updateDebug(`Rendering ${todos.length} todos`);
-                if (!this.todosList) {
-                    this.updateDebug('ERROR: todosList element not found!');
-                    return;
-                }
+                if (!this.todosList) return;
                 this.todosList.innerHTML = '';
                 todos.forEach(t => {
                     const li = document.createElement('li');
@@ -606,13 +593,6 @@
                     li.appendChild(content);
                     this.todosList.appendChild(li);
                 });
-            }
-
-            updateDebug(message) {
-                if (this.debugInfo) {
-                    const timestamp = new Date().toLocaleTimeString();
-                    this.debugInfo.textContent = `${timestamp}: ${message}`;
-                }
             }
             
             clearMessages() {
