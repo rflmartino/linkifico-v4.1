@@ -204,20 +204,24 @@ export async function saveChatHistory(projectId, chatHistory) {
         return;
     }
     
+    // Ensure chatHistory is an array
+    const safeChatHistory = Array.isArray(chatHistory) ? chatHistory : [];
+    
     // Debug logging to see what we're saving
     try {
         Logger.info('projectData', 'saveChatHistory:debug', {
             projectId,
             redisKey: key,
-            historyLength: chatHistory ? chatHistory.length : 0,
-            historyType: typeof chatHistory,
-            historySample: chatHistory && chatHistory.length > 0 ? chatHistory.slice(0, 2) : 'empty',
-            jsonString: JSON.stringify(chatHistory),
-            jsonLength: JSON.stringify(chatHistory).length
+            historyLength: safeChatHistory.length,
+            historyType: typeof safeChatHistory,
+            isArray: Array.isArray(safeChatHistory),
+            historySample: safeChatHistory.length > 0 ? safeChatHistory.slice(0, 2) : 'empty',
+            jsonString: JSON.stringify(safeChatHistory),
+            jsonLength: JSON.stringify(safeChatHistory).length
         });
     } catch {}
     
-    await client.set(key, JSON.stringify(chatHistory));
+    await client.set(key, JSON.stringify(safeChatHistory));
     const ms = Date.now() - t;
     try { Logger.info('projectData', 'timing:saveChatHistoryMs', { ms }); } catch {}
 }
@@ -237,20 +241,61 @@ export async function getChatHistory(projectId) {
             redisKey: key,
             hasData: !!data,
             dataLength: data ? data.length : 0,
-            dataType: typeof data
+            dataType: typeof data,
+            rawData: data // Log the raw data to see what's actually stored
         });
         
         // Parse and log the actual data
-        const parsedData = data ? JSON.parse(data) : [];
+        let parsedData = [];
+        if (data) {
+            try {
+                parsedData = JSON.parse(data);
+                // Ensure parsedData is an array
+                if (!Array.isArray(parsedData)) {
+                    Logger.warn('projectData', 'getChatHistory:invalidFormat', {
+                        projectId,
+                        expectedType: 'array',
+                        actualType: typeof parsedData,
+                        rawData: data
+                    });
+                    parsedData = [];
+                }
+            } catch (parseError) {
+                Logger.error('projectData', 'getChatHistory:parseError', {
+                    projectId,
+                    parseError: parseError.message,
+                    rawData: data
+                });
+                parsedData = [];
+            }
+        }
+        
         Logger.info('projectData', 'getChatHistory:parsed', {
             projectId,
             parsedLength: parsedData.length,
             parsedType: typeof parsedData,
+            isArray: Array.isArray(parsedData),
             parsedSample: parsedData.length > 0 ? parsedData.slice(0, 2) : 'empty'
         });
-    } catch {}
+    } catch (logError) {
+        Logger.error('projectData', 'getChatHistory:logError', { projectId, logError: logError.message });
+    }
     
-    return data ? JSON.parse(data) : [];
+    // Return parsed data or empty array
+    if (data) {
+        try {
+            const parsed = JSON.parse(data);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (parseError) {
+            Logger.error('projectData', 'getChatHistory:returnParseError', {
+                projectId,
+                parseError: parseError.message,
+                rawData: data
+            });
+            return [];
+        }
+    }
+    return [];
 }
 
 // Processing storage for polling

@@ -85,13 +85,21 @@ async function processChatMessage(projectId, userId, message, sessionId, process
         // Get chat history
         let chatHistory = allData.chatHistory || [];
         
-        // Add user message to history
-        chatHistory.push({
-            role: 'user',
-            message: message,
-            timestamp: new Date().toISOString(),
-            sessionId: sessionId
-        });
+        // Add user message to history (only if not already present)
+        const userMessageExists = chatHistory.some(msg => 
+            msg.role === 'user' && 
+            msg.message === message && 
+            msg.sessionId === sessionId
+        );
+        
+        if (!userMessageExists) {
+            chatHistory.push({
+                role: 'user',
+                message: message,
+                timestamp: new Date().toISOString(),
+                sessionId: sessionId
+            });
+        }
 
         // Update chat history in allData
         allData.chatHistory = chatHistory;
@@ -336,18 +344,28 @@ export async function initializeProject(projectId, userId, initialMessage, templ
         allData.projectData.email = email;
         allData.projectData.emailId = emailId;
         
-        // Save project data (without chat history), email mapping, and add to user's project list atomically
-        const dataToSave = { ...allData };
-        delete dataToSave.chatHistory; // Don't save empty chat history initially
-        
+        // Save project data (including empty chat history), email mapping, and add to user's project list atomically
         await Promise.all([
-            redisData.saveAllData(projectId, userId, dataToSave),
+            redisData.saveAllData(projectId, userId, allData),
             redisData.saveEmailMapping(email, projectId),
             addProjectToUser(userId, projectId, 'active')
         ]);
         
-        // Process initial message (this will save the chat history with messages)
-        return await processChatMessage(projectId, userId, initialMessage, `session_${Date.now()}`, null);
+        // CRITICAL: Save user's initial message to Redis immediately so workspace can see it
+        const sessionId = `session_${Date.now()}`;
+        const userMessage = {
+            role: 'user',
+            message: initialMessage,
+            timestamp: new Date().toISOString(),
+            sessionId: sessionId
+        };
+        
+        // Add user message to chat history and save immediately
+        allData.chatHistory.push(userMessage);
+        await redisData.saveAllData(projectId, userId, allData);
+        
+        // Process initial message (this will add AI response to existing chat history)
+        return await processChatMessage(projectId, userId, initialMessage, sessionId, null);
         
     } catch (error) {
         Logger.error('entrypoint.web', 'initializeProject', error);

@@ -147,14 +147,6 @@ export const redisData = {
     async saveAllData(projectId, userId, allData) {
         const startTime = Date.now();
         try {
-            // Debug logging to see what we're about to save
-            Logger.info('dataManager', 'saveAllData:debug', {
-                projectId,
-                userId,
-                chatHistoryLength: allData.chatHistory ? allData.chatHistory.length : 0,
-                chatHistoryType: typeof allData.chatHistory,
-                chatHistorySample: allData.chatHistory && allData.chatHistory.length > 0 ? allData.chatHistory.slice(0, 2) : 'empty'
-            });
             
             await Promise.all([
                 saveProjectData(projectId, allData.projectData),
