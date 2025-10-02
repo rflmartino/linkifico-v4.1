@@ -208,7 +208,19 @@ export async function getChatHistory(projectId) {
     const key = REDIS_KEYS.CHAT_HISTORY(projectId);
     const data = await client.get(key);
     const ms = Date.now() - t;
-    try { Logger.info('projectData', 'timing:getChatHistoryMs', { ms }); } catch {}
+    
+    // Debug logging to see what we're getting from Redis
+    try { 
+        Logger.info('projectData', 'timing:getChatHistoryMs', { ms }); 
+        Logger.info('projectData', 'getChatHistory:debug', {
+            projectId,
+            redisKey: key,
+            hasData: !!data,
+            dataLength: data ? data.length : 0,
+            dataType: typeof data
+        });
+    } catch {}
+    
     return data ? JSON.parse(data) : [];
 }
 

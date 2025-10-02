@@ -393,6 +393,16 @@ export async function getProjectChatHistory(projectId, userId) {
     try {
         const allData = await redisData.loadAllData(projectId, userId);
         const chatHistory = allData.chatHistory;
+        
+        // Debug logging to see what we're actually getting
+        Logger.info('entrypoint.web', 'getProjectChatHistory:debug', {
+            projectId,
+            userId,
+            historyLength: chatHistory ? chatHistory.length : 0,
+            historyType: typeof chatHistory,
+            historySample: chatHistory && chatHistory.length > 0 ? chatHistory.slice(0, 2) : 'empty'
+        });
+        
         return {
             success: true,
             chatHistory: chatHistory,
