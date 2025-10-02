@@ -1,53 +1,46 @@
-// API Reference: https://www.wix.com/velo/reference/api-overview/introduction
-// “Hello, World!” Example: https://learn-code.wix.com/en/article/hello-world
+// Project Workspace Page - Velo Frontend
+// Handles project workspace functionality - receives userId and projectId from URL
 
 import { processUserRequest } from 'backend/entrypoint.web.js';
-import { currentMember } from 'wix-members';
 import wixLocation from 'wix-location';
 import { session } from 'wix-storage';
+import { logToBackend } from 'backend/utils/webLogger.web.js';
 
 $w.onReady(async function () {
+    const pageLoadStartTime = Date.now();
     const chatEl = $w('#mainChatDisplay');
 
-    const projectId = wixLocation.query.projectId || 'default_project';
+    // Extract transition ID from URL if available (for tracking)
+    const urlParams = new URLSearchParams(window.location.search);
+    const referrerTransitionId = document.referrer.includes('project-portfolio') ? Date.now() : null;
+
+    logToBackend('Project-Workspace', 'onReady', {
+        message: 'PAGE LOAD START: Project Workspace initializing',
+        pageLoadStartTime: pageLoadStartTime,
+        referrer: document.referrer,
+        referrerTransitionId: referrerTransitionId,
+        urlParams: Object.fromEntries(urlParams)
+    });
+
+    // Get projectId and userId from URL parameters
+    const projectId = wixLocation.query.projectId || generateNewProjectId();
+    const userId = wixLocation.query.userId;
     
-    // User switching system for testing
-    const { userId, isTestUser } = await initializeUserSystem();
-    
-    // Display current user mode (for debugging/testing)
-    console.log(`🔧 User Mode: ${isTestUser ? 'TEST' : 'REAL'} | User ID: ${userId}`);
-    
-    // Add user mode indicator to page title for easy identification
-    if (isTestUser) {
-        document.title = `[TEST] ${document.title}`;
+    // Validate required parameters
+    if (!userId) {
+        logToBackend('Project-Workspace', 'onReady', null, new Error('NAVIGATION ERROR: Missing userId parameter in URL'));
+        wixLocation.to('/project-portfolio'); // Redirect back to portfolio
+        return;
     }
     
-    // Make user switching functions available globally for console access
-    window.switchToTestUser = () => switchUserMode('test');
-    window.switchToRealUser = () => switchUserMode('real');
-    window.createNewTestUser = () => switchUserMode('newTest');
-    window.getCurrentUserInfo = () => ({ userId, isTestUser, mode: isTestUser ? 'TEST' : 'REAL' });
-    window.showUserCommands = () => {
-        console.log(`
-🔧 USER SWITCHING COMMANDS:
-• switchToTestUser()     - Switch to existing test user
-• createNewTestUser()    - Create and switch to new test user  
-• switchToRealUser()     - Switch back to real user
-• getCurrentUserInfo()   - Show current user info
-
-📋 URL PARAMETERS:
-• ?testUser=true         - Use existing test user
-• ?newTestUser=true      - Create new test user
-• ?testUser=false        - Use real user
-
-Current: ${isTestUser ? 'TEST' : 'REAL'} | ID: ${userId}
-        `);
-    };
-    
-    // Show commands on load for easy access
-    setTimeout(() => {
-        console.log('🔧 Type showUserCommands() in console for user switching options');
-    }, 1000);
+    logToBackend('Project-Workspace', 'onReady', {
+        message: 'PAGE LOAD: Parameters validated, starting initialization',
+        projectId: projectId,
+        userId: userId,
+        isNewProject: !wixLocation.query.projectId,
+        pageLoadStartTime: pageLoadStartTime,
+        referrerTransitionId: referrerTransitionId
+    });
 
     let sessionId = session.getItem('chatSessionId');
     if (!sessionId) {
@@ -58,32 +51,54 @@ Current: ${isTestUser ? 'TEST' : 'REAL'} | ID: ${userId}
 	// Check for existing project and chat history on page load
 	let isNewSession = false;
 	let existingHistory = [];
+	let isNewProject = false;
 	
 	try {
+		logToBackend('Project-Workspace', 'checkProjectStatus', {
+			message: 'BACKEND CHECK START: Checking project status and history',
+			projectId: projectId,
+			pageLoadStartTime: pageLoadStartTime
+		});
+		
 		// First check if project exists and get status
+		const statusStartTime = Date.now();
 		const status = await processUserRequest({ op: 'status', projectId, userId }).catch(() => null);
+		const statusDuration = Date.now() - statusStartTime;
 		
 		// Get chat history to determine if this is a new session
+		const historyStartTime = Date.now();
 		const historyResult = await processUserRequest({ op: 'history', projectId, userId }).catch(() => null);
+		const historyDuration = Date.now() - historyStartTime;
+		
 		existingHistory = historyResult?.history || [];
 		isNewSession = existingHistory.length === 0;
 		
-		// If no project exists, initialize it
-		if (!status || status.success === false) {
-			await processUserRequest({
-				op: 'init',
-				projectId,
-				userId,
-				payload: { projectName: 'Project Chat', templateName: 'simple_waterfall', initialMessage: 'Start' }
-			}).catch(() => null);
-		}
+		// Determine if this is a newly created project (from portfolio)
+		isNewProject = !status || status.success === false || (existingHistory.length <= 2 && isProjectJustCreated());
+		
+		logToBackend('Project-Workspace', 'checkProjectStatus', {
+			message: 'BACKEND CHECK COMPLETE: Project status and history retrieved',
+			projectExists: !!status?.success,
+			historyLength: existingHistory.length,
+			isNewProject: isNewProject,
+			isNewSession: isNewSession,
+			statusCheckDurationMs: statusDuration,
+			historyCheckDurationMs: historyDuration,
+			totalBackendCheckMs: statusDuration + historyDuration,
+			pageLoadStartTime: pageLoadStartTime,
+			referrerTransitionId: referrerTransitionId
+		});
 		
 		// Update page elements based on project status (if returning user)
-		if (!isNewSession && status?.success) {
+		if (!isNewSession && status?.success && !isNewProject) {
+			logToBackend('Project-Workspace', 'updatePageElements', {
+				message: 'EXISTING PROJECT: Updating page elements for returning user',
+				projectId: projectId
+			});
 			updatePageElements(status);
 		}
 	} catch (e) {
-		console.error('Error checking project status:', e);
+		logToBackend('Project-Workspace', 'checkProjectStatus', null, new Error(`BACKEND CHECK ERROR: ${e.message} (PageLoadTime: ${Date.now() - pageLoadStartTime}ms)`));
 	}
 
 	chatEl.onMessage(async (event) => {
@@ -91,18 +106,41 @@ Current: ${isTestUser ? 'TEST' : 'REAL'} | ID: ${userId}
         const action = data.action;
 
         if (action === 'ready') {
+            const chatInitStartTime = Date.now();
+            
+            logToBackend('Project-Workspace', 'chatInitialize', {
+                message: 'CHAT INIT START: Chat UI ready, initializing project data',
+                projectId: projectId,
+                pageLoadStartTime: pageLoadStartTime,
+                chatInitStartTime: chatInitStartTime,
+                totalPageLoadTimeMs: chatInitStartTime - pageLoadStartTime
+            });
+            
             // Get current project info from status if available
             let currentProjectName = 'Project Chat';
             let currentProjectEmail = null;
             try {
+                const projectInfoStartTime = Date.now();
                 const status = await processUserRequest({ op: 'status', projectId, userId }).catch(() => null);
+                const projectInfoDuration = Date.now() - projectInfoStartTime;
+                
                 if (status?.projectData?.name) {
                     currentProjectName = status.projectData.name;
                 }
                 if (status?.projectEmail) {
                     currentProjectEmail = status.projectEmail;
                 }
-            } catch (e) {}
+                
+                logToBackend('Project-Workspace', 'chatInitialize', {
+                    message: 'CHAT INIT: Project info retrieved',
+                    projectName: currentProjectName,
+                    hasEmail: !!currentProjectEmail,
+                    projectInfoDurationMs: projectInfoDuration
+                });
+                
+            } catch (e) {
+                logToBackend('Project-Workspace', 'getProjectInfo', null, e);
+            }
             
             chatEl.postMessage({
                 action: 'initialize',
@@ -121,8 +159,51 @@ Current: ${isTestUser ? 'TEST' : 'REAL'} | ID: ${userId}
             
             // Send appropriate content based on session type (determined on page load)
             setTimeout(() => {
-                if (isNewSession) {
-                    // Send welcome message for new sessions
+                if (isNewProject) {
+                    // Handle new project created from portfolio
+                    logToBackend('Project-Workspace', 'chatInitialize', { 
+                        message: 'NEW PROJECT FLOW: Initializing new project from portfolio',
+                        historyLength: existingHistory.length,
+                        pageLoadStartTime: pageLoadStartTime,
+                        totalTransitionTimeMs: Date.now() - pageLoadStartTime
+                    });
+                    
+                    // Show user input and processing state
+                    if (existingHistory.length > 0) {
+                        // Show the user's initial message and set processing state
+                        const userMessage = existingHistory.find(msg => msg.role === 'user');
+                        if (userMessage) {
+                            logToBackend('Project-Workspace', 'chatInitialize', { 
+                                message: 'NEW PROJECT FLOW: Displaying user input message',
+                                userMessageLength: userMessage.message.length
+                            });
+                            
+                            chatEl.postMessage({
+                                action: 'displayMessage',
+                                type: 'user',
+                                content: userMessage.message,
+                                timestamp: userMessage.timestamp
+                            });
+                        }
+                        
+                        // Set processing state and start polling for AI response
+                        logToBackend('Project-Workspace', 'chatInitialize', { 
+                            message: 'NEW PROJECT FLOW: Setting processing state and starting polling'
+                        });
+                        
+                        chatEl.postMessage({ action: 'updateStatus', status: 'processing' });
+                        
+                        // Start polling for the AI response
+                        setTimeout(() => {
+                            pollForNewProjectResponse();
+                        }, 1000);
+                    } else {
+                        logToBackend('Project-Workspace', 'chatInitialize', { 
+                            message: 'NEW PROJECT FLOW: No history found, may need to wait for backend processing'
+                        });
+                    }
+                } else if (isNewSession) {
+                    // Send welcome message for completely new sessions
                     chatEl.postMessage({
                         action: 'displayMessage',
                         type: 'assistant',
@@ -147,7 +228,7 @@ Current: ${isTestUser ? 'TEST' : 'REAL'} | ID: ${userId}
                                 });
                             }
                         } catch (error) {
-                            console.error('Error loading existing todos:', error);
+                            logToBackend('Project-Workspace', 'loadExistingTodos', null, error);
                         }
                     }, 500);
                 }
@@ -293,101 +374,23 @@ Current: ${isTestUser ? 'TEST' : 'REAL'} | ID: ${userId}
         }
     });
 
-    // User switching system for testing
-    async function initializeUserSystem() {
-        try {
-            // Check URL parameters for user mode switching
-            const urlTestMode = wixLocation.query.testUser;
-            const urlNewTestUser = wixLocation.query.newTestUser;
-            
-            // Check session storage for current mode
-            let currentMode = session.getItem('userMode') || 'real';
-            let testUserId = session.getItem('testUserId');
-            
-            // Handle URL parameter overrides
-            if (urlTestMode === 'true' || urlTestMode === '1') {
-                currentMode = 'test';
-                session.setItem('userMode', 'test');
-            } else if (urlTestMode === 'false' || urlTestMode === '0') {
-                currentMode = 'real';
-                session.setItem('userMode', 'real');
-            }
-            
-            // Handle new test user creation
-            if (urlNewTestUser === 'true' || urlNewTestUser === '1') {
-                const timestamp = Date.now();
-                const randomId = Math.random().toString(36).substring(2, 8);
-                testUserId = `test_user_${timestamp}_${randomId}`;
-                session.setItem('testUserId', testUserId);
-                session.setItem('userMode', 'test');
-                currentMode = 'test';
-                console.log(`🆕 Created new test user: ${testUserId}`);
-            }
-            
-            // Determine final user ID
-            let finalUserId;
-            let isTestUser = false;
-            
-            if (currentMode === 'test') {
-                // Ensure we have a test user ID
-                if (!testUserId) {
-                    const timestamp = Date.now();
-                    const randomId = Math.random().toString(36).substring(2, 8);
-                    testUserId = `test_user_${timestamp}_${randomId}`;
-                    session.setItem('testUserId', testUserId);
-                }
-                finalUserId = testUserId;
-                isTestUser = true;
-            } else {
-                // Use real user ID
-                const member = await currentMember.getMember().catch(() => null);
-                finalUserId = member && member._id ? member._id : 'anonymous';
-                isTestUser = false;
-            }
-            
-            return { userId: finalUserId, isTestUser };
-            
-        } catch (error) {
-            console.error('Error in user switching system:', error);
-            // Fallback to real user
-            const member = await currentMember.getMember().catch(() => null);
-            return { userId: member && member._id ? member._id : 'anonymous', isTestUser: false };
-        }
-    }
 
-    // Function to switch user modes
-    function switchUserMode(mode) {
-        const currentUrl = wixLocation.url;
-        const url = new URL(currentUrl);
-        
-        // Remove existing user-related parameters
-        url.searchParams.delete('testUser');
-        url.searchParams.delete('newTestUser');
-        
-        if (mode === 'test') {
-            url.searchParams.set('testUser', 'true');
-            console.log('🔄 Switching to existing test user...');
-        } else if (mode === 'newTest') {
-            url.searchParams.set('newTestUser', 'true');
-            console.log('🆕 Creating new test user...');
-        } else if (mode === 'real') {
-            url.searchParams.set('testUser', 'false');
-            console.log('🔄 Switching to real user...');
-        }
-        
-        // Reload page with new parameters
-        wixLocation.to(url.toString());
+    // Generate new project ID for new projects
+    function generateNewProjectId() {
+        const timestamp = Date.now();
+        const randomId = Math.random().toString(36).substring(2, 8);
+        return `proj_${timestamp}_${randomId}`;
     }
 
     // Function to update page title with project name
     function updatePageTitle(projectName) {
         try {
             if (projectName && projectName !== 'Project Chat' && projectName !== 'Untitled Project') {
-                const isTest = isTestUser ? '[TEST] ' : '';
+                const isTest = TEST_MODE ? '[TEST] ' : '';
                 document.title = `${isTest}${projectName} - PMaaS`;
             }
         } catch (error) {
-            console.error('Error updating page title:', error);
+            logToBackend('Project-Workspace', 'updatePageTitle', null, error);
         }
     }
 
@@ -405,11 +408,138 @@ Current: ${isTestUser ? 'TEST' : 'REAL'} | ID: ${userId}
             // - Display current project phase
             // - Update any status badges or indicators
             
-            console.log('Project status for page updates:', projectStatus);
+            logToBackend('Project-Workspace', 'updatePageElements', { 
+                message: 'Project status for page updates',
+                projectStatus: projectStatus
+            });
             
             // This is where we'll add more HTML element updates
         } catch (error) {
-            console.error('Error updating page elements:', error);
+            logToBackend('Project-Workspace', 'updatePageElements', null, error);
         }
+    }
+
+    // Helper function to determine if project was just created
+    function isProjectJustCreated() {
+        // Check if we arrived here recently (within last 30 seconds)
+        const referrer = document.referrer;
+        const isFromPortfolio = referrer.includes('project-portfolio');
+        const hasRecentTimestamp = projectId.includes(Date.now().toString().substring(0, 10)); // Check if projectId has recent timestamp
+        
+        return isFromPortfolio || hasRecentTimestamp;
+    }
+
+    // Poll for AI response on new projects
+    async function pollForNewProjectResponse() {
+        const maxAttempts = 30; // 30 attempts = 60 seconds max
+        let attempts = 0;
+        const pollStartTime = Date.now();
+        
+        logToBackend('Project-Workspace', 'pollForNewProjectResponse', {
+            message: 'POLLING START: Starting to poll for AI response',
+            maxAttempts: maxAttempts,
+            pollStartTime: pollStartTime,
+            projectId: projectId
+        });
+        
+        const poll = async () => {
+            attempts++;
+            const pollAttemptStartTime = Date.now();
+            
+            try {
+                // Get updated chat history
+                const historyResult = await processUserRequest({ op: 'history', projectId, userId }).catch(() => null);
+                const currentHistory = historyResult?.history || [];
+                
+                // Check if we have an AI response (more than just the user message)
+                const aiResponses = currentHistory.filter(msg => msg.role === 'assistant');
+                
+                logToBackend('Project-Workspace', 'pollForNewProjectResponse', {
+                    message: `POLLING ATTEMPT ${attempts}: Checking for AI response`,
+                    historyLength: currentHistory.length,
+                    aiResponseCount: aiResponses.length,
+                    attemptDurationMs: Date.now() - pollAttemptStartTime,
+                    totalPollingTimeMs: Date.now() - pollStartTime
+                });
+                
+                if (aiResponses.length > 0) {
+                    // We have AI response(s), display them
+                    logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
+                        message: 'POLLING SUCCESS: AI response received, displaying content',
+                        responseCount: aiResponses.length,
+                        totalPollingTimeMs: Date.now() - pollStartTime,
+                        totalAttempts: attempts
+                    });
+                    
+                    // Display the AI response(s)
+                    aiResponses.forEach(response => {
+                        chatEl.postMessage({
+                            action: 'displayMessage',
+                            type: 'assistant',
+                            content: response.message,
+                            timestamp: response.timestamp
+                        });
+                    });
+                    
+                    // Load todos if available
+                    const currentStatus = await processUserRequest({ op: 'status', projectId, userId }).catch(() => null);
+                    if (currentStatus?.todos && currentStatus.todos.length > 0) {
+                        logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
+                            message: 'POLLING SUCCESS: Displaying todos',
+                            todoCount: currentStatus.todos.length
+                        });
+                        chatEl.postMessage({
+                            action: 'displayTodos',
+                            todos: currentStatus.todos
+                        });
+                    }
+                    
+                    // Update project name if it changed
+                    if (currentStatus?.projectData?.name && currentStatus.projectData.name !== 'Untitled Project') {
+                        logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
+                            message: 'POLLING SUCCESS: Updating project name',
+                            newProjectName: currentStatus.projectData.name
+                        });
+                        chatEl.postMessage({ 
+                            action: 'updateProjectName', 
+                            projectName: currentStatus.projectData.name 
+                        });
+                        updatePageTitle(currentStatus.projectData.name);
+                    }
+                    
+                    // Set status to ready
+                    chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
+                    
+                    logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
+                        message: 'POLLING COMPLETE: New project initialization finished successfully',
+                        totalTransitionTimeMs: Date.now() - pageLoadStartTime,
+                        totalPollingTimeMs: Date.now() - pollStartTime
+                    });
+                    return;
+                }
+                
+                // No response yet, continue polling if we haven't exceeded max attempts
+                if (attempts < maxAttempts) {
+                    setTimeout(poll, 2000); // Poll every 2 seconds
+                } else {
+                    // Timeout
+                    logToBackend('Project-Workspace', 'pollForNewProjectResponse', null, new Error(`POLLING TIMEOUT: No AI response after ${attempts} attempts (${Date.now() - pollStartTime}ms)`));
+                    chatEl.postMessage({
+                        action: 'displayMessage',
+                        type: 'system',
+                        content: 'Processing is taking longer than expected. Please refresh the page or try again.',
+                        timestamp: new Date().toISOString()
+                    });
+                    chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
+                }
+                
+            } catch (error) {
+                logToBackend('Project-Workspace', 'pollForNewProjectResponse', null, new Error(`POLLING ERROR: ${error.message} (Attempt ${attempts}, TotalTime: ${Date.now() - pollStartTime}ms)`));
+                chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
+            }
+        };
+        
+        // Start polling
+        poll();
     }
 });

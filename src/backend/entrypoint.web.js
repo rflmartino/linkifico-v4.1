@@ -2,12 +2,14 @@
 // Integrates with chat UI and orchestrates the 5-controller intelligence system
 
 import { redisData } from './data/redisData.js';
+import { addProjectToUser } from './data/projectData.js';
 
 import { selfAnalysisController } from './controllers/selfAnalysisController.js';
 import { gapDetectionController } from './controllers/gapDetectionController.js';
 import { actionPlanningController } from './controllers/actionPlanningController.js';
 import { executionController } from './controllers/executionController.js';
 import { learningController } from './controllers/learningController.js';
+import { portfolioController } from './controllers/portfolioController.js';
 import { Permissions, webMethod } from 'wix-web-module';
 import { Logger } from './utils/logger.js';
 import { getTemplate } from './templates/templatesRegistry.js';
@@ -50,6 +52,20 @@ export const processUserRequest = webMethod(Permissions.Anyone, async (requestDa
     }
     if (op === 'analyze') {
         return await triggerAnalysis(projectId);
+    }
+    
+    // Portfolio operations
+    if (op === 'loadPortfolio') {
+        return await portfolioController.getUserPortfolio(userId);
+    }
+    if (op === 'archiveProject') {
+        return await portfolioController.archiveProject(userId, payload?.projectId || projectId);
+    }
+    if (op === 'restoreProject') {
+        return await portfolioController.restoreProject(userId, payload?.projectId || projectId);
+    }
+    if (op === 'deleteProject') {
+        return await portfolioController.deleteProject(userId, payload?.projectId || projectId);
     }
     
     Logger.warn('entrypoint.web', 'processUserRequest:unknownOp', op);
@@ -320,17 +336,18 @@ export async function initializeProject(projectId, userId, initialMessage, templ
         allData.projectData.email = email;
         allData.projectData.emailId = emailId;
         
-        // Save project data and email mapping atomically
+        // Save project data, email mapping, and add to user's project list atomically
         await Promise.all([
             redisData.saveAllData(projectId, userId, allData),
-            redisData.saveEmailMapping(email, projectId)
+            redisData.saveEmailMapping(email, projectId),
+            addProjectToUser(userId, projectId, 'active')
         ]);
         
         // Process initial message
         return await processChatMessage(projectId, userId, initialMessage, `session_${Date.now()}`, null);
         
     } catch (error) {
-        console.error('Error initializing project:', error);
+        Logger.error('entrypoint.web', 'initializeProject', error);
         return {
             success: false,
             message: "I encountered an error initializing your project. Please try again.",
@@ -362,7 +379,7 @@ export async function getProjectStatus(projectId, userId) {
         };
         
     } catch (error) {
-        console.error('Error getting project status:', error);
+        Logger.error('entrypoint.web', 'getProjectStatus', error);
         return {
             success: false,
             message: "Error retrieving project status",
@@ -382,7 +399,7 @@ export async function getProjectChatHistory(projectId, userId) {
             history: chatHistory // Alias for compatibility
         };
     } catch (error) {
-        console.error('Error getting chat history:', error);
+        Logger.error('entrypoint.web', 'getProjectChatHistory', error);
         return {
             success: false,
             message: "Error retrieving chat history",
@@ -416,7 +433,7 @@ export async function updateProjectData(projectId, userId, updates) {
         };
         
     } catch (error) {
-        console.error('Error updating project data:', error);
+        Logger.error('entrypoint.web', 'updateProjectData', error);
         return {
             success: false,
             message: "Error updating project data",
@@ -451,7 +468,7 @@ export async function triggerAnalysis(projectId, userId) {
         };
         
     } catch (error) {
-        console.error('Error triggering analysis:', error);
+        Logger.error('entrypoint.web', 'triggerAnalysis', error);
         return {
             success: false,
             message: "Error running analysis",

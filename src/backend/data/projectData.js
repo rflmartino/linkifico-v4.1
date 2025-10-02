@@ -26,7 +26,8 @@ export const REDIS_KEYS = {
     LEARNING: (userId) => `learning:${userId}`,
     REFLECTION: (projectId) => `reflection:${projectId}`,
     CHAT_HISTORY: (projectId) => `chat:${projectId}`,
-    PROCESSING: (processingId) => `processing:${processingId}`
+    PROCESSING: (processingId) => `processing:${processingId}`,
+    USER_PROJECTS: (userId) => `user:${userId}:projects`
 };
 
 // Project Data Structure
@@ -229,6 +230,127 @@ export async function getProcessing(processingId) {
     const ms = Date.now() - t;
     try { Logger.info('projectData', 'timing:getProcessingMs', { ms }); } catch {}
     return data ? JSON.parse(data) : null;
+}
+
+// User-to-Projects Mapping Functions
+export async function getUserProjects(userId) {
+    const t = Date.now();
+    const client = await getRedisClient();
+    const key = REDIS_KEYS.USER_PROJECTS(userId);
+    const data = await client.get(key);
+    const ms = Date.now() - t;
+    try { Logger.info('projectData', 'timing:getUserProjectsMs', { ms }); } catch {}
+    return data ? JSON.parse(data) : [];
+}
+
+export async function addProjectToUser(userId, projectId, status = 'active') {
+    const t = Date.now();
+    const client = await getRedisClient();
+    const key = REDIS_KEYS.USER_PROJECTS(userId);
+    
+    // Get existing projects
+    let userProjects = await getUserProjects(userId);
+    
+    // Check if project already exists
+    const existingIndex = userProjects.findIndex(p => p.projectId === projectId);
+    
+    if (existingIndex >= 0) {
+        // Update existing project status
+        userProjects[existingIndex].status = status;
+        userProjects[existingIndex].updatedAt = new Date().toISOString();
+    } else {
+        // Add new project
+        userProjects.push({
+            projectId: projectId,
+            status: status,
+            addedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        });
+    }
+    
+    await client.set(key, JSON.stringify(userProjects));
+    const ms = Date.now() - t;
+    try { Logger.info('projectData', 'timing:addProjectToUserMs', { ms }); } catch {}
+}
+
+export async function removeProjectFromUser(userId, projectId) {
+    const t = Date.now();
+    const client = await getRedisClient();
+    const key = REDIS_KEYS.USER_PROJECTS(userId);
+    
+    // Get existing projects
+    let userProjects = await getUserProjects(userId);
+    
+    // Remove project from list
+    userProjects = userProjects.filter(p => p.projectId !== projectId);
+    
+    await client.set(key, JSON.stringify(userProjects));
+    const ms = Date.now() - t;
+    try { Logger.info('projectData', 'timing:removeProjectFromUserMs', { ms }); } catch {}
+}
+
+export async function archiveProjectForUser(userId, projectId) {
+    const t = Date.now();
+    const client = await getRedisClient();
+    const key = REDIS_KEYS.USER_PROJECTS(userId);
+    
+    // Get existing projects
+    let userProjects = await getUserProjects(userId);
+    
+    // Find and update project status
+    const projectIndex = userProjects.findIndex(p => p.projectId === projectId);
+    if (projectIndex >= 0) {
+        userProjects[projectIndex].status = 'archived';
+        userProjects[projectIndex].archivedAt = new Date().toISOString();
+        userProjects[projectIndex].updatedAt = new Date().toISOString();
+        
+        await client.set(key, JSON.stringify(userProjects));
+    }
+    
+    const ms = Date.now() - t;
+    try { Logger.info('projectData', 'timing:archiveProjectForUserMs', { ms }); } catch {}
+}
+
+export async function restoreProjectForUser(userId, projectId) {
+    const t = Date.now();
+    const client = await getRedisClient();
+    const key = REDIS_KEYS.USER_PROJECTS(userId);
+    
+    // Get existing projects
+    let userProjects = await getUserProjects(userId);
+    
+    // Find and update project status
+    const projectIndex = userProjects.findIndex(p => p.projectId === projectId);
+    if (projectIndex >= 0) {
+        userProjects[projectIndex].status = 'active';
+        userProjects[projectIndex].restoredAt = new Date().toISOString();
+        userProjects[projectIndex].updatedAt = new Date().toISOString();
+        
+        await client.set(key, JSON.stringify(userProjects));
+    }
+    
+    const ms = Date.now() - t;
+    try { Logger.info('projectData', 'timing:restoreProjectForUserMs', { ms }); } catch {}
+}
+
+export async function deleteProjectCompletely(userId, projectId) {
+    const t = Date.now();
+    const client = await getRedisClient();
+    
+    // Remove from user's project list
+    await removeProjectFromUser(userId, projectId);
+    
+    // Delete all project data
+    await Promise.all([
+        client.del(REDIS_KEYS.PROJECT(projectId)),
+        client.del(REDIS_KEYS.KNOWLEDGE(projectId)),
+        client.del(REDIS_KEYS.GAPS(projectId)),
+        client.del(REDIS_KEYS.REFLECTION(projectId)),
+        client.del(REDIS_KEYS.CHAT_HISTORY(projectId))
+    ]);
+    
+    const ms = Date.now() - t;
+    try { Logger.info('projectData', 'timing:deleteProjectCompletelyMs', { ms }); } catch {}
 }
 
 // Utility Functions
