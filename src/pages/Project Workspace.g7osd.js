@@ -170,7 +170,10 @@ $w.onReady(async function () {
             console.log('Status todos:', status.todos);
             if (Array.isArray(status.todos) && status.todos.length) {
                 console.log('Sending todos to chat UI:', status.todos);
-                chatEl.postMessage({ action: 'displayTodos', todos: status.todos });
+                const todosMessage = { action: 'displayTodos', todos: status.todos };
+                console.log('Full message being sent:', todosMessage);
+                chatEl.postMessage(todosMessage);
+                console.log('postMessage sent successfully');
             } else {
                 console.log('No todos found in status');
             }
