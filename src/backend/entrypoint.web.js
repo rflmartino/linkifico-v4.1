@@ -44,7 +44,7 @@ export const processUserRequest = webMethod(Permissions.Anyone, async (requestDa
         return await getProjectStatus(projectId);
     }
     if (op === 'history') {
-        return await getProjectChatHistory(projectId);
+        return await getProjectChatHistory(projectId, userId);
     }
     if (op === 'update') {
         const updates = (payload && payload.updates) || {};
