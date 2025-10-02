@@ -7,7 +7,7 @@ import { Logger } from '../utils/logger.js';
 
 // Redis client (lazy)
 let redisClient = null;
-async function getRedisClient() {
+export async function getRedisClient() {
     if (!redisClient) {
         const redisUrl = await getSecret('REDIS_CONNECTION_URL');
         redisClient = createClient({ url: redisUrl });

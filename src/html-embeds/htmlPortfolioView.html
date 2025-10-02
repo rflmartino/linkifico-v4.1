@@ -1226,21 +1226,29 @@
         }
 
         function submitNewProject() {
+            debugLog('🚀 submitNewProject called');
+            
             const userInput = document.getElementById('projectInput').value.trim();
+            debugLog('📝 User input length: ' + userInput.length);
+            debugLog('🎯 Selected template: ' + selectedTemplate);
             
             if (!selectedTemplate || !userInput) {
-                // console.error('❌ Portfolio View: Missing template or input');
+                debugLog('❌ Missing template or input - template: ' + selectedTemplate + ', input length: ' + userInput.length);
                 return;
             }
             
-            // console.log('🚀 Portfolio View: Creating project with template:', selectedTemplate);
+            // Store template name before closing modal (which resets it)
+            const templateToUse = selectedTemplate;
+            debugLog('💾 Stored template before modal close: ' + templateToUse);
             
             // Close modal
+            debugLog('🔄 Closing modal...');
             closeNewProjectModal();
             
             // Send to Velo for backend processing
+            debugLog('📤 Sending CREATE_PROJECT with template: ' + templateToUse);
             sendToVelo('CREATE_PROJECT', {
-                templateName: selectedTemplate,
+                templateName: templateToUse,
                 userInput: userInput
             });
         }

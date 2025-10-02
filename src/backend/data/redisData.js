@@ -10,8 +10,9 @@ import {
     getReflectionData, saveReflectionData,
     getChatHistory, saveChatHistory,
     getProcessing, saveProcessing,
-    createProjectData, createKnowledgeData, createGapData, createLearningData, createReflectionData
-} from './projectData';
+    createProjectData, createKnowledgeData, createGapData, createLearningData, createReflectionData,
+    getRedisClient
+} from './projectData.js';
 
 export const redisData = {
     
@@ -70,7 +71,8 @@ export const redisData = {
                 const email = `project-${emailId}@linkifico.com`;
                 
                 // Check if email already exists using email-to-project mapping
-                const existingProjectId = await this.redis.get(`email_to_project:${email}`);
+                const client = await getRedisClient();
+                const existingProjectId = await client.get(`email_to_project:${email}`);
                 
                 if (!existingProjectId) {
                     Logger.info('redisData', 'generateUniqueProjectEmail:success', { 
@@ -99,7 +101,8 @@ export const redisData = {
     // Get project ID by email address (for future email processing)
     async getProjectIdByEmail(email) {
         try {
-            const projectId = await this.redis.get(`email_to_project:${email}`);
+            const client = await getRedisClient();
+            const projectId = await client.get(`email_to_project:${email}`);
             return projectId;
         } catch (error) {
             Logger.error('redisData', 'getProjectIdByEmail:error', error);
@@ -110,7 +113,8 @@ export const redisData = {
     // Save email-to-project mapping
     async saveEmailMapping(email, projectId) {
         try {
-            await this.redis.set(`email_to_project:${email}`, projectId);
+            const client = await getRedisClient();
+            await client.set(`email_to_project:${email}`, projectId);
             Logger.info('redisData', 'saveEmailMapping:success', { email, projectId });
         } catch (error) {
             Logger.error('redisData', 'saveEmailMapping:error', error);
@@ -121,7 +125,8 @@ export const redisData = {
     // Delete email-to-project mapping (for cleanup)
     async deleteEmailMapping(email) {
         try {
-            await this.redis.del(`email_to_project:${email}`);
+            const client = await getRedisClient();
+            await client.del(`email_to_project:${email}`);
             Logger.info('redisData', 'deleteEmailMapping:success', { email });
         } catch (error) {
             Logger.error('redisData', 'deleteEmailMapping:error', error);
@@ -172,18 +177,20 @@ export const redisData = {
     // Delete project and clean up email mapping
     async deleteProject(projectId, userId) {
         try {
+            const client = await getRedisClient();
+            
             // Load project data to get email for cleanup
             const allData = await this.loadAllData(projectId, userId);
             const projectEmail = allData.projectData?.email;
             
             // Delete all project data
             await Promise.all([
-                this.redis.del(`project:${projectId}:${userId}:data`),
-                this.redis.del(`project:${projectId}:${userId}:chatHistory`),
-                this.redis.del(`project:${projectId}:${userId}:knowledgeData`),
-                this.redis.del(`project:${projectId}:${userId}:gapData`),
-                this.redis.del(`project:${projectId}:${userId}:learningData`),
-                this.redis.del(`project:${projectId}:${userId}:reflectionData`),
+                client.del(`project:${projectId}:${userId}:data`),
+                client.del(`project:${projectId}:${userId}:chatHistory`),
+                client.del(`project:${projectId}:${userId}:knowledgeData`),
+                client.del(`project:${projectId}:${userId}:gapData`),
+                client.del(`project:${projectId}:${userId}:learningData`),
+                client.del(`project:${projectId}:${userId}:reflectionData`),
                 // Clean up email mapping if email exists
                 projectEmail ? this.deleteEmailMapping(projectEmail) : Promise.resolve()
             ]);
