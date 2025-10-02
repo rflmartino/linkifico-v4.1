@@ -700,53 +700,38 @@
 
         // Global message handler for Wix HTML embed communication
         window.addEventListener('message', function(event) {
-            // Debug: Show that message listener is working
-            const loadingEl = document.querySelector('.loading-text');
-            if (loadingEl) {
-                loadingEl.textContent = '🔍 Message listener triggered';
-            }
+            debugLog('🔍 Message listener triggered');
+            debugLog('📦 Event data: ' + JSON.stringify(event.data));
             
             // Check if this message is from our Velo page
             if (event.data && event.data.type) {
-                if (loadingEl) {
-                    loadingEl.textContent = `📨 Valid message: ${event.data.type}`;
-                }
+                debugLog('✅ Valid message type: ' + event.data.type);
                 handlePortfolioMessage(event);
             } else {
-                if (loadingEl) {
-                    loadingEl.textContent = '❌ Invalid message format';
-                }
+                debugLog('❌ Invalid message format');
             }
         });
 
         // Initialize portfolio
         document.addEventListener('DOMContentLoaded', function() {
+            debugLog('🏠 DOMContentLoaded: Portfolio initialization started');
             
             // CRITICAL: Ensure modal is hidden on startup (force hidden state)
             const modal = document.getElementById('newProjectModal');
             if (modal) {
                 modal.classList.add('hidden');
                 modal.style.display = 'none'; // Double ensure it's hidden
+                debugLog('🔒 Modal hidden on startup');
             }
             
             // Show loading state initially
             showLoading();
-            
-            // Debug: Update loading text to show initialization
-            const loadingEl = document.querySelector('.loading-text');
-            if (loadingEl) {
-                loadingEl.textContent = '🚀 HTML embed initialized, requesting data...';
-            }
+            debugLog('⏳ Loading state shown');
             
             // Request initial data from Velo
+            debugLog('📤 Sending LOAD_PORTFOLIO request to Velo');
             sendToVelo('LOAD_PORTFOLIO', {});
-            
-            // Debug: Update loading text after sending request
-            setTimeout(() => {
-                if (loadingEl && loadingEl.textContent.includes('🚀')) {
-                    loadingEl.textContent = '⏳ Waiting for Velo response...';
-                }
-            }, 100);
+            debugLog('✅ Request sent, waiting for response...');
         });
         
         function showLoading() {
@@ -764,21 +749,20 @@
         function handlePortfolioMessage(event) {
             const { type, data, error } = event.data;
             
-            // Visual debug: Change loading text to show message received
-            const loadingEl = document.querySelector('.loading-text');
-            if (loadingEl) {
-                loadingEl.textContent = `📨 Message received: ${type}`;
-            }
+            debugLog('📨 handlePortfolioMessage called with type: ' + type);
             
             switch (type) {
                 case 'PORTFOLIO_DATA':
+                    debugLog('📊 PORTFOLIO_DATA received');
+                    debugLog('📋 Data success: ' + (data && data.success));
                     hideLoading();
                     if (data && data.success) {
                         portfolioData = data.data;
+                        debugLog('🎯 Portfolio data set, calling renderPortfolio');
                         renderPortfolio();
-                        // console.log(`✅ Portfolio View: Data loaded - ${data.data.totalProjects} projects`);
+                        debugLog('✅ Portfolio rendered successfully');
                     } else {
-                        // console.error('❌ Portfolio View: Invalid data received', data);
+                        debugLog('❌ Invalid portfolio data received');
                         showError('Failed to load projects: ' + (data?.error || 'Invalid response'));
                     }
                     break;
@@ -1246,6 +1230,29 @@
             showArchivedProjects,
             createNewProject
         };
+        
+        // Debug logging function
+        function debugLog(message) {
+            const debugLogEl = document.getElementById('debugLog');
+            if (debugLogEl) {
+                const timestamp = new Date().toLocaleTimeString();
+                debugLogEl.innerHTML += `<br>[${timestamp}] ${message}`;
+                debugLogEl.scrollTop = debugLogEl.scrollHeight;
+            }
+        }
+        
+        // Initialize debug logging
+        document.addEventListener('DOMContentLoaded', function() {
+            debugLog('🚀 DOMContentLoaded fired');
+        });
+        
+        debugLog('📝 Script loaded');
     </script>
+    
+    <!-- Debug Panel -->
+    <div id="debugPanel" style="position: fixed; bottom: 0; left: 0; right: 0; background: #000; color: #0f0; font-family: monospace; font-size: 10px; padding: 5px; max-height: 100px; overflow-y: auto; z-index: 9999; border-top: 1px solid #333;">
+        <div style="font-weight: bold; margin-bottom: 3px;">🐛 DEBUG LOG:</div>
+        <div id="debugLog">Starting debug...</div>
+    </div>
 </body>
 </html>
