@@ -289,7 +289,7 @@
         }
 
         .hidden {
-            display: none;
+            display: none !important;
         }
 
         /* New Project Modal Styles */
@@ -654,10 +654,12 @@
             // Set up message listener for Velo communication
             window.addEventListener('message', handlePortfolioMessage);
             
-            // Ensure modal is hidden on startup
+            // CRITICAL: Ensure modal is hidden on startup (force hidden state)
             const modal = document.getElementById('newProjectModal');
             if (modal) {
                 modal.classList.add('hidden');
+                modal.style.display = 'none'; // Double ensure it's hidden
+                console.log('🔒 Portfolio View: Modal forced to hidden state');
             }
             
             // Show loading state initially
@@ -858,17 +860,28 @@
         function showNewProjectModal() {
             const modal = document.getElementById('newProjectModal');
             modal.classList.remove('hidden');
+            modal.style.display = 'flex'; // Explicitly set display
             
             // Set up template selection
             setupTemplateSelection();
             
             // Set up input validation
             setupInputValidation();
+            
+            // Reset form state
+            selectedTemplate = null;
+            document.getElementById('projectInput').value = '';
+            clearTemplateSelection();
+            updateInputSection('simple_waterfall'); // Default to basic template
+            validateForm();
+            
+            console.log('📋 Portfolio View: New project modal opened');
         }
 
         function closeNewProjectModal() {
             const modal = document.getElementById('newProjectModal');
             modal.classList.add('hidden');
+            modal.style.display = 'none'; // Explicitly hide
             
             // Reset form
             selectedTemplate = null;

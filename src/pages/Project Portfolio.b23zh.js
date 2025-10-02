@@ -81,21 +81,16 @@ async function initializeUser() {
             currentUser = wixUsers.currentUser;
             
             if (!currentUser.loggedIn) {
-                logToBackend('Project-Portfolio', 'initializeUser', { message: 'User not logged in, redirecting...' });
+                console.log('❌ Project Portfolio: User not logged in, redirecting...');
                 wixLocation.to('/login');
                 return;
             }
             
-            logToBackend('Project-Portfolio', 'initializeUser', {
-                message: 'PRODUCTION MODE: User authenticated',
-                testMode: false,
-                userId: currentUser.id,
-                email: currentUser.email
-            });
+            console.log('✅ Project Portfolio: PRODUCTION MODE - User authenticated:', currentUser.id);
         }
         
     } catch (error) {
-        logToBackend('Project-Portfolio', 'initializeUser', null, error);
+        console.error('❌ Project Portfolio: User initialization failed:', error);
         if (!TEST_MODE) {
             wixLocation.to('/login');
         }
@@ -108,14 +103,11 @@ async function initializePortfolioEmbed() {
         portfolioHtmlElement = $w('#htmlPortfolioView');
         
         if (!portfolioHtmlElement) {
-            logToBackend('Project-Portfolio', 'initializePortfolioEmbed', null, new Error('HTML element #htmlPortfolioView not found'));
+            console.error('❌ Project Portfolio: HTML element #htmlPortfolioView not found');
             return;
         }
         
-        logToBackend('Project-Portfolio', 'initializePortfolioEmbed', { 
-            message: 'HTML element found, setting up communication',
-            elementType: portfolioHtmlElement.type
-        });
+        console.log('📱 Project Portfolio: HTML element found, setting up communication');
         
         // Set up message listener for HTML embed communication
         portfolioHtmlElement.onMessage((event) => {
@@ -125,12 +117,10 @@ async function initializePortfolioEmbed() {
         // Set HTML content directly (alternative approach)
         // portfolioHtmlElement.html = `your HTML content here`;
         
-        logToBackend('Project-Portfolio', 'initializePortfolioEmbed', { 
-            message: 'HTML embed communication setup complete'
-        });
+        console.log('✅ Project Portfolio: HTML embed communication setup complete');
         
     } catch (error) {
-        logToBackend('Project-Portfolio', 'initializePortfolioEmbed', null, error);
+        console.error('❌ Project Portfolio: HTML embed initialization failed:', error);
     }
 }
 
@@ -138,7 +128,7 @@ async function initializePortfolioEmbed() {
 async function handlePortfolioMessage(event) {
     const { type, data } = event.data;
     
-    logToBackend('Project-Portfolio', 'handlePortfolioMessage', { type: type, message: 'Received message from embed' });
+    console.log('📨 Project Portfolio: Received message from embed:', type);
     
     try {
         switch (type) {
@@ -175,7 +165,7 @@ async function handlePortfolioMessage(event) {
         }
         
     } catch (error) {
-        logToBackend('Project-Portfolio', 'handlePortfolioMessage', { type: type }, error);
+        console.error('❌ Project Portfolio: Message handling failed for type:', type, error);
         sendToEmbed('ERROR', null, error.message);
     }
 }
@@ -183,11 +173,7 @@ async function handlePortfolioMessage(event) {
 // Load user's portfolio data
 async function handleLoadPortfolio() {
     try {
-        logToBackend('Project-Portfolio', 'handleLoadPortfolio', { 
-            message: 'Loading portfolio data...',
-            testMode: TEST_MODE,
-            userId: currentUser.id
-        });
+        console.log('📂 Project Portfolio: Loading portfolio data for user:', currentUser.id, 'Test Mode:', TEST_MODE);
         
         // Always call real backend (test mode only affects user authentication)
         const response = await processUserRequest({
@@ -198,21 +184,17 @@ async function handleLoadPortfolio() {
             payload: {}
         });
         
-        logToBackend('Project-Portfolio', 'handleLoadPortfolio', { 
-            message: TEST_MODE ? 'TEST MODE: Portfolio loaded from backend with test user' : 'PRODUCTION MODE: Portfolio loaded from backend',
-            testMode: TEST_MODE,
-            totalProjects: response.data?.totalProjects || 0
-        });
+        console.log('✅ Project Portfolio: Portfolio loaded from backend. Total projects:', response.data?.totalProjects || 0);
         
         if (response.success) {
             sendToEmbed('PORTFOLIO_DATA', response);
         } else {
-            logToBackend('Project-Portfolio', 'handleLoadPortfolio', null, new Error('Failed to load portfolio: ' + (response.error || 'Unknown error')));
+            console.error('❌ Project Portfolio: Failed to load portfolio:', response.error || 'Unknown error');
             sendToEmbed('PORTFOLIO_ERROR', null, response.error || 'Failed to load portfolio');
         }
         
     } catch (error) {
-        logToBackend('Project-Portfolio', 'handleLoadPortfolio', null, error);
+        console.error('❌ Project Portfolio: Portfolio loading failed:', error);
         sendToEmbed('PORTFOLIO_ERROR', null, error.message);
     }
 }
@@ -220,16 +202,13 @@ async function handleLoadPortfolio() {
 // Handle new project creation (legacy - opens modal)
 async function handleNewProject() {
     try {
-        logToBackend('Project-Portfolio', 'handleNewProject', { 
-            message: 'Opening new project modal...',
-            testMode: TEST_MODE
-        });
+        console.log('🆕 Project Portfolio: Opening new project modal...');
         
         // The HTML embed will handle showing the modal
         // This function is kept for compatibility
         
     } catch (error) {
-        logToBackend('Project-Portfolio', 'handleNewProject', null, error);
+        console.error('❌ Project Portfolio: New project modal failed:', error);
         sendToEmbed('ERROR', null, error.message);
     }
 }
@@ -239,22 +218,12 @@ async function handleCreateProject(templateName, userInput) {
     const transitionStartTime = Date.now();
     
     try {
-        logToBackend('Project-Portfolio', 'handleCreateProject', { 
-            message: 'TRANSITION START: Creating project with template',
-            templateName: templateName,
-            inputLength: userInput.length,
-            testMode: TEST_MODE,
-            transitionId: transitionStartTime
-        });
+        console.log('🚀 Project Portfolio: Creating project with template:', templateName, 'Input length:', userInput.length);
         
         // Generate new project ID
         const newProjectId = generateNewProjectId();
         
-        logToBackend('Project-Portfolio', 'handleCreateProject', { 
-            message: 'BACKEND CALL START: Calling processUserRequest init',
-            projectId: newProjectId,
-            transitionId: transitionStartTime
-        });
+        console.log('📞 Project Portfolio: Calling backend to initialize project:', newProjectId);
         
         // Call backend to initialize project with user input
         const backendStartTime = Date.now();
@@ -280,26 +249,16 @@ async function handleCreateProject(templateName, userInput) {
                 transitionId: transitionStartTime
             });
             
-            // Log navigation attempt
-            logToBackend('Project-Portfolio', 'handleCreateProject', { 
-                message: 'NAVIGATION START: Redirecting to workspace',
-                projectId: newProjectId,
-                userId: currentUser.id,
-                targetUrl: `/project-workspace?projectId=${newProjectId}&userId=${currentUser.id}`,
-                transitionId: transitionStartTime,
-                totalTransitionTimeMs: Date.now() - transitionStartTime
-            });
-            
-            // Navigate to workspace with the new project
-            wixLocation.to(`/project-workspace?projectId=${newProjectId}&userId=${currentUser.id}`);
+            // Navigate to workspace with the new project (using single quotes for Wix compatibility)
+            wixLocation.to('/project-workspace?projectId=' + newProjectId + '&userId=' + currentUser.id);
             
         } else {
-            logToBackend('Project-Portfolio', 'handleCreateProject', null, new Error(`BACKEND CALL FAILED: ${response.error || 'Unknown error'} (Duration: ${backendDuration}ms, TransitionId: ${transitionStartTime})`));
+            console.error('❌ Project Portfolio: Failed to create project:', response.error || 'Unknown error');
             sendToEmbed('ERROR', null, response.error || 'Failed to create project');
         }
         
     } catch (error) {
-        logToBackend('Project-Portfolio', 'handleCreateProject', null, new Error(`TRANSITION ERROR: ${error.message} (TransitionId: ${transitionStartTime}, Duration: ${Date.now() - transitionStartTime}ms)`));
+        console.error('❌ Project Portfolio: Project creation failed:', error);
         sendToEmbed('ERROR', null, error.message);
     }
 }
@@ -316,24 +275,11 @@ async function handleOpenProject(projectId) {
     const transitionStartTime = Date.now();
     
     try {
-        logToBackend('Project-Portfolio', 'handleOpenProject', { 
-            message: 'TRANSITION START: Opening existing project',
-            projectId: projectId, 
-            testMode: TEST_MODE,
-            transitionId: transitionStartTime
-        });
+        console.log('📂 Project Portfolio: Opening existing project:', projectId);
+        console.log('🔄 Project Portfolio: Redirecting to workspace:', `/project-workspace?projectId=${projectId}&userId=${currentUser.id}`);
         
-        // Log navigation attempt
-        logToBackend('Project-Portfolio', 'handleOpenProject', { 
-            message: 'NAVIGATION START: Redirecting to workspace for existing project',
-            projectId: projectId,
-            userId: currentUser.id,
-            targetUrl: `/project-workspace?projectId=${projectId}&userId=${currentUser.id}`,
-            transitionId: transitionStartTime
-        });
-        
-        // Navigate to project workspace with userId parameter
-        wixLocation.to(`/project-workspace?projectId=${projectId}&userId=${currentUser.id}`);
+        // Navigate to project workspace with userId parameter (using single quotes for Wix compatibility)
+        wixLocation.to('/project-workspace?projectId=' + projectId + '&userId=' + currentUser.id);
         
     } catch (error) {
         logToBackend('Project-Portfolio', 'handleOpenProject', null, new Error(`TRANSITION ERROR: ${error.message} (ProjectId: ${projectId}, TransitionId: ${transitionStartTime})`));
