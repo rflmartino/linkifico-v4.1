@@ -654,6 +654,12 @@
             // Set up message listener for Velo communication
             window.addEventListener('message', handlePortfolioMessage);
             
+            // Ensure modal is hidden on startup
+            const modal = document.getElementById('newProjectModal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+            
             // Show loading state initially
             showLoading();
             
@@ -665,6 +671,11 @@
             document.getElementById('loadingState').classList.remove('hidden');
             document.getElementById('activeSection').classList.add('hidden');
             document.getElementById('archivedSection').classList.add('hidden');
+            // Ensure modal stays hidden during loading
+            const modal = document.getElementById('newProjectModal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
         }
 
         // Handle messages from Velo
@@ -871,9 +882,14 @@
         }
 
         function setupTemplateSelection() {
+            // Remove any existing event listeners to prevent duplicates
             document.querySelectorAll('.template-card').forEach(card => {
                 if (!card.classList.contains('disabled')) {
-                    card.addEventListener('click', function() {
+                    // Clone node to remove existing event listeners
+                    const newCard = card.cloneNode(true);
+                    card.parentNode.replaceChild(newCard, card);
+                    
+                    newCard.addEventListener('click', function() {
                         // Remove previous selection
                         document.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
                         
