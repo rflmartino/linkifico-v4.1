@@ -19,16 +19,10 @@ $w.onReady(async function () {
     const pageLoadStartTime = Date.now();
     const chatEl = $w('#mainChatDisplay');
 
-    // Extract transition ID from URL if available (for tracking)
-    const urlParams = new URLSearchParams(window.location.search);
-    const referrerTransitionId = document.referrer.includes('project-portfolio') ? Date.now() : null;
-
     await logToBackend('Project-Workspace', 'onReady', {
         message: 'PAGE LOAD START: Project Workspace initializing',
         pageLoadStartTime: pageLoadStartTime,
-        referrer: document.referrer,
-        referrerTransitionId: referrerTransitionId,
-        urlParams: Object.fromEntries(urlParams)
+        urlParams: wixLocation.query || {}
     });
 
     // Get projectId and userId from URL parameters
@@ -50,8 +44,7 @@ $w.onReady(async function () {
         projectId: projectId,
         userId: userId,
         isNewProject: !wixLocation.query.projectId,
-        pageLoadStartTime: pageLoadStartTime,
-        referrerTransitionId: referrerTransitionId
+        pageLoadStartTime: pageLoadStartTime
     });
 
     let sessionId = session.getItem('chatSessionId');
@@ -108,8 +101,7 @@ $w.onReady(async function () {
             statusCheckDurationMs: statusDuration,
             historyCheckDurationMs: historyDuration,
             totalBackendCheckMs: statusDuration + historyDuration,
-            pageLoadStartTime: pageLoadStartTime,
-            referrerTransitionId: referrerTransitionId
+            pageLoadStartTime: pageLoadStartTime
         });
 		
         // Update page elements based on project status (if returning user)
@@ -431,8 +423,9 @@ $w.onReady(async function () {
     async function updatePageTitle(projectName) {
         try {
             if (projectName && projectName !== 'Project Chat' && projectName !== 'Untitled Project') {
-                const isTest = TEST_MODE ? '[TEST] ' : '';
-                document.title = `${isTest}${projectName} - PMaaS`;
+                if (typeof document !== 'undefined') {
+                    document.title = `${projectName} - PMaaS`;
+                }
             }
         } catch (error) {
             await logToBackend('Project-Workspace', 'updatePageTitle', null, error);
@@ -466,12 +459,13 @@ $w.onReady(async function () {
 
     // Helper function to determine if project was just created
     function isProjectJustCreated() {
-        // Check if we arrived here recently (within last 30 seconds)
-        const referrer = document.referrer;
-        const isFromPortfolio = referrer.includes('project-portfolio');
-        const hasRecentTimestamp = projectId.includes(Date.now().toString().substring(0, 10)); // Check if projectId has recent timestamp
-        
-        return isFromPortfolio || hasRecentTimestamp;
+        // Check if projectId has recent timestamp (within last 30 seconds)
+        const projectTimestamp = projectId.split('_')[1]; // Extract timestamp from proj_TIMESTAMP_randomId
+        if (projectTimestamp) {
+            const timeDiff = Date.now() - parseInt(projectTimestamp);
+            return timeDiff < 30000; // Less than 30 seconds ago
+        }
+        return false;
     }
 
     // Poll for AI response on new projects
