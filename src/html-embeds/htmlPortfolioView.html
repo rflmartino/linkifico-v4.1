@@ -735,13 +735,21 @@
         });
         
         function showLoading() {
-            document.getElementById('loadingState').classList.remove('hidden');
-            document.getElementById('activeSection').classList.add('hidden');
-            document.getElementById('archivedSection').classList.add('hidden');
-            // Ensure modal stays hidden during loading
-            const modal = document.getElementById('newProjectModal');
-            if (modal) {
-                modal.classList.add('hidden');
+            debugLog('⏳ showLoading function called');
+            try {
+                document.getElementById('loadingState').classList.remove('hidden');
+                document.getElementById('activeSection').classList.add('hidden');
+                document.getElementById('archivedSection').classList.add('hidden');
+                debugLog('✅ showLoading: UI elements updated');
+                
+                // Ensure modal stays hidden during loading
+                const modal = document.getElementById('newProjectModal');
+                if (modal) {
+                    modal.classList.add('hidden');
+                    debugLog('🔒 showLoading: Modal hidden');
+                }
+            } catch (error) {
+                debugLog('❌ showLoading ERROR: ' + error.message);
             }
         }
 
@@ -768,6 +776,7 @@
                     break;
                     
                 case 'PORTFOLIO_ERROR':
+                    debugLog('💥 PORTFOLIO_ERROR received: ' + error);
                     hideLoading();
                     showError('Error loading portfolio: ' + error);
                     break;
@@ -795,25 +804,34 @@
 
         // Send message to Velo
         function sendToVelo(type, data) {
-            // console.log(`📤 Portfolio View: Sending to Velo - ${type}`);
-            window.parent.postMessage({
-                type: type,
-                data: data
-            }, '*');
+            debugLog('📤 sendToVelo called with type: ' + type);
+            debugLog('📦 sendToVelo data: ' + JSON.stringify(data));
+            try {
+                window.parent.postMessage({
+                    type: type,
+                    data: data
+                }, '*');
+                debugLog('✅ sendToVelo: Message sent successfully');
+            } catch (error) {
+                debugLog('❌ sendToVelo ERROR: ' + error.message);
+            }
         }
 
         // Load portfolio data
         function loadPortfolio() {
-            // console.log('🔄 Portfolio View: Requesting data reload...');
+            debugLog('🔄 loadPortfolio function called');
             sendToVelo('LOAD_PORTFOLIO', {});
         }
 
         // Render portfolio
         function renderPortfolio() {
+            debugLog('🎨 renderPortfolio function called');
             const { activeProjects, archivedProjects } = portfolioData;
-            
+            debugLog('📊 Active projects: ' + (activeProjects ? activeProjects.length : 'undefined'));
+            debugLog('📦 Archived projects: ' + (archivedProjects ? archivedProjects.length : 'undefined'));
             
             // Hide loading state
+            debugLog('🔄 Calling hideLoading()');
             hideLoading();
             
             // Update counts
@@ -1158,12 +1176,18 @@
 
         // Utility functions
         function hideLoading() {
-            document.getElementById('loadingState').classList.add('hidden');
+            debugLog('👁️ hideLoading function called');
+            try {
+                document.getElementById('loadingState').classList.add('hidden');
+                debugLog('✅ hideLoading: Loading state hidden');
+            } catch (error) {
+                debugLog('❌ hideLoading ERROR: ' + error.message);
+            }
         }
 
         function showError(message) {
+            debugLog('❌ showError called with: ' + message);
             hideLoading();
-            // console.error('❌ Portfolio View: Error -', message);
             
             // Simple error display - you can enhance this with proper error UI
             const errorHtml = `
