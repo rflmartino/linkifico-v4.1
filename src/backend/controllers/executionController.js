@@ -7,6 +7,7 @@ import {
     getProjectData,
     saveProjectData
 } from 'backend/data/projectData.js';
+import { redisData } from '../data/redisData.js';
 import { Logger } from '../utils/logger.js';
 import compromiseSentiment from 'backend/nlp/compromiseSentiment.js';
 import nlpManager from 'backend/nlp/nlpManager.js';
@@ -41,6 +42,9 @@ export const executionController = {
                 
                 // Update project data with NLP-extracted information
                 const updatedProjectData = await this.updateProjectData(projectId, projectData, nlpResult.extractedInfo, template, actionPlan);
+                
+                // Generate intelligent project name if still using default
+                await this.updateProjectNameIfNeeded(projectId, updatedProjectData, userMessage, nlpResult.extractedInfo);
                 
                 // Generate action-aware response for NLP path
                 const actionAwareMessage = this.generateActionAwareResponse(nlpResult.responseMessage, actionPlan.action, userMessage);
@@ -82,6 +86,9 @@ export const executionController = {
             
             // Update project data with extracted information
             const updatedProjectData = await this.updateProjectData(projectId, projectData, extractedInfo, template, actionPlan);
+            
+            // Generate intelligent project name if still using default
+            await this.updateProjectNameIfNeeded(projectId, updatedProjectData, userMessage, extractedInfo);
             
             // Determine if we should continue or wait
             const shouldContinue = this.shouldContinueConversation(extractedInfo, updatedProjectData);
@@ -176,6 +183,14 @@ export const executionController = {
                 extractedInfo.extractedFields = { templateArea: 'objectives', objectives: { description: userMessage } };
                 break;
                 
+            case 'project.rename':
+                // Extract new project name from message
+                const newProjectName = this.extractProjectNameFromMessage(userMessage);
+                if (newProjectName) {
+                    extractedInfo.extractedFields = { templateArea: 'project_name', projectName: newProjectName };
+                }
+                break;
+                
             case 'budget.set':
                 // Extract budget numbers from message
                 const budgetMatch = userMessage.match(/\$?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/);
@@ -214,6 +229,136 @@ export const executionController = {
         }
         
         return extractedInfo;
+    },
+    
+    // Extract project name from user message
+    extractProjectNameFromMessage(userMessage) {
+        try {
+            // Common patterns for project name requests
+            const patterns = [
+                /(?:change|rename|set|update).*(?:project\s+)?name\s+to\s+(.+?)(?:\.|$)/i,
+                /(?:call|name)\s+(?:this\s+project|it)\s+(.+?)(?:\.|$)/i,
+                /(?:let'?s\s+)?(?:call|name)\s+(?:this|it)\s+(.+?)(?:\.|$)/i,
+                /project\s+name\s+should\s+be\s+(.+?)(?:\.|$)/i,
+                /(?:rename|change)\s+(?:to|it\s+to)\s+(.+?)(?:\.|$)/i
+            ];
+            
+            for (const pattern of patterns) {
+                const match = userMessage.match(pattern);
+                if (match && match[1]) {
+                    let extractedName = match[1].trim();
+                    
+                    // Clean up the extracted name
+                    extractedName = extractedName
+                        .replace(/['"]/g, '') // Remove quotes
+                        .replace(/\s+/g, ' ') // Normalize spaces
+                        .trim();
+                    
+                    // Validate the name
+                    if (extractedName.length > 0 && extractedName.length <= 100) {
+                        return extractedName;
+                    }
+                }
+            }
+            
+            return null;
+        } catch (error) {
+            Logger.error('executionController', 'extractProjectNameFromMessage:error', error);
+            return null;
+        }
+    },
+    
+    // Update project name if still using default name
+    async updateProjectNameIfNeeded(projectId, projectData, userMessage, extractedInfo) {
+        try {
+            // Skip if user explicitly requested a name change (handled elsewhere)
+            if (extractedInfo?.extractedFields?.projectName) {
+                return; // User explicitly set a name
+            }
+            
+            // Only update if using default name or empty name
+            const currentName = projectData.name || '';
+            const isDefaultName = currentName === 'Untitled Project' || currentName === '' || currentName.startsWith('Project Chat');
+            
+            if (!isDefaultName) {
+                return; // User has already set a custom name
+            }
+            
+            // Generate intelligent name from conversation context
+            const generatedName = await this.generateIntelligentProjectName(userMessage, extractedInfo, projectData);
+            
+            if (generatedName && generatedName !== currentName) {
+                // Update project data
+                projectData.name = generatedName;
+                
+                // Save to Redis
+                await saveProjectData(projectId, projectData);
+                
+                Logger.info('executionController', 'projectNameGenerated', { 
+                    projectId, 
+                    oldName: currentName, 
+                    newName: generatedName 
+                });
+            }
+            
+        } catch (error) {
+            Logger.error('executionController', 'updateProjectNameIfNeeded:error', error);
+            // Don't fail the whole process if name generation fails
+        }
+    },
+    
+    // Generate intelligent project name from context
+    async generateIntelligentProjectName(userMessage, extractedInfo, projectData) {
+        try {
+            // First try to extract from objectives/scope
+            const objectives = extractedInfo?.objectives?.description || projectData?.templateData?.objectives?.description || '';
+            const scope = projectData?.scope || '';
+            
+            // Combine relevant context
+            const context = [userMessage, objectives, scope].filter(Boolean).join(' ').substring(0, 500);
+            
+            if (!context.trim()) {
+                return null; // Not enough context yet
+            }
+            
+            const prompt = `Based on this project description, generate a concise, professional project name (2-4 words max):
+
+"${context}"
+
+Requirements:
+- Professional and clear
+- 2-4 words maximum
+- No generic words like "project", "plan", "new"
+- Focus on the business/goal type
+- Examples: "Downtown Coffee Shop", "E-commerce Platform", "Marketing Campaign"
+
+Project name:`;
+
+            const response = await askClaude({
+                user: prompt,
+                system: "Generate concise, professional project names. Return only the name, no quotes or explanation.",
+                model: 'claude-3-5-haiku-latest',
+                maxTokens: 50
+            });
+
+            // Clean up the response
+            const cleanName = response.trim()
+                .replace(/['"]/g, '') // Remove quotes
+                .replace(/^Project:\s*/i, '') // Remove "Project:" prefix
+                .replace(/\.$/, '') // Remove trailing period
+                .trim();
+
+            // Validate the name
+            if (cleanName.length > 0 && cleanName.length <= 50 && !cleanName.toLowerCase().includes('untitled')) {
+                return cleanName;
+            }
+            
+            return null;
+            
+        } catch (error) {
+            Logger.error('executionController', 'generateIntelligentProjectName:error', error);
+            return null;
+        }
     },
     
     // Generate action-aware response for NLP path
@@ -334,7 +479,18 @@ Respond in JSON with template-aware fields (simple_waterfall):
             if (extractedInfo && extractedInfo.extractedFields) {
                 const fields = extractedInfo.extractedFields;
                 const areaId = fields.templateArea || (actionPlan?.targetArea) || null;
-                if (areaId) {
+                
+                // Handle project name changes directly
+                if (fields.projectName) {
+                    updatedData.name = fields.projectName;
+                    Logger.info('executionController', 'projectNameChanged', { 
+                        projectId, 
+                        oldName: projectData.name, 
+                        newName: fields.projectName 
+                    });
+                }
+                
+                if (areaId && areaId !== 'project_name') {
                     const areaUpdate = {};
                     // Merge known area payloads
                     if (fields.objectives) areaUpdate.objectives = { ...(updatedData.templateData.objectives || {}), ...fields.objectives };

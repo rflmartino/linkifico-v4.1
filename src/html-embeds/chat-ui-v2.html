@@ -51,6 +51,12 @@
             font-weight: normal;
         }
         
+        #projectName {
+            cursor: default;
+            user-select: none;
+            pointer-events: none;
+        }
+        
         #messagesContainer {
             flex: 1;
             overflow-y: auto;
@@ -293,6 +299,12 @@
             </div>
         </div>
         <aside id="sidebar">
+            <div id="projectInfo">
+                <h4>Project Email</h4>
+                <div id="projectEmail" style="font-size: 12px; color: #666; margin-bottom: 12px; word-break: break-all;">
+                    Generating...
+                </div>
+            </div>
             <h3>Todos</h3>
             <ul id="todosList"></ul>
         </aside>
@@ -319,6 +331,7 @@
                 this.projectName = document.getElementById('projectName');
                 this.typingIndicator = document.getElementById('typingIndicator');
                 this.todosList = document.getElementById('todosList');
+                this.projectEmail = document.getElementById('projectEmail');
                 
                 this.sessionId = null;
                 this.projectId = null;
@@ -544,6 +557,14 @@
                     case 'displayTodos':
                         this.renderTodos(data.todos || []);
                         break;
+                        
+                    case 'updateProjectName':
+                        this.updateProjectName(data.projectName);
+                        break;
+                        
+                    case 'updateProjectEmail':
+                        this.updateProjectEmail(data.projectEmail);
+                        break;
                 }
             }
             
@@ -593,6 +614,27 @@
                     li.appendChild(content);
                     this.todosList.appendChild(li);
                 });
+            }
+
+            updateProjectName(projectName) {
+                if (projectName && this.projectName) {
+                    this.projectName.textContent = projectName;
+                }
+            }
+
+            updateProjectEmail(projectEmail) {
+                if (projectEmail && this.projectEmail) {
+                    this.projectEmail.innerHTML = `
+                        <span style="font-family: monospace; background: #f0f0f0; padding: 2px 4px; border-radius: 3px;">
+                            ${projectEmail}
+                        </span>
+                        <button onclick="navigator.clipboard.writeText('${projectEmail}')" 
+                                style="margin-left: 8px; font-size: 10px; padding: 2px 6px; border: none; background: #667eea; color: white; border-radius: 3px; cursor: pointer;"
+                                title="Copy email">
+                            Copy
+                        </button>
+                    `;
+                }
             }
             
             clearMessages() {

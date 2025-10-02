@@ -261,6 +261,24 @@ export const trainingData = [
     { text: 'great help', intent: 'general.thanks' },
     { text: 'perfect thanks', intent: 'general.thanks' },
     
+    // Project Name Changes
+    { text: 'change the project name to downtown pet store', intent: 'project.rename' },
+    { text: 'rename the project to coffee shop launch', intent: 'project.rename' },
+    { text: 'call this project website redesign', intent: 'project.rename' },
+    { text: 'name this project mobile app development', intent: 'project.rename' },
+    { text: 'change project name to marketing campaign', intent: 'project.rename' },
+    { text: 'rename project to food truck business', intent: 'project.rename' },
+    { text: 'update project name to online store', intent: 'project.rename' },
+    { text: 'set project name to restaurant opening', intent: 'project.rename' },
+    { text: 'project name should be fitness center', intent: 'project.rename' },
+    { text: 'call it tech startup', intent: 'project.rename' },
+    { text: 'name it consulting business', intent: 'project.rename' },
+    { text: 'let\'s call this bakery launch', intent: 'project.rename' },
+    { text: 'let\'s name this event planning', intent: 'project.rename' },
+    { text: 'change name to digital transformation', intent: 'project.rename' },
+    { text: 'rename to product launch', intent: 'project.rename' },
+    { text: 'update name to service expansion', intent: 'project.rename' },
+    
     // Status Queries
     { text: 'what is the project status', intent: 'project.status' },
     { text: 'show project status', intent: 'project.status' },
@@ -850,6 +868,13 @@ export const responseTemplates = {
         'Happy to help!',
         'My pleasure!'
     ],
+    'project.rename': [
+        'Perfect! I\'ve updated the project name.',
+        'Great! The project has been renamed.',
+        'Done! Your project name has been changed.',
+        'Excellent! I\'ve set the new project name.',
+        'Updated! The project is now renamed.'
+    ],
     'project.status': [
         'Here\'s your project status.',
         'Current project progress:',
@@ -1022,6 +1047,7 @@ export const intentActionMap = {
     'general.clarify': 'CLARIFY',
     'general.help': 'SHOW_HELP',
     'general.thanks': 'ACKNOWLEDGE',
+    'project.rename': 'RENAME_PROJECT',
     'project.status': 'GET_STATUS',
     'timeline.query': 'SHOW_TIMELINE',
     'stakeholder.add': 'ADD_STAKEHOLDER',

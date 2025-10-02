@@ -105,7 +105,9 @@ async function processChatMessage(projectId, userId, message, sessionId, process
             message: finalMessage,
             analysis: response.analysis,
             todos: (response.analysis && response.analysis.gaps && response.analysis.gaps.todos) ? response.analysis.gaps.todos : [],
-            projectData: allData.projectData
+            projectData: allData.projectData,
+            projectName: allData.projectData?.name || 'Untitled Project',
+            projectEmail: allData.projectData?.email || null
         };
         Logger.info('entrypoint.web', 'processChatMessage:result', { ok: true, todos: result.todos?.length || 0 });
         return result;
@@ -300,6 +302,9 @@ async function getProcessingStatus(processingId) {
 // Initialize new project
 export async function initializeProject(projectId, userId, initialMessage, templateName = 'simple_waterfall', projectName = 'Untitled Project') {
     try {
+        // Generate unique project email
+        const { emailId, email } = await redisData.generateUniqueProjectEmail();
+        
         const allData = {
             projectData: redisData.createDefaultProjectData(projectId),
             chatHistory: [],
@@ -308,11 +313,18 @@ export async function initializeProject(projectId, userId, initialMessage, templ
             learningData: redisData.createDefaultLearningData(userId),
             reflectionData: redisData.createDefaultReflectionData(projectId)
         };
-        // Ensure templateName & projectName are stored on creation
+        
+        // Ensure templateName, projectName, and email are stored on creation
         allData.projectData.templateName = templateName;
         allData.projectData.name = projectName;
+        allData.projectData.email = email;
+        allData.projectData.emailId = emailId;
         
-        await redisData.saveAllData(projectId, userId, allData);
+        // Save project data and email mapping atomically
+        await Promise.all([
+            redisData.saveAllData(projectId, userId, allData),
+            redisData.saveEmailMapping(email, projectId)
+        ]);
         
         // Process initial message
         return await processChatMessage(projectId, userId, initialMessage, `session_${Date.now()}`, null);
@@ -344,6 +356,7 @@ export async function getProjectStatus(projectId, userId) {
         return {
             success: true,
             projectData: pData,
+            projectEmail: pData?.email || null,
             chatHistory: chatHistory,
             messageCount: chatHistory.length
         };
@@ -365,7 +378,8 @@ export async function getProjectChatHistory(projectId, userId) {
         const chatHistory = allData.chatHistory;
         return {
             success: true,
-            chatHistory: chatHistory
+            chatHistory: chatHistory,
+            history: chatHistory // Alias for compatibility
         };
     } catch (error) {
         console.error('Error getting chat history:', error);

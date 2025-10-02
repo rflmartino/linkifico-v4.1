@@ -60,6 +60,75 @@ export const redisData = {
         }
     },
 
+    // Generate unique project email with collision checking
+    async generateUniqueProjectEmail() {
+        try {
+            let attempts = 0;
+            
+            while (attempts < 10) {
+                const emailId = Math.floor(100000 + Math.random() * 900000).toString();
+                const email = `project-${emailId}@linkifico.com`;
+                
+                // Check if email already exists using email-to-project mapping
+                const existingProjectId = await this.redis.get(`email_to_project:${email}`);
+                
+                if (!existingProjectId) {
+                    Logger.info('redisData', 'generateUniqueProjectEmail:success', { 
+                        emailId, 
+                        email, 
+                        attempts: attempts + 1 
+                    });
+                    return { emailId, email };
+                }
+                
+                attempts++;
+                Logger.warn('redisData', 'generateUniqueProjectEmail:collision', { 
+                    emailId, 
+                    attempt: attempts 
+                });
+            }
+            
+            throw new Error('Unable to generate unique project email after 10 attempts');
+            
+        } catch (error) {
+            Logger.error('redisData', 'generateUniqueProjectEmail:error', error);
+            throw error;
+        }
+    },
+
+    // Get project ID by email address (for future email processing)
+    async getProjectIdByEmail(email) {
+        try {
+            const projectId = await this.redis.get(`email_to_project:${email}`);
+            return projectId;
+        } catch (error) {
+            Logger.error('redisData', 'getProjectIdByEmail:error', error);
+            return null;
+        }
+    },
+
+    // Save email-to-project mapping
+    async saveEmailMapping(email, projectId) {
+        try {
+            await this.redis.set(`email_to_project:${email}`, projectId);
+            Logger.info('redisData', 'saveEmailMapping:success', { email, projectId });
+        } catch (error) {
+            Logger.error('redisData', 'saveEmailMapping:error', error);
+            throw error;
+        }
+    },
+
+    // Delete email-to-project mapping (for cleanup)
+    async deleteEmailMapping(email) {
+        try {
+            await this.redis.del(`email_to_project:${email}`);
+            Logger.info('redisData', 'deleteEmailMapping:success', { email });
+        } catch (error) {
+            Logger.error('redisData', 'deleteEmailMapping:error', error);
+            throw error;
+        }
+    },
+
     // Save all data for a project and user in a single Redis operation
     async saveAllData(projectId, userId, allData) {
         const startTime = Date.now();
@@ -100,10 +169,43 @@ export const redisData = {
         }
     },
 
+    // Delete project and clean up email mapping
+    async deleteProject(projectId, userId) {
+        try {
+            // Load project data to get email for cleanup
+            const allData = await this.loadAllData(projectId, userId);
+            const projectEmail = allData.projectData?.email;
+            
+            // Delete all project data
+            await Promise.all([
+                this.redis.del(`project:${projectId}:${userId}:data`),
+                this.redis.del(`project:${projectId}:${userId}:chatHistory`),
+                this.redis.del(`project:${projectId}:${userId}:knowledgeData`),
+                this.redis.del(`project:${projectId}:${userId}:gapData`),
+                this.redis.del(`project:${projectId}:${userId}:learningData`),
+                this.redis.del(`project:${projectId}:${userId}:reflectionData`),
+                // Clean up email mapping if email exists
+                projectEmail ? this.deleteEmailMapping(projectEmail) : Promise.resolve()
+            ]);
+            
+            Logger.info('redisData', 'deleteProject:success', { 
+                projectId, 
+                userId, 
+                email: projectEmail 
+            });
+            
+        } catch (error) {
+            Logger.error('redisData', 'deleteProject:error', error);
+            throw error;
+        }
+    },
+
     // Helper functions to create default data structures
     createDefaultProjectData(projectId) {
         return createProjectData(projectId, 'simple_waterfall', {
             name: 'Untitled Project',
+            email: null, // Will be set during project initialization
+            emailId: null, // Will be set during project initialization
             maturityLevel: 'basic',
             templateData: {},
             scope: null,
