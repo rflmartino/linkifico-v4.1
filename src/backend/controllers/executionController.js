@@ -42,8 +42,11 @@ export const executionController = {
                 // Update project data with NLP-extracted information
                 const updatedProjectData = await this.updateProjectData(projectId, projectData, nlpResult.extractedInfo, template, actionPlan);
                 
+                // Generate action-aware response for NLP path
+                const actionAwareMessage = this.generateActionAwareResponse(nlpResult.responseMessage, actionPlan.action, userMessage);
+                
                 const result = {
-                    message: nlpResult.responseMessage,
+                    message: actionAwareMessage,
                     analysis: {
                         extractedInfo: nlpResult.extractedInfo,
                         updatedProjectData: updatedProjectData,
@@ -213,13 +216,70 @@ export const executionController = {
         return extractedInfo;
     },
     
+    // Generate action-aware response for NLP path
+    generateActionAwareResponse(nlpResponse, action, userMessage) {
+        const actionQuestions = {
+            'ask_about_objectives': [
+                "What specific goals do you want to achieve with this project?",
+                "What are your main objectives for this venture?", 
+                "What do you hope to accomplish with this project?",
+                "What are the key outcomes you're looking for?"
+            ],
+            'ask_about_budget': [
+                "What budget do you have available for this project?",
+                "What financial resources can you allocate to this?",
+                "Do you have a budget range in mind?",
+                "What's your investment capacity for this project?"
+            ],
+            'ask_about_tasks': [
+                "What are the key tasks or milestones you need to complete?",
+                "What's your timeline for getting this done?",
+                "What deliverables do you need to produce?",
+                "When do you need this project completed?"
+            ],
+            'ask_about_people': [
+                "Who will be involved in this project?",
+                "Do you have a team in place, or will you need to build one?",
+                "Who are the key stakeholders for this project?",
+                "What expertise will you need on your team?"
+            ]
+        };
+        
+        const questions = actionQuestions[action];
+        if (questions && questions.length > 0) {
+            // Pick a random question for variety
+            const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
+            return `${nlpResponse} ${randomQuestion}`;
+        }
+        
+        return nlpResponse; // Return original if no specific action question
+    },
+    
+    // Get specific instructions for each action type
+    getActionInstructions(action) {
+        const instructions = {
+            'ask_about_objectives': 'IMPORTANT: After acknowledging their project, ask a specific follow-up question about their objectives, goals, or what they want to achieve. Be conversational and helpful.',
+            'ask_about_budget': 'IMPORTANT: After acknowledging their input, ask a specific follow-up question about their budget, funding, or financial resources available.',
+            'ask_about_tasks': 'IMPORTANT: After acknowledging their input, ask a specific follow-up question about their tasks, timeline, deliverables, or what work needs to be done.',
+            'ask_about_people': 'IMPORTANT: After acknowledging their input, ask a specific follow-up question about their team, stakeholders, or who will be involved.',
+            'request_clarification': 'IMPORTANT: Ask for clarification about something specific that was unclear or ambiguous in their message.',
+            'provide_recommendation': 'IMPORTANT: Provide specific recommendations or next steps based on the information they\'ve provided.',
+            'continue_planning': 'IMPORTANT: Continue the planning conversation by building on what they\'ve shared and asking about the next logical step.'
+        };
+        
+        return instructions[action] || 'IMPORTANT: Acknowledge their input and ask a helpful follow-up question to continue the project planning conversation.';
+    },
+    
     // Combined extraction and response generation in single API call
     async extractAndGenerateResponse(userMessage, actionPlan, projectData, sentimentAnalysis) {
         try {
             const verbosityInstruction = sentimentAnalysis?.verbosityInstruction || 'normal';
+            const actionInstructions = this.getActionInstructions(actionPlan.action);
             const prompt = `User: "${userMessage}"
 Action: ${actionPlan.action}
 Verbosity: ${verbosityInstruction} (${verbosityInstruction === 'terse' ? 'max 50 words' : verbosityInstruction === 'normal' ? 'max 150 words' : 'max 300 words'})
+
+${actionInstructions}
 
 Respond in JSON with template-aware fields (simple_waterfall):
 {
@@ -237,7 +297,7 @@ Respond in JSON with template-aware fields (simple_waterfall):
 
             const response = await askClaude({
                 user: prompt,
-                system: "Extract project info and generate responses with verbosity control.",
+                system: "Extract project info and generate action-aware responses. Follow the action instructions to ask the right follow-up questions.",
                 model: 'claude-3-5-haiku-latest',
                 maxTokens: 800
             });
