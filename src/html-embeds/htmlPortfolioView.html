@@ -701,14 +701,18 @@
         // Global message handler for Wix HTML embed communication
         window.addEventListener('message', function(event) {
             debugLog('🔍 Message listener triggered');
-            debugLog('📦 Event data: ' + JSON.stringify(event.data));
+            debugLog('📦 Event origin: ' + event.origin);
+            debugLog('📦 Event data: ' + JSON.stringify(event.data, null, 2));
             
             // Check if this message is from our Velo page
-            if (event.data && event.data.type) {
+            if (event.data && typeof event.data === 'object' && event.data.type) {
                 debugLog('✅ Valid message type: ' + event.data.type);
                 handlePortfolioMessage(event);
             } else {
-                debugLog('❌ Invalid message format');
+                debugLog('❌ Invalid message format - data: ' + typeof event.data);
+                if (event.data) {
+                    debugLog('❌ Data keys: ' + Object.keys(event.data).join(', '));
+                }
             }
         });
 
@@ -755,50 +759,66 @@
 
         // Handle messages from Velo
         function handlePortfolioMessage(event) {
-            const { type, data, error } = event.data;
-            
-            debugLog('📨 handlePortfolioMessage called with type: ' + type);
-            
-            switch (type) {
-                case 'PORTFOLIO_DATA':
-                    debugLog('📊 PORTFOLIO_DATA received');
-                    debugLog('📋 Data success: ' + (data && data.success));
-                    hideLoading();
-                    if (data && data.success) {
-                        portfolioData = data.data;
-                        debugLog('🎯 Portfolio data set, calling renderPortfolio');
-                        renderPortfolio();
-                        debugLog('✅ Portfolio rendered successfully');
-                    } else {
-                        debugLog('❌ Invalid portfolio data received');
-                        showError('Failed to load projects: ' + (data?.error || 'Invalid response'));
-                    }
-                    break;
-                    
-                case 'PORTFOLIO_ERROR':
-                    debugLog('💥 PORTFOLIO_ERROR received: ' + error);
-                    hideLoading();
-                    showError('Error loading portfolio: ' + error);
-                    break;
-                    
-                case 'ARCHIVE_RESPONSE':
-                case 'RESTORE_RESPONSE':
-                case 'DELETE_RESPONSE':
-                    if (data.success) {
-                        showNotification(data.message, 'success');
-                        // Reload portfolio data after successful operation
-                        loadPortfolio();
-                    } else {
-                        showNotification(data.message || 'Operation failed', 'error');
-                    }
-                    break;
-                    
-                case 'ERROR':
-                    showNotification('Error: ' + error, 'error');
-                    break;
-                    
-                default:
-                    // console.warn(`⚠️ Portfolio View: Unknown message type - ${type}`);
+            try {
+                const { type, data, error } = event.data;
+                
+                debugLog('📨 handlePortfolioMessage called with type: ' + type);
+                debugLog('📊 Message data structure: ' + JSON.stringify({
+                    hasData: !!data,
+                    hasError: !!error,
+                    dataType: typeof data,
+                    dataKeys: data ? Object.keys(data) : 'none'
+                }));
+                
+                switch (type) {
+                    case 'PORTFOLIO_DATA':
+                        debugLog('📊 PORTFOLIO_DATA received');
+                        debugLog('📋 Data success: ' + (data && data.success));
+                        debugLog('📋 Data structure: ' + JSON.stringify(data, null, 2));
+                        
+                        hideLoading();
+                        if (data && data.success) {
+                            portfolioData = data.data;
+                            debugLog('🎯 Portfolio data set: ' + JSON.stringify(portfolioData, null, 2));
+                            debugLog('🎯 Calling renderPortfolio()');
+                            renderPortfolio();
+                            debugLog('✅ Portfolio rendered successfully');
+                        } else {
+                            debugLog('❌ Invalid portfolio data received');
+                            showError('Failed to load projects: ' + (data?.error || 'Invalid response'));
+                        }
+                        break;
+                        
+                    case 'PORTFOLIO_ERROR':
+                        debugLog('💥 PORTFOLIO_ERROR received: ' + error);
+                        hideLoading();
+                        showError('Error loading portfolio: ' + error);
+                        break;
+                        
+                    case 'ARCHIVE_RESPONSE':
+                    case 'RESTORE_RESPONSE':
+                    case 'DELETE_RESPONSE':
+                        debugLog('🔄 Action response received: ' + type);
+                        if (data && data.success) {
+                            showNotification(data.message, 'success');
+                            // Reload portfolio data after successful operation
+                            loadPortfolio();
+                        } else {
+                            showNotification(data?.message || 'Operation failed', 'error');
+                        }
+                        break;
+                        
+                    case 'ERROR':
+                        debugLog('💥 General ERROR received: ' + error);
+                        showNotification('Error: ' + error, 'error');
+                        break;
+                        
+                    default:
+                        debugLog('⚠️ Unknown message type: ' + type);
+                }
+            } catch (err) {
+                debugLog('💥 Error in handlePortfolioMessage: ' + err.message);
+                console.error('Portfolio message handler error:', err);
             }
         }
 
@@ -826,31 +846,66 @@
         // Render portfolio
         function renderPortfolio() {
             debugLog('🎨 renderPortfolio function called');
+            
+            if (!portfolioData) {
+                debugLog('❌ portfolioData is null or undefined');
+                showError('No portfolio data available');
+                return;
+            }
+            
+            debugLog('📊 Portfolio data structure: ' + JSON.stringify(portfolioData, null, 2));
+            
             const { activeProjects, archivedProjects } = portfolioData;
             debugLog('📊 Active projects: ' + (activeProjects ? activeProjects.length : 'undefined'));
             debugLog('📦 Archived projects: ' + (archivedProjects ? archivedProjects.length : 'undefined'));
+            
+            // Ensure we have arrays
+            const safeActiveProjects = Array.isArray(activeProjects) ? activeProjects : [];
+            const safeArchivedProjects = Array.isArray(archivedProjects) ? archivedProjects : [];
+            
+            debugLog('📊 Safe active projects: ' + safeActiveProjects.length);
+            debugLog('📦 Safe archived projects: ' + safeArchivedProjects.length);
             
             // Hide loading state
             debugLog('🔄 Calling hideLoading()');
             hideLoading();
             
             // Update counts
-            document.getElementById('activeCount').textContent = activeProjects.length;
-            document.getElementById('archivedCount').textContent = archivedProjects.length;
+            try {
+                document.getElementById('activeCount').textContent = safeActiveProjects.length;
+                document.getElementById('archivedCount').textContent = safeArchivedProjects.length;
+                debugLog('✅ Updated project counts');
+            } catch (error) {
+                debugLog('❌ Error updating counts: ' + error.message);
+            }
             
             // Render projects
-            renderProjects('activeProjects', activeProjects, 'active');
-            renderProjects('archivedProjects', archivedProjects, 'archived');
+            debugLog('🎨 Rendering active projects...');
+            renderProjects('activeProjects', safeActiveProjects, 'active');
+            debugLog('🎨 Rendering archived projects...');
+            renderProjects('archivedProjects', safeArchivedProjects, 'archived');
             
             // Show appropriate section (default to active)
+            debugLog('👁️ Showing active projects section');
             showActiveProjects();
+            
+            debugLog('✅ renderPortfolio completed successfully');
         }
 
         // Render projects grid
         function renderProjects(containerId, projects, type) {
+            debugLog('🎨 renderProjects called: ' + containerId + ', ' + projects.length + ' projects, type: ' + type);
+            
             const container = document.getElementById(containerId);
+            if (!container) {
+                debugLog('❌ Container not found: ' + containerId);
+                return;
+            }
+            
+            debugLog('✅ Container found: ' + containerId);
             
             if (projects.length === 0) {
+                debugLog('📝 No projects to render, showing empty state');
                 container.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-icon">${type === 'active' ? '📝' : '📦'}</div>
@@ -862,8 +917,11 @@
                         </p>
                     </div>
                 `;
+                debugLog('✅ Empty state rendered for ' + containerId);
                 return;
             }
+            
+            debugLog('📋 Rendering ' + projects.length + ' projects for ' + containerId);
 
             container.innerHTML = projects.map(project => `
                 <div class="project-card">
@@ -914,6 +972,8 @@
                     </div>
                 </div>
             `).join('');
+            
+            debugLog('✅ Projects rendered successfully for ' + containerId);
         }
 
         // View toggle functions
@@ -1118,12 +1178,12 @@
             const hasValidInput = inputText.length >= 50 && inputText.split(' ').length >= 5; // At least 50 chars and 5 words
             
             // console.log('🔍 Portfolio View: Form validation -', {
-                hasTemplate: hasTemplate,
-                selectedTemplate: selectedTemplate,
-                inputLength: inputText.length,
-                wordCount: inputText.split(' ').length,
-                hasValidInput: hasValidInput
-            });
+            //     hasTemplate: hasTemplate,
+            //     selectedTemplate: selectedTemplate,
+            //     inputLength: inputText.length,
+            //     wordCount: inputText.split(' ').length,
+            //     hasValidInput: hasValidInput
+            // });
             
             createBtn.disabled = !(hasTemplate && hasValidInput);
             
@@ -1272,27 +1332,47 @@
         // Debug logging function
         function debugLog(message) {
             try {
+                const timestamp = new Date().toLocaleTimeString();
+                const formattedMessage = `[${timestamp}] ${message}`;
+                
+                // Try to log to debug panel
                 const debugLogEl = document.getElementById('debugLog');
                 if (debugLogEl) {
-                    const timestamp = new Date().toLocaleTimeString();
-                    debugLogEl.innerHTML += `<br>[${timestamp}] ${message}`;
+                    debugLogEl.innerHTML += `<br>${formattedMessage}`;
                     debugLogEl.scrollTop = debugLogEl.scrollHeight;
-                } else {
-                    // Fallback: try to write somewhere visible
-                    document.body.innerHTML += '<div style="background:orange;color:black;padding:5px;">' + message + '</div>';
+                }
+                
+                // Also log to console for development
+                console.log('🐛 Portfolio Debug:', formattedMessage);
+                
+                // Fallback: try to write somewhere visible if debug panel fails
+                if (!debugLogEl) {
+                    const fallbackDiv = document.createElement('div');
+                    fallbackDiv.style.cssText = 'background:orange;color:black;padding:5px;font-size:12px;border-bottom:1px solid #000;';
+                    fallbackDiv.textContent = formattedMessage;
+                    document.body.appendChild(fallbackDiv);
                 }
             } catch (e) {
-                // Last resort: change page background
-                document.body.style.backgroundColor = 'red';
+                console.error('Debug log error:', e);
+                // Last resort: change page background to indicate error
+                document.body.style.border = '3px solid red';
             }
         }
+        
+        // Initialize debug logging immediately
+        debugLog('📝 Script loaded and executing');
+        
+        // Test debug log immediately
+        setTimeout(function() {
+            debugLog('⏰ Timeout test - script is running');
+        }, 100);
         
         // Initialize debug logging
         document.addEventListener('DOMContentLoaded', function() {
             debugLog('🚀 DOMContentLoaded fired');
+            debugLog('🔍 Debug panel element: ' + (document.getElementById('debugLog') ? 'FOUND' : 'NOT FOUND'));
+            debugLog('🔍 Debug panel parent: ' + (document.getElementById('debugPanel') ? 'FOUND' : 'NOT FOUND'));
         });
-        
-        debugLog('📝 Script loaded');
     </script>
     
     <!-- Debug Panel -->

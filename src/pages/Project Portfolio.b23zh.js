@@ -438,8 +438,23 @@ async function sendToEmbed(type, data, error = null) {
             error: error
         };
         
-        await logToBackend('Project-Portfolio', 'sendToEmbed', { type: type, message: 'Sending to embed' });
+        await logToBackend('Project-Portfolio', 'sendToEmbed', { 
+            type: type, 
+            message: 'Sending to embed',
+            messageStructure: JSON.stringify({
+                type: type,
+                hasData: !!data,
+                hasError: !!error,
+                dataKeys: data ? Object.keys(data) : 'none'
+            })
+        });
+        
         portfolioHtmlElement.postMessage(message);
+        
+        await logToBackend('Project-Portfolio', 'sendToEmbed', { 
+            type: type, 
+            message: 'Message sent successfully to embed'
+        });
         
     } catch (error) {
         await logToBackend('Project-Portfolio', 'sendToEmbed', null, error);
