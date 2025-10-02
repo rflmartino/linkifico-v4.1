@@ -1255,13 +1255,35 @@
             createNewProject
         };
         
-        // Debug logging function
-        function debugLog(message) {
+        // IMMEDIATE TEST - This should run as soon as script loads
+        try {
             const debugLogEl = document.getElementById('debugLog');
             if (debugLogEl) {
-                const timestamp = new Date().toLocaleTimeString();
-                debugLogEl.innerHTML += `<br>[${timestamp}] ${message}`;
-                debugLogEl.scrollTop = debugLogEl.scrollHeight;
+                debugLogEl.innerHTML += '<br>🔥 IMMEDIATE: Script is running!';
+            } else {
+                // Try to find any element to write to
+                document.body.innerHTML += '<div style="background:red;color:white;padding:10px;">🔥 SCRIPT RUNNING BUT NO DEBUG ELEMENT</div>';
+            }
+        } catch (e) {
+            // If all else fails, try to modify the page somehow
+            document.body.style.border = '5px solid red';
+        }
+
+        // Debug logging function
+        function debugLog(message) {
+            try {
+                const debugLogEl = document.getElementById('debugLog');
+                if (debugLogEl) {
+                    const timestamp = new Date().toLocaleTimeString();
+                    debugLogEl.innerHTML += `<br>[${timestamp}] ${message}`;
+                    debugLogEl.scrollTop = debugLogEl.scrollHeight;
+                } else {
+                    // Fallback: try to write somewhere visible
+                    document.body.innerHTML += '<div style="background:orange;color:black;padding:5px;">' + message + '</div>';
+                }
+            } catch (e) {
+                // Last resort: change page background
+                document.body.style.backgroundColor = 'red';
             }
         }
         
