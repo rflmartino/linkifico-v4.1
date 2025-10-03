@@ -328,8 +328,16 @@ $w.onReady(async function () {
 			}).catch(() => null);
 			if (direct && direct.success) {
 				chatEl.postMessage({ action: 'displayMessage', type: 'assistant', content: direct.message || 'Done.', timestamp: new Date().toISOString() });
+				
+				// FIXED: Send todos separately to chat UI
 				if (Array.isArray(direct.todos) && direct.todos.length) {
-					chatEl.postMessage({ action: 'displayTodos', todos: direct.todos });
+					debugLog('Forwarding todos from direct response', {
+						todoCount: direct.todos.length
+					});
+					chatEl.postMessage({ 
+						action: 'displayTodos', 
+						todos: direct.todos 
+					});
 				}
                 // Update project name if it changed
                 if (direct.projectName && direct.projectName !== 'Project Chat') {
@@ -400,9 +408,15 @@ $w.onReady(async function () {
                 const type = m.type === 'system' ? 'system' : 'assistant';
                 chatEl.postMessage({ action: 'displayMessage', type, content: m.content, timestamp: m.timestamp || new Date().toISOString() });
             });
-            // If todos present, send them to the sidebar
+            // FIXED: Send todos separately to chat UI after processing completes
             if (Array.isArray(status.todos) && status.todos.length) {
-                chatEl.postMessage({ action: 'displayTodos', todos: status.todos });
+                debugLog('Forwarding todos from polling response', {
+                    todoCount: status.todos.length
+                });
+                chatEl.postMessage({ 
+                    action: 'displayTodos', 
+                    todos: status.todos 
+                });
             }
             chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
         };
@@ -545,12 +559,13 @@ $w.onReady(async function () {
                         });
                     });
                     
-                    // Display todos together with the AI response
+                    // FIXED: Display todos separately from the AI response
                     if (hasTodos) {
-                        await logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
-                            message: 'POLLING SUCCESS: Displaying todos with AI response',
-                            todoCount: currentStatus.todos.length
+                        debugLog('POLLING SUCCESS: Sending todos to chat UI', {
+                            todoCount: currentStatus.todos.length,
+                            todosStructure: currentStatus.todos.map(t => ({ id: t.id, title: t.title, completed: t.completed }))
                         });
+                        
                         chatEl.postMessage({
                             action: 'displayTodos',
                             todos: currentStatus.todos

@@ -4,6 +4,14 @@
 import { getSecret } from 'wix-secrets-backend';
 import { askClaude, askClaudeJSON } from '../utils/aiClient.js';
 import { Logger } from '../utils/logger.js';
+
+// Project fields that can have gaps
+const PROJECT_FIELDS = {
+    objectives: 'objectives',
+    budget: 'budget', 
+    tasks: 'tasks',
+    people: 'people'
+};
 import { 
     createGapData, 
     saveGapData, 
