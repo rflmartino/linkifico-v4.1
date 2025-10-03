@@ -35,8 +35,11 @@ export const processUserRequest = webMethod(Permissions.Anyone, async (requestDa
         payloadKeys: payload ? Object.keys(payload) : []
     });
     
-    if (!op || !projectId) {
-        Logger.warn('entrypoint', 'processUserRequest_invalid', { op, projectId, userId });
+    // Some operations don't require projectId (like getJobResults, getJobStatus)
+    const requiresProjectId = !['getJobResults', 'getJobStatus', 'processJobs'].includes(op);
+    
+    if (!op || (requiresProjectId && !projectId)) {
+        Logger.warn('entrypoint', 'processUserRequest_invalid', { op, projectId, userId, requiresProjectId });
         return { success: false, message: 'Invalid request' };
     }
     
