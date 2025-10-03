@@ -354,6 +354,32 @@ async function processJobMessage(job) {
     let allData = await redisData.loadAllData(projectId, userId);
     if (!allData.projectData) {
         allData.projectData = redisData.createDefaultProjectData(projectId);
+        
+        // Generate project email if not already set
+        if (!allData.projectData.email) {
+            try {
+                const emailData = await redisData.generateUniqueProjectEmail();
+                allData.projectData.email = emailData.email;
+                allData.projectData.emailId = emailData.emailId;
+                
+                // Save email mapping
+                await redisData.saveEmailMapping(emailData.email, projectId);
+                
+                Logger.info('entrypoint', 'processJobMessage_emailGenerated', { 
+                    jobId: job.id, 
+                    projectId, 
+                    email: emailData.email,
+                    emailId: emailData.emailId
+                });
+            } catch (error) {
+                Logger.error('entrypoint', 'processJobMessage_emailGenerationFailed', { 
+                    jobId: job.id, 
+                    projectId, 
+                    error: error.message 
+                });
+                // Continue without email - don't fail the whole process
+            }
+        }
     }
     
     Logger.info('entrypoint', 'processJobMessage_dataLoaded', { 
