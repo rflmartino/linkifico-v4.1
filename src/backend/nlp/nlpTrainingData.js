@@ -469,14 +469,6 @@ export const trainingData = [
     { text: 'we are starting a chimney cleaning service', intent: 'project.name_generate' },
     { text: 'planning to launch a digital consulting service', intent: 'project.name_generate' },
     { text: 'i want to develop a level app', intent: 'project.name_generate' },
-    { text: 'we are opening a magic shop in the entertainment plaza', intent: 'project.name_generate' },
-    { text: 'help me plan a parking garage construction project', intent: 'project.name_generate' },
-    { text: 'i need to create a text processing platform', intent: 'project.name_generate' },
-    { text: 'we are launching a gutter cleaning service', intent: 'project.name_generate' },
-    { text: 'planning to start a technology consulting firm', intent: 'project.name_generate' },
-    { text: 'i want to develop a ruler app', intent: 'project.name_generate' },
-    { text: 'we are opening a magic shop in the entertainment plaza', intent: 'project.name_generate' },
-    { text: 'help me plan a parking garage construction project', intent: 'project.name_generate' },
     
     // Status Queries
     { text: 'what is the project status', intent: 'project.status' },
