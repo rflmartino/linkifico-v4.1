@@ -26,20 +26,10 @@ export const executionController = {
     // Main execution function
     async executeAction(projectId, userId, userMessage, actionPlan, projectData, template = null) {
         try {
-            Logger.info('executionController', 'executeAction:start', { projectId, action: actionPlan?.action });
-            
             // Step 1: Try NLP first with confidence gate
-            const nlpStart = Date.now();
             const nlpResult = await this.tryNLPProcessing(userMessage, actionPlan, projectData);
-            Logger.info('executionController', 'timing:nlpProcessingMs', { ms: Date.now() - nlpStart });
             
             if (nlpResult.success) {
-                Logger.info('executionController', 'nlpSuccess', { 
-                    intent: nlpResult.intent, 
-                    confidence: nlpResult.confidence,
-                    usedNLP: true 
-                });
-                
                 // Update project data with NLP-extracted information
                 const updatedProjectData = await this.updateProjectData(projectId, projectData, nlpResult.extractedInfo, template, actionPlan);
                 
@@ -62,39 +52,15 @@ export const executionController = {
                     }
                 };
                 
-                // CRITICAL DEBUG: Log what NLP path is returning
-                Logger.info('executionController', 'executeAction:nlpResult', {
-                    projectId,
-                    userId,
-                    message: result.message,
-                    messageLength: result.message ? result.message.length : 0,
-                    hasAnalysis: !!result.analysis,
-                    analysis: result.analysis,
-                    fullResult: result
-                });
-                
-                Logger.info('executionController', 'executeAction:end:nlp', { ok: true });
                 return result;
             }
             
             // Step 2: Fallback to Haiku for low confidence or unknown intents
-            Logger.info('executionController', 'nlpFallback', { 
-                reason: nlpResult.reason,
-                usedNLP: false 
-            });
-            
             // Analyze user sentiment to control verbosity
             const sentimentAnalysis = compromiseSentiment.analyzeForHaiku(userMessage);
-            Logger.info('executionController', 'sentimentAnalysis', { 
-                sentiment: sentimentAnalysis.sentiment, 
-                verbosity: sentimentAnalysis.verbosityInstruction,
-                confidence: sentimentAnalysis.confidence 
-            });
             
             // Process user response and generate response in single API call
-            const apiStart = Date.now();
             const { extractedInfo, responseMessage } = await this.extractAndGenerateResponse(userMessage, actionPlan, projectData, sentimentAnalysis);
-            Logger.info('executionController', 'timing:haikuCombinedCallMs', { ms: Date.now() - apiStart });
             
             // Update project data with extracted information
             const updatedProjectData = await this.updateProjectData(projectId, projectData, extractedInfo, template, actionPlan);
@@ -117,22 +83,10 @@ export const executionController = {
                 }
             };
             
-            // CRITICAL DEBUG: Log what Haiku fallback path is returning
-            Logger.info('executionController', 'executeAction:haikuResult', {
-                projectId,
-                userId,
-                message: result.message,
-                messageLength: result.message ? result.message.length : 0,
-                hasAnalysis: !!result.analysis,
-                analysis: result.analysis,
-                fullResult: result
-            });
-            
-            Logger.info('executionController', 'executeAction:end:haiku', { ok: true });
             return result;
             
         } catch (error) {
-            Logger.error('executionController', 'executeAction:error', error);
+            Logger.error('executionController', 'executeAction_error', { projectId, userId, error: error.message });
             return {
                 message: "I understand. Let me help you with that. Could you tell me more about your project?",
                 analysis: {

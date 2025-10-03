@@ -33,7 +33,6 @@ export const selfAnalysisController = {
     // Main analysis function
     async analyzeProject(projectId, projectData, chatHistory, existingKnowledgeData = null, template = null) {
         try {
-            Logger.info('selfAnalysisController', 'analyzeProject:start', { projectId });
             // Template-driven completeness (Phase 1 heuristic): ratio of areas with any data
             const areas = (template && template.areas) || [];
             const totalAreas = areas.length || 1;

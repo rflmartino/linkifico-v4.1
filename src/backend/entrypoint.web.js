@@ -16,12 +16,14 @@ import { getTemplate } from './templates/templatesRegistry.js';
 
 // Main chat processing function
 export const processUserRequest = webMethod(Permissions.Anyone, async (requestData) => {
-    if (requestData?.op === 'startProcessing') {
-        Logger.info('entrypoint.web', 'processUserRequest:start', { op: requestData?.op, projectId: requestData?.projectId });
-    }
     const { op, projectId, userId, sessionId, payload = {} } = requestData || {};
     if (!op || !projectId) {
         return { success: false, message: 'Invalid request' };
+    }
+    
+    // Essential handshake logging - only for key operations
+    if (op === 'startProcessing' || op === 'sendMessage' || op === 'init') {
+        Logger.info('entrypoint', 'operation_start', { op, projectId, userId });
     }
     
     if (op === 'startProcessing') {
@@ -68,24 +70,20 @@ export const processUserRequest = webMethod(Permissions.Anyone, async (requestDa
         return await portfolioController.deleteProject(userId, payload?.projectId || projectId);
     }
     
-    Logger.warn('entrypoint.web', 'processUserRequest:unknownOp', op);
+    Logger.warn('entrypoint', 'unknown_operation', { op, projectId, userId });
     return { success: false, message: 'Unknown op' };
 });
 
 async function processChatMessage(projectId, userId, message, sessionId, processingId = null) {
     try {
-        const totalStart = Date.now();
-        Logger.info('entrypoint.web', 'processChatMessage:input', { projectId, userId, sessionId });
-        // Get or create project data using data manager
+        // Load all data - essential handshake point
         let allData = await redisData.loadAllData(projectId, userId);
         if (!allData.projectData) {
             allData.projectData = redisData.createDefaultProjectData(projectId);
         }
         
-        // Get chat history
+        // Add user message to history
         let chatHistory = allData.chatHistory || [];
-        
-        // Add user message to history (only if not already present)
         const userMessageExists = chatHistory.some(msg => 
             msg.role === 'user' && 
             msg.message === message && 
@@ -101,42 +99,10 @@ async function processChatMessage(projectId, userId, message, sessionId, process
             });
         }
 
-        // Update chat history in allData
         allData.chatHistory = chatHistory;
-
-        // CRITICAL: Pass the updated chat history to processIntelligenceLoop
-        // so it doesn't get overwritten when loading fresh data from Redis
-        Logger.info('entrypoint.web', 'processChatMessage:beforeIntelligenceLoop', {
-            projectId,
-            userId,
-            allDataKeys: Object.keys(allData),
-            chatHistoryLength: allData.chatHistory ? allData.chatHistory.length : 0
-        });
         
+        // Process through intelligence loop - key handshake point
         const response = await processIntelligenceLoop(projectId, userId, message, processingId, allData);
-        
-        Logger.info('entrypoint.web', 'processChatMessage:afterIntelligenceLoop', {
-            projectId,
-            userId,
-            hasResponse: !!response,
-            responseMessage: response ? response.message : 'NO RESPONSE',
-            responseMessageLength: response && response.message ? response.message.length : 0
-        });
-
-        // Do not inline todos into the assistant message; keep narrative separate from structured todos
-        const finalMessage = response.message;
-
-        // CRITICAL DEBUG: Log what AI response we received
-        Logger.info('entrypoint.web', 'processChatMessage:aiResponse', {
-            projectId,
-            userId,
-            responseMessage: response.message,
-            responseMessageLength: response.message ? response.message.length : 0,
-            hasAnalysis: !!response.analysis,
-            hasTodos: !!(response.analysis && response.analysis.gaps && response.analysis.gaps.todos),
-            todoCount: response.analysis && response.analysis.gaps && response.analysis.gaps.todos ? response.analysis.gaps.todos.length : 0,
-            fullResponse: response
-        });
 
         // Add AI response to history
         chatHistory.push({
@@ -147,67 +113,42 @@ async function processChatMessage(projectId, userId, message, sessionId, process
             analysis: response.analysis
         });
 
-        // CRITICAL DEBUG: Log what we're about to save
-        Logger.info('entrypoint.web', 'processChatMessage:beforeSave', {
-            projectId,
-            userId,
-            chatHistoryLength: chatHistory.length,
-            chatHistoryType: typeof chatHistory,
-            chatHistoryIsArray: Array.isArray(chatHistory),
-            chatHistoryValue: chatHistory,
-            lastMessage: chatHistory[chatHistory.length - 1]
-        });
-
-        // Save final chat history with AI response
         allData.chatHistory = chatHistory;
         
-        // CRITICAL: Save the updated chat history with AI response
+        // Save all data - essential handshake point
         await redisData.saveAllData(projectId, userId, allData);
         
-        Logger.info('entrypoint.web', 'processChatMessage:afterSave', {
-            projectId,
-            userId,
-            chatHistoryLength: chatHistory.length,
-            lastMessageRole: chatHistory[chatHistory.length - 1]?.role,
-            lastMessageLength: chatHistory[chatHistory.length - 1]?.message?.length
-        });
-
-        const totalMs = Date.now() - totalStart;
-        Logger.info('entrypoint.web', 'timing:processChatMessageMs', { ms: totalMs });
-        // CRITICAL: Extract todos from multiple sources to ensure we don't lose them
+        // Extract todos from response
         const todosFromAnalysis = (response.analysis && response.analysis.gaps && response.analysis.gaps.todos) ? response.analysis.gaps.todos : [];
         const todosFromAllData = allData.todos || [];
         const todosFromGaps = (response.analysis && response.analysis.todos) ? response.analysis.todos : [];
         
-        // Use the first available source
         const finalTodos = todosFromAnalysis.length > 0 ? todosFromAnalysis :
                           todosFromAllData.length > 0 ? todosFromAllData :
                           todosFromGaps;
         
-        Logger.info('entrypoint.web', 'processChatMessage:finalTodos', {
-            projectId,
-            userId,
-            todosFromAnalysis: todosFromAnalysis.length,
-            todosFromAllData: todosFromAllData.length,
-            todosFromGaps: todosFromGaps.length,
-            finalTodos: finalTodos.length,
-            finalTodosSample: finalTodos.slice(0, 2).map(t => ({ id: t.id, title: t.title, completed: t.completed }))
-        });
-        
         const result = {
             success: true,
-            message: finalMessage,
+            message: response.message,
             analysis: response.analysis,
             todos: finalTodos,
             projectData: allData.projectData,
             projectName: allData.projectData?.name || 'Untitled Project',
             projectEmail: allData.projectData?.email || null
         };
-        Logger.info('entrypoint.web', 'processChatMessage:result', { ok: true, todos: result.todos?.length || 0 });
+        
+        // Essential handshake logging - operation complete
+        Logger.info('entrypoint', 'operation_complete', { 
+            projectId, 
+            userId, 
+            todos: result.todos?.length || 0,
+            messageLength: result.message?.length || 0
+        });
+        
         return result;
 
     } catch (error) {
-        Logger.error('entrypoint.web', 'processChatMessage:error', error);
+        Logger.error('entrypoint', 'operation_error', { projectId, userId, error: error.message });
         return {
             success: false,
             message: "I encountered an error processing your message. Please try again.",
@@ -218,272 +159,100 @@ async function processChatMessage(projectId, userId, message, sessionId, process
 
 // Intelligence processing loop
 async function processIntelligenceLoop(projectId, userId, message, processingId, existingAllData = null) {
-    Logger.info('entrypoint.web', 'processIntelligenceLoop:start', { 
-        projectId, 
-        userId, 
-        hasExistingData: !!existingAllData,
-        existingDataKeys: existingAllData ? Object.keys(existingAllData) : 'none'
-    });
-    const loopStart = Date.now();
-    
-    // Load all data in a single Redis operation (or use existing data if provided)
-    const dataLoadStart = Date.now();
-    let allData = existingAllData || await redisData.loadAllData(projectId, userId);
-    Logger.info('entrypoint.web', 'timing:dataLoadMs', { ms: Date.now() - dataLoadStart });
-    
-    Logger.info('entrypoint.web', 'processIntelligenceLoop:dataLoaded', {
-        projectId,
-        userId,
-        allDataKeys: Object.keys(allData),
-        chatHistoryLength: allData.chatHistory ? allData.chatHistory.length : 0
-    });
-    
-    // Initialize default data structures if needed
-    if (!allData.projectData) {
-        allData.projectData = redisData.createDefaultProjectData(projectId);
-    }
-    if (!allData.learningData) {
-        allData.learningData = redisData.createDefaultLearningData(userId);
-    }
-    if (!allData.knowledgeData) {
-        allData.knowledgeData = redisData.createDefaultKnowledgeData(projectId);
-    }
-    if (!allData.gapData) {
-        allData.gapData = redisData.createDefaultGapData(projectId);
-    }
-    if (!allData.reflectionData) {
-        allData.reflectionData = redisData.createDefaultReflectionData(projectId);
-    }
-    
-    // 1. Self Analysis - Analyze current project knowledge
-    const t1 = Date.now();
-    const templateName = allData?.projectData?.templateName || 'simple_waterfall';
-    const template = getTemplate(templateName);
-    const analysis = await selfAnalysisController.analyzeProject(projectId, allData.projectData, allData.chatHistory, allData.knowledgeData, template);
-    Logger.info('entrypoint.web', 'timing:selfAnalysisMs', { ms: Date.now() - t1 });
-    
-    // Update knowledge data from analysis
-    if (analysis.knowledgeData) {
-        allData.knowledgeData = analysis.knowledgeData;
-    }
-    
-    if (processingId) {
-        await redisData.saveProcessing(processingId, { 
-            status: 'processing', 
-            stage: 'analyzing', 
-            updatedAt: Date.now(),
-            message: "🔍 Analyzing project knowledge...",
-            progress: 20
-        });
-    }
-    
-    // 2. Gap Detection - Identify critical missing information
-    const t2 = Date.now();
-    const gaps = await gapDetectionController.identifyGaps(projectId, analysis, allData.projectData, allData.gapData, template);
-    Logger.info('entrypoint.web', 'timing:gapDetectionMs', { ms: Date.now() - t2 });
-    
-    // CRITICAL DEBUG: Log gaps received from gap detection
-    Logger.info('entrypoint.web', 'processIntelligenceLoop:gapsReceived', {
-        projectId,
-        userId,
-        gapsKeys: gaps ? Object.keys(gaps) : [],
-        hasTodos: !!(gaps && gaps.todos),
-        todosCount: gaps && gaps.todos ? gaps.todos.length : 0
-    });
-    
-    // Update gap data from analysis
-    if (gaps.gapData) {
-        allData.gapData = gaps.gapData;
-    }
-    if (processingId) {
-        await redisData.saveProcessing(processingId, { 
-            status: 'processing', 
-            stage: 'gap_detection', 
-            updatedAt: Date.now(),
-            message: "🎯 Identifying missing information...",
-            progress: 40
-        });
-    }
-    
-    // 3. Action Planning - Plan optimal next action
-    const t3 = Date.now();
-    const actionPlan = await actionPlanningController.planAction(projectId, userId, gaps, analysis, allData.chatHistory, allData.learningData, template);
-    Logger.info('entrypoint.web', 'timing:actionPlanningMs', { ms: Date.now() - t3 });
-    
-    // Update learning data from action planning
-    if (actionPlan.updatedLearningData) {
-        allData.learningData = actionPlan.updatedLearningData;
-    }
-    if (processingId) {
-        await redisData.saveProcessing(processingId, { 
-            status: 'processing', 
-            stage: 'planning', 
-            updatedAt: Date.now(),
-            message: "📋 Planning next steps...",
-            progress: 60
-        });
-    }
-    
-    // 4. Execution - Execute planned action and process user response
-    const t4 = Date.now();
-    const execution = await executionController.executeAction(projectId, userId, message, actionPlan, allData.projectData, template);
-    Logger.info('entrypoint.web', 'timing:executionMs', { ms: Date.now() - t4 });
-    
-    // CRITICAL DEBUG: Log what execution controller generated
-    Logger.info('entrypoint.web', 'processIntelligenceLoop:executionResult', {
-        projectId,
-        userId,
-        executionMessage: execution.message,
-        executionMessageLength: execution.message ? execution.message.length : 0,
-        hasExecutionAnalysis: !!execution.analysis,
-        executionAnalysis: execution.analysis,
-        fullExecution: execution
-    });
-    
-    // Attach gaps (including todos) into analysis for rendering inline checklist
-    // Extract todos from gaps first (outside try-catch for scope)
-    const todos = gaps.todos || [];
-    
-    // CRITICAL DEBUG: Log todos received from gap detection
-    Logger.info('entrypoint.web', 'processIntelligenceLoop:todosReceived', {
-        projectId,
-        userId,
-        todosCount: todos.length,
-        todosIds: todos.map(t => t.id),
-        gapsKeys: gaps ? Object.keys(gaps) : []
-    });
-    
     try {
+        // Load or use existing data
+        let allData = existingAllData || await redisData.loadAllData(projectId, userId);
+        
+        // Initialize default data structures if needed
+        if (!allData.projectData) {
+            allData.projectData = redisData.createDefaultProjectData(projectId);
+        }
+        if (!allData.learningData) {
+            allData.learningData = redisData.createDefaultLearningData(userId);
+        }
+        if (!allData.knowledgeData) {
+            allData.knowledgeData = redisData.createDefaultKnowledgeData(projectId);
+        }
+        if (!allData.gapData) {
+            allData.gapData = redisData.createDefaultGapData(projectId);
+        }
+        if (!allData.reflectionData) {
+            allData.reflectionData = redisData.createDefaultReflectionData(projectId);
+        }
+    
+        // 1. Self Analysis - Essential handshake point
+        const templateName = allData?.projectData?.templateName || 'simple_waterfall';
+        const template = getTemplate(templateName);
+        const analysis = await selfAnalysisController.analyzeProject(projectId, allData.projectData, allData.chatHistory, allData.knowledgeData, template);
+        
+        if (analysis.knowledgeData) {
+            allData.knowledgeData = analysis.knowledgeData;
+        }
+        
+        // 2. Gap Detection - Essential handshake point  
+        const gaps = await gapDetectionController.identifyGaps(projectId, analysis, allData.projectData, allData.gapData, template);
+        
+        if (gaps.gapData) {
+            allData.gapData = gaps.gapData;
+        }
+        
+        // 3. Action Planning - Essential handshake point
+        const actionPlan = await actionPlanningController.planAction(projectId, userId, gaps, analysis, allData.chatHistory, allData.learningData, template);
+        
+        if (actionPlan.updatedLearningData) {
+            allData.learningData = actionPlan.updatedLearningData;
+        }
+        
+        // 4. Execution - Essential handshake point
+        const execution = await executionController.executeAction(projectId, userId, message, actionPlan, allData.projectData, template);
+        
+        // Attach gaps and todos to execution result
+        const todos = gaps.todos || [];
         execution.analysis = execution.analysis || {};
         execution.analysis.gaps = gaps;
-        
-        // Ensure todos are properly attached
         execution.analysis.todos = todos;
         
-        // Also ensure todos are in the gaps object for backward compatibility
         if (!execution.analysis.gaps.todos && todos.length > 0) {
             execution.analysis.gaps.todos = todos;
         }
         
-        Logger.info('entrypoint.web', 'processIntelligenceLoop:gapsAttached', {
-            projectId,
-            userId,
-            hasGaps: !!gaps,
-            gapsKeys: gaps ? Object.keys(gaps) : [],
-            todosExtracted: todos.length,
-            todosStructure: todos.length > 0 ? todos[0] : null
-        });
-        
-    } catch (error) {
-        Logger.error('entrypoint.web', 'processIntelligenceLoop:gapsAttachmentError', error);
-        // Continue execution even if gap attachment fails
-    }
-    
-    // CRITICAL DEBUG: Log final execution result with gaps and todos
-    Logger.info('entrypoint.web', 'processIntelligenceLoop:finalExecution', {
-        projectId,
-        userId,
-        finalMessage: execution.message,
-        finalAnalysis: execution.analysis,
-        hasGaps: !!execution.analysis.gaps,
-        hasTodos: !!(execution.analysis.gaps && execution.analysis.gaps.todos),
-        todoCount: execution.analysis.gaps && execution.analysis.gaps.todos ? execution.analysis.gaps.todos.length : 0,
-        todosExtracted: todos.length,
-        todosStructure: todos.length > 0 ? todos[0] : null
-    });
-    
-    // DEBUG: Log that we're about to process todos
-    Logger.info('entrypoint.web', 'processIntelligenceLoop:aboutToProcessTodos', {
-        projectId,
-        userId,
-        todosLength: todos.length,
-        todosExists: !!todos,
-        allDataExists: !!allData
-    });
-    if (processingId) {
-        await redisData.saveProcessing(processingId, { 
-            status: 'processing', 
-            stage: 'execution', 
-            updatedAt: Date.now(),
-            message: "💬 Generating response...",
-            progress: 90
-        });
-    }
-    
-    // DEBUG: Log that we're about to save todos
-    Logger.info('entrypoint.web', 'processIntelligenceLoop:aboutToSaveTodos', {
-        projectId,
-        userId,
-        todosLength: todos.length,
-        todosExists: !!todos,
-        allDataExists: !!allData
-    });
-    
-    // Ensure todos are included in allData for Redis storage BEFORE learning phase
-    try {
+        // Save todos to allData for Redis storage
         if (todos && todos.length > 0) {
             allData.todos = todos;
-            Logger.info('entrypoint.web', 'todosAddedToAllData', { 
-                projectId, 
-                userId, 
-                todoCount: todos.length,
-                todos: todos.map(t => ({ id: t.id, title: t.title, completed: t.completed })),
-                allDataKeys: Object.keys(allData),
-                allDataTodosAfter: allData.todos ? allData.todos.length : 0
-            });
-        } else {
-            Logger.info('entrypoint.web', 'todosAddedToAllData:noTodos', { 
-                projectId, 
-                userId, 
-                todosVariable: todos,
-                todosLength: todos ? todos.length : 'undefined',
-                todosType: typeof todos,
-                todosIsArray: Array.isArray(todos)
-            });
         }
+        
+        // Save all data - essential handshake point
+        await redisData.saveAllData(projectId, userId, allData);
+        
+        // 5. Learning - Run in background (non-blocking)
+        learningController.learnFromInteraction(projectId, userId, message, execution, allData.chatHistory, allData.learningData, allData.reflectionData)
+            .then((result) => {
+                // Update data with learning results (for next interaction)
+                if (result.updatedLearningData) {
+                    allData.learningData = result.updatedLearningData;
+                }
+                if (result.updatedReflectionData) {
+                    allData.reflectionData = result.updatedReflectionData;
+                }
+                
+                // Save updated learning data in background
+                redisData.saveAllData(projectId, userId, allData).catch(console.error);
+            })
+            .catch((error) => {
+                Logger.error('entrypoint', 'learning_error', { projectId, userId, error: error.message });
+            });
+        
+        return execution;
+        
     } catch (error) {
-        Logger.error('entrypoint.web', 'todosAddedToAllData:error', error);
+        Logger.error('entrypoint', 'intelligence_loop_error', { projectId, userId, error: error.message });
+        
+        // Return a fallback response so the system doesn't completely break
+        return {
+            message: "I encountered an error while processing your request. Please try again.",
+            analysis: null
+        };
     }
-    
-    // Save all updated data in a single Redis operation BEFORE learning phase
-    const dataSaveStart = Date.now();
-    await redisData.saveAllData(projectId, userId, allData);
-    Logger.info('entrypoint.web', 'timing:dataSaveMs', { ms: Date.now() - dataSaveStart });
-    
-    // DEBUG: Log that we're about to start learning phase
-    Logger.info('entrypoint.web', 'processIntelligenceLoop:aboutToStartLearning', {
-        projectId,
-        userId,
-        todosLength: todos.length
-    });
-    
-    // 5. Learning - Learn from interaction and adapt (run in background)
-    const t5 = Date.now();
-    // Run learning in background - don't await, don't block response
-    learningController.learnFromInteraction(projectId, userId, message, execution, allData.chatHistory, allData.learningData, allData.reflectionData)
-        .then((result) => {
-            Logger.info('entrypoint.web', 'timing:learningMs:background', { ms: Date.now() - t5 });
-            Logger.info('entrypoint.web', 'backgroundLearning:completed', { projectId, userId });
-            
-            // Update data with learning results (for next interaction)
-            if (result.updatedLearningData) {
-                allData.learningData = result.updatedLearningData;
-            }
-            if (result.updatedReflectionData) {
-                allData.reflectionData = result.updatedReflectionData;
-            }
-            
-            // Save updated learning data in background
-            redisData.saveAllData(projectId, userId, allData).catch(console.error);
-        })
-        .catch((error) => {
-            Logger.error('entrypoint.web', 'backgroundLearning:error', error);
-        });
-    
-    Logger.info('entrypoint.web', 'processIntelligenceLoop:end', { action: actionPlan?.action });
-    Logger.info('entrypoint.web', 'timing:intelligenceLoopMs', { ms: Date.now() - loopStart });
-    
-    return execution;
 }
 
 // Lightweight polling: start async processing and return processingId immediately
@@ -491,7 +260,7 @@ async function startProcessing(projectId, userId, sessionId, message) {
     const processingId = `proc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     
     // Save initial processing status
-    await redisData.saveProcessing(processingId, { 
+    await redisData.saveProcessingStatus(processingId, { 
         status: 'processing', 
         stage: 'queued', 
         startedAt: Date.now(),
@@ -512,16 +281,7 @@ async function startProcessing(projectId, userId, sessionId, message) {
             }
             : { status: 'error', error: result.error || 'processing failed' };
         
-        // CRITICAL DEBUG: Log what we're saving to processing status
-        Logger.info('entrypoint.web', 'startProcessing:payload', {
-            projectId,
-            userId,
-            hasTodos: !!(payload.todos && payload.todos.length > 0),
-            todoCount: payload.todos ? payload.todos.length : 0,
-            todosSample: payload.todos ? payload.todos.slice(0, 2).map(t => ({ id: t.id, title: t.title, completed: t.completed })) : 'none'
-        });
-        
-        await redisData.saveProcessing(processingId, payload);
+        await redisData.saveProcessingStatus(processingId, payload);
     })();
     
     return { 
@@ -535,17 +295,8 @@ async function startProcessing(projectId, userId, sessionId, message) {
 
 async function getProcessingStatus(processingId) {
     if (!processingId) return { success: false, status: 'error', error: 'missing processingId' };
-    const payload = await redisData.getProcessing(processingId);
+    const payload = await redisData.getProcessingStatus(processingId);
     if (!payload) return { success: true, status: 'processing' };
-    
-    // CRITICAL DEBUG: Log what we're returning from processing status
-    Logger.info('entrypoint.web', 'getProcessingStatus:returning', {
-        processingId,
-        status: payload.status,
-        hasTodos: !!(payload.todos && payload.todos.length > 0),
-        todoCount: payload.todos ? payload.todos.length : 0,
-        todosSample: payload.todos ? payload.todos.slice(0, 2).map(t => ({ id: t.id, title: t.title, completed: t.completed })) : 'none'
-    });
     
     return { success: true, ...payload };
 }

@@ -27,8 +27,6 @@ export const learningController = {
     // Main learning function
     async learnFromInteraction(projectId, userId, userMessage, execution, chatHistory, learningData, reflectionData) {
         try {
-            const totalStart = Date.now();
-            Logger.info('learningController', 'learnFromInteraction:start', { projectId, userId });
             
             // Use provided learning data instead of fetching
             if (!learningData) {

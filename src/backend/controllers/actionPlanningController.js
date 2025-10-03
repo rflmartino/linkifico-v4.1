@@ -25,7 +25,6 @@ export const actionPlanningController = {
     // Main action planning function
     async planAction(projectId, userId, gaps, analysis, chatHistory, learningData) {
         try {
-            Logger.info('actionPlanningController', 'planAction:start', { projectId, userId });
             // Use provided learning data instead of fetching
             
             // Analyze conversation context

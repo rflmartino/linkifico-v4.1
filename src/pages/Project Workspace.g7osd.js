@@ -6,46 +6,28 @@ import wixLocation from 'wix-location';
 import { session } from 'wix-storage';
 import { logToBackend } from 'backend/utils/webLogger.web.js';
 
-// Debug logging function
-function debugLog(message, data = null) {
+// Essential logging function - only for key handshake points
+function logHandshake(operation, data = null) {
     const timestamp = new Date().toLocaleTimeString();
-    const logMessage = `[${timestamp}] 🔧 WORKSPACE: ${message}`;
-    console.log(logMessage, data || '');
-    // Also log to backend for persistence
-    logToBackend('Project-Workspace-Debug', 'debug', { message, data });
+    console.log(`[${timestamp}] 🔧 ${operation}`, data || '');
+    logToBackend('Project-Workspace', operation, data);
 }
 
 $w.onReady(async function () {
-    const pageLoadStartTime = Date.now();
     const chatEl = $w('#mainChatDisplay');
-
-    await logToBackend('Project-Workspace', 'onReady', {
-        message: 'PAGE LOAD START: Project Workspace initializing',
-        pageLoadStartTime: pageLoadStartTime,
-        urlParams: wixLocation.query || {}
-    });
 
     // Get projectId and userId from URL parameters
     const projectId = wixLocation.query.projectId || generateNewProjectId();
     const userId = wixLocation.query.userId;
     
-    debugLog('Page parameters extracted', { projectId, userId, hasProjectId: !!wixLocation.query.projectId });
-    
     // Validate required parameters
     if (!userId) {
-        debugLog('ERROR: Missing userId parameter');
-        await logToBackend('Project-Workspace', 'onReady', null, 'NAVIGATION ERROR: Missing userId parameter in URL');
-        wixLocation.to('/project-portfolio'); // Redirect back to portfolio
+        logHandshake('navigation_error', 'Missing userId parameter');
+        wixLocation.to('/project-portfolio');
         return;
     }
     
-    await logToBackend('Project-Workspace', 'onReady', {
-        message: 'PAGE LOAD: Parameters validated, starting initialization',
-        projectId: projectId,
-        userId: userId,
-        isNewProject: !wixLocation.query.projectId,
-        pageLoadStartTime: pageLoadStartTime
-    });
+    logHandshake('page_load', { projectId, userId, isNewProject: !wixLocation.query.projectId });
 
     let sessionId = session.getItem('chatSessionId');
     if (!sessionId) {
@@ -53,67 +35,28 @@ $w.onReady(async function () {
         session.setItem('chatSessionId', sessionId);
     }
 
-	// Check for existing project and chat history on page load
+	// Check for existing project and chat history
 	let isNewSession = false;
 	let existingHistory = [];
 	let isNewProject = false;
 	
 	try {
-		await logToBackend('Project-Workspace', 'checkProjectStatus', {
-			message: 'BACKEND CHECK START: Checking project status and history',
-			projectId: projectId,
-			pageLoadStartTime: pageLoadStartTime
-		});
-		
-		// First check if project exists and get status
-		const statusStartTime = Date.now();
+		// Get project status and history
 		const status = await processUserRequest({ op: 'status', projectId, userId }).catch(() => null);
-		const statusDuration = Date.now() - statusStartTime;
-		
-		// Get chat history to determine if this is a new session
-		const historyStartTime = Date.now();
 		const historyResult = await processUserRequest({ op: 'history', projectId, userId }).catch(() => null);
-		const historyDuration = Date.now() - historyStartTime;
 		
 		existingHistory = historyResult?.history || [];
 		isNewSession = existingHistory.length === 0;
 		
-        // Determine if this is a newly created project (from portfolio)
         const projectJustCreated = isProjectJustCreated();
         isNewProject = !status || status.success === false || (existingHistory.length <= 2 && projectJustCreated);
         
-        debugLog('Project status analysis', {
-            hasStatus: !!status,
-            statusSuccess: status?.success,
-            historyLength: existingHistory.length,
-            projectJustCreated: projectJustCreated,
-            isNewProject: isNewProject,
-            isNewSession: isNewSession
-        });
-        
-        await logToBackend('Project-Workspace', 'checkProjectStatus', {
-            message: 'BACKEND CHECK COMPLETE: Project status and history retrieved',
-            projectExists: !!status?.success,
-            historyLength: existingHistory.length,
-            isNewProject: isNewProject,
-            isNewSession: isNewSession,
-            projectJustCreated: projectJustCreated,
-            statusCheckDurationMs: statusDuration,
-            historyCheckDurationMs: historyDuration,
-            totalBackendCheckMs: statusDuration + historyDuration,
-            pageLoadStartTime: pageLoadStartTime
-        });
-		
-        // Update page elements based on project status (if returning user)
+        // Update page elements for returning users
         if (!isNewSession && status?.success && !isNewProject) {
-            await logToBackend('Project-Workspace', 'updatePageElements', {
-                message: 'EXISTING PROJECT: Updating page elements for returning user',
-                projectId: projectId
-            });
             await updatePageElements(status);
         }
 	} catch (e) {
-		await logToBackend('Project-Workspace', 'checkProjectStatus', null, `BACKEND CHECK ERROR: ${e.message} (PageLoadTime: ${Date.now() - pageLoadStartTime}ms)`);
+		logHandshake('backend_check_error', { error: e.message });
 	}
 
 	chatEl.onMessage(async (event) => {
@@ -121,23 +64,11 @@ $w.onReady(async function () {
         const action = data.action;
 
         if (action === 'ready') {
-            const chatInitStartTime = Date.now();
-            
-            await logToBackend('Project-Workspace', 'chatInitialize', {
-                message: 'CHAT INIT START: Chat UI ready, initializing project data',
-                projectId: projectId,
-                pageLoadStartTime: pageLoadStartTime,
-                chatInitStartTime: chatInitStartTime,
-                totalPageLoadTimeMs: chatInitStartTime - pageLoadStartTime
-            });
-            
-            // Get current project info from status if available
+            // Get current project info
             let currentProjectName = 'Project Chat';
             let currentProjectEmail = null;
             try {
-                const projectInfoStartTime = Date.now();
                 const status = await processUserRequest({ op: 'status', projectId, userId }).catch(() => null);
-                const projectInfoDuration = Date.now() - projectInfoStartTime;
                 
                 if (status?.projectData?.name) {
                     currentProjectName = status.projectData.name;
@@ -145,16 +76,8 @@ $w.onReady(async function () {
                 if (status?.projectEmail) {
                     currentProjectEmail = status.projectEmail;
                 }
-                
-                await logToBackend('Project-Workspace', 'chatInitialize', {
-                    message: 'CHAT INIT: Project info retrieved',
-                    projectName: currentProjectName,
-                    hasEmail: !!currentProjectEmail,
-                    projectInfoDurationMs: projectInfoDuration
-                });
-                
             } catch (e) {
-                await logToBackend('Project-Workspace', 'getProjectInfo', null, e.message || e);
+                logHandshake('project_info_error', { error: e.message });
             }
             
             chatEl.postMessage({
@@ -172,75 +95,30 @@ $w.onReady(async function () {
                 }, 100);
             }
             
-            // Send appropriate content based on session type (determined on page load)
+            // Send appropriate content based on session type
             setTimeout(async () => {
-                debugLog('Chat initialization - determining flow', {
-                    isNewProject: isNewProject,
-                    isNewSession: isNewSession,
-                    historyLength: existingHistory.length
-                });
-                
                 if (isNewProject) {
-                    // Handle new project created from portfolio
-                    debugLog('NEW PROJECT FLOW: Starting new project initialization');
-                    await logToBackend('Project-Workspace', 'chatInitialize', { 
-                        message: 'NEW PROJECT FLOW: Initializing new project from portfolio',
-                        historyLength: existingHistory.length,
-                        pageLoadStartTime: pageLoadStartTime,
-                        totalTransitionTimeMs: Date.now() - pageLoadStartTime
-                    });
-                    
-                    // Show user input and processing state
+                    // Handle new project - show user message if exists
                     if (existingHistory.length > 0) {
-                        debugLog('NEW PROJECT: Found existing history', { 
-                            historyLength: existingHistory.length,
-                            messages: existingHistory.map(msg => ({ role: msg.role, length: msg.message?.length }))
-                        });
-                        
-                        // Show the user's initial message and set processing state
                         const userMessage = existingHistory.find(msg => msg.role === 'user');
                         if (userMessage) {
-                            debugLog('NEW PROJECT: Displaying user message', {
-                                messageLength: userMessage.message.length,
-                                timestamp: userMessage.timestamp
-                            });
-                            
-                            await logToBackend('Project-Workspace', 'chatInitialize', { 
-                                message: 'NEW PROJECT FLOW: Displaying user input message',
-                                userMessageLength: userMessage.message.length
-                            });
-                            
                             chatEl.postMessage({
                                 action: 'displayMessage',
                                 type: 'user',
                                 content: userMessage.message,
                                 timestamp: userMessage.timestamp
                             });
-                        } else {
-                            debugLog('NEW PROJECT: No user message found in history');
                         }
-                    } else {
-                        await logToBackend('Project-Workspace', 'chatInitialize', { 
-                            message: 'NEW PROJECT FLOW: No history found, may need to wait for backend processing'
-                        });
                     }
-                    
-                    // Always start polling for new projects (regardless of history length)
-                    debugLog('NEW PROJECT: Setting processing state and starting polling');
-                    
-                    await logToBackend('Project-Workspace', 'chatInitialize', { 
-                        message: 'NEW PROJECT FLOW: Setting processing state and starting polling'
-                    });
                     
                     chatEl.postMessage({ action: 'updateStatus', status: 'processing' });
                     
-                    // Start polling for the AI response
+                    // Start polling for AI response
                     setTimeout(() => {
-                        debugLog('NEW PROJECT: Starting polling for AI response');
                         pollForNewProjectResponse();
                     }, 1000);
                 } else if (isNewSession) {
-                    // Send welcome message for completely new sessions
+                    // Send welcome message for new sessions
                     chatEl.postMessage({
                         action: 'displayMessage',
                         type: 'assistant',
@@ -254,42 +132,32 @@ $w.onReady(async function () {
                         history: existingHistory
                     });
                     
-                    // Extract todos from chat history (they're stored in assistant messages' analysis field)
+                    // Extract and display todos from chat history
                     setTimeout(async () => {
                         try {
                             const todosFromHistory = [];
                             
-                            // Look through all assistant messages for todos in their analysis
                             existingHistory.forEach(msg => {
                                 if (msg.role === 'assistant' && msg.analysis && msg.analysis.todos) {
                                     todosFromHistory.push(...msg.analysis.todos);
                                 }
-                                // Also check gaps.todos for backward compatibility
                                 if (msg.role === 'assistant' && msg.analysis && msg.analysis.gaps && msg.analysis.gaps.todos) {
                                     todosFromHistory.push(...msg.analysis.gaps.todos);
                                 }
                             });
                             
-                            // Remove duplicates based on id
                             const uniqueTodos = todosFromHistory.filter((todo, index, self) => 
                                 index === self.findIndex(t => t.id === todo.id)
                             );
                             
                             if (uniqueTodos.length > 0) {
-                                debugLog('EXISTING PROJECT: Found todos in chat history', {
-                                    todoCount: uniqueTodos.length,
-                                    todos: uniqueTodos.map(t => ({ id: t.id, title: t.title, completed: t.completed }))
-                                });
-                                
                                 chatEl.postMessage({
                                     action: 'displayTodos',
                                     todos: uniqueTodos
                                 });
-                            } else {
-                                debugLog('EXISTING PROJECT: No todos found in chat history');
                             }
                         } catch (error) {
-                            await logToBackend('Project-Workspace', 'extractTodosFromHistory', null, error.message || error);
+                            logHandshake('todos_extraction_error', { error: error.message });
                         }
                     }, 500);
                 }
@@ -320,132 +188,162 @@ $w.onReady(async function () {
 
             chatEl.postMessage({ action: 'updateStatus', status: 'processing' });
 
-		// Start processing (immediate return) and poll for completion
-		let start = await processUserRequest({
-			op: 'startProcessing',
-			projectId,
-			userId,
-			sessionId,
-			payload: { message: userMessage }
-		}).catch(() => ({ success: false }));
+            // Start processing and poll for completion
+            let start = await processUserRequest({
+                op: 'startProcessing',
+                projectId,
+                userId,
+                sessionId,
+                payload: { message: userMessage }
+            }).catch(() => ({ success: false }));
 
-		// Retry once if start failed
-		if (!start || !start.success) {
-			await new Promise(r => setTimeout(r, 1000));
-			start = await processUserRequest({
-				op: 'startProcessing',
-				projectId,
-				userId,
-				sessionId,
-				payload: { message: userMessage }
-			}).catch(() => ({ success: false }));
-		}
+            // Retry once if start failed
+            if (!start || !start.success) {
+                await new Promise(r => setTimeout(r, 1000));
+                start = await processUserRequest({
+                    op: 'startProcessing',
+                    projectId,
+                    userId,
+                    sessionId,
+                    payload: { message: userMessage }
+                }).catch(() => ({ success: false }));
+            }
 
-		// If still failing, fallback to direct sendMessage (synchronous path)
-		if (!start || !start.success) {
-			const direct = await processUserRequest({
-				op: 'sendMessage',
-				projectId,
-				userId,
-				sessionId,
-				payload: { message: userMessage }
-			}).catch(() => null);
-			if (direct && direct.success) {
-				chatEl.postMessage({ action: 'displayMessage', type: 'assistant', content: direct.message || 'Done.', timestamp: new Date().toISOString() });
-				
-				// FIXED: Send todos separately to chat UI
-				if (Array.isArray(direct.todos) && direct.todos.length) {
-					debugLog('Forwarding todos from direct response', {
-						todoCount: direct.todos.length
-					});
-					chatEl.postMessage({ 
-						action: 'displayTodos', 
-						todos: direct.todos 
-					});
-				}
-                // Update project name if it changed
-                if (direct.projectName && direct.projectName !== 'Project Chat') {
-                    chatEl.postMessage({ action: 'updateProjectName', projectName: direct.projectName });
-                    await updatePageTitle(direct.projectName);
-                }
-				// Update project email if available
-				if (direct.projectEmail) {
-					chatEl.postMessage({ action: 'updateProjectEmail', projectEmail: direct.projectEmail });
-				}
-				chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
-				return;
-			}
-			// As a last resort, show a softer system update and stop
-			chatEl.postMessage({ action: 'displayMessage', type: 'system', content: 'Still working on it, please try again.', timestamp: new Date().toISOString() });
-			chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
-			return;
-		}
-
-        const processingId = start.processingId;
-        const startedAt = Date.now();
-        const intervalMs = 2000;
-        const timeoutMs = 90000;
-
-		const poll = async () => {
-			const status = await processUserRequest({ op: 'getProcessingStatus', projectId, userId, sessionId, payload: { processingId } }).catch(() => null);
-			if (!status) {
-				if (Date.now() - startedAt > timeoutMs) {
-					chatEl.postMessage({ action: 'displayMessage', type: 'system', content: 'Processing timed out. Please try again.', timestamp: new Date().toISOString() });
-					chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
-					return;
-				}
-				setTimeout(poll, intervalMs);
-				return;
-			}
-            if (status.status === 'processing') {
-                // Update progress from backend stage if available
-                if (status.stage) {
-                    chatEl.postMessage({ action: 'updateStatus', status: 'processing' });
-                }
-                // Display progress message if available
-                if (status.message) {
+            // If still failing, fallback to direct sendMessage
+            if (!start || !start.success) {
+                const direct = await processUserRequest({
+                    op: 'sendMessage',
+                    projectId,
+                    userId,
+                    sessionId,
+                    payload: { message: userMessage }
+                }).catch(() => null);
+                
+                if (direct && direct.success) {
                     chatEl.postMessage({ 
                         action: 'displayMessage', 
-                        type: 'system', 
-                        content: status.message, 
+                        type: 'assistant', 
+                        content: direct.message || 'Done.', 
                         timestamp: new Date().toISOString() 
                     });
-                }
-                if (Date.now() - startedAt > timeoutMs) {
-                    chatEl.postMessage({ action: 'displayMessage', type: 'system', content: 'Processing timed out. Please try again.', timestamp: new Date().toISOString() });
+                    
+                    if (Array.isArray(direct.todos) && direct.todos.length) {
+                        chatEl.postMessage({ 
+                            action: 'displayTodos', 
+                            todos: direct.todos 
+                        });
+                    }
+                    
+                    if (direct.projectName && direct.projectName !== 'Project Chat') {
+                        chatEl.postMessage({ action: 'updateProjectName', projectName: direct.projectName });
+                        await updatePageTitle(direct.projectName);
+                    }
+                    
+                    if (direct.projectEmail) {
+                        chatEl.postMessage({ action: 'updateProjectEmail', projectEmail: direct.projectEmail });
+                    }
+                    
                     chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
                     return;
                 }
-                setTimeout(poll, intervalMs);
+                
+                chatEl.postMessage({ 
+                    action: 'displayMessage', 
+                    type: 'system', 
+                    content: 'Still working on it, please try again.', 
+                    timestamp: new Date().toISOString() 
+                });
+                chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
                 return;
             }
-			if (status.status === 'error') {
-				// Only show a hard error if backend explicitly reports error
-				chatEl.postMessage({ action: 'displayMessage', type: 'assistant', content: (status.error ? `Error: ${status.error}` : 'Sorry, something went wrong.'), timestamp: new Date().toISOString() });
-				chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
-				return;
-			}
-            // complete
-            const msgs = status.conversation?.messages || status.conversation || [];
-            (msgs || []).forEach((m) => {
-                if (!m || !m.content) return;
-                const type = m.type === 'system' ? 'system' : 'assistant';
-                chatEl.postMessage({ action: 'displayMessage', type, content: m.content, timestamp: m.timestamp || new Date().toISOString() });
-            });
-            // FIXED: Send todos separately to chat UI after processing completes
-            if (Array.isArray(status.todos) && status.todos.length) {
-                debugLog('Forwarding todos from polling response', {
-                    todoCount: status.todos.length
-                });
-                chatEl.postMessage({ 
-                    action: 'displayTodos', 
-                    todos: status.todos 
-                });
-            }
-            chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
-        };
 
-        setTimeout(poll, intervalMs);
+            const processingId = start.processingId;
+            const startedAt = Date.now();
+            const intervalMs = 2000;
+            const timeoutMs = 90000;
+
+            const poll = async () => {
+                const status = await processUserRequest({ 
+                    op: 'getProcessingStatus', 
+                    projectId, 
+                    userId, 
+                    sessionId, 
+                    payload: { processingId } 
+                }).catch(() => null);
+                
+                if (!status) {
+                    if (Date.now() - startedAt > timeoutMs) {
+                        chatEl.postMessage({ 
+                            action: 'displayMessage', 
+                            type: 'system', 
+                            content: 'Processing timed out. Please try again.', 
+                            timestamp: new Date().toISOString() 
+                        });
+                        chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
+                        return;
+                    }
+                    setTimeout(poll, intervalMs);
+                    return;
+                }
+                
+                if (status.status === 'processing') {
+                    if (status.message) {
+                        chatEl.postMessage({ 
+                            action: 'displayMessage', 
+                            type: 'system', 
+                            content: status.message, 
+                            timestamp: new Date().toISOString() 
+                        });
+                    }
+                    if (Date.now() - startedAt > timeoutMs) {
+                        chatEl.postMessage({ 
+                            action: 'displayMessage', 
+                            type: 'system', 
+                            content: 'Processing timed out. Please try again.', 
+                            timestamp: new Date().toISOString() 
+                        });
+                        chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
+                        return;
+                    }
+                    setTimeout(poll, intervalMs);
+                    return;
+                }
+                
+                if (status.status === 'error') {
+                    chatEl.postMessage({ 
+                        action: 'displayMessage', 
+                        type: 'assistant', 
+                        content: (status.error ? `Error: ${status.error}` : 'Sorry, something went wrong.'), 
+                        timestamp: new Date().toISOString() 
+                    });
+                    chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
+                    return;
+                }
+                
+                // Complete - display messages and todos
+                const msgs = status.conversation?.messages || status.conversation || [];
+                (msgs || []).forEach((m) => {
+                    if (!m || !m.content) return;
+                    const type = m.type === 'system' ? 'system' : 'assistant';
+                    chatEl.postMessage({ 
+                        action: 'displayMessage', 
+                        type, 
+                        content: m.content, 
+                        timestamp: m.timestamp || new Date().toISOString() 
+                    });
+                });
+                
+                if (Array.isArray(status.todos) && status.todos.length) {
+                    chatEl.postMessage({ 
+                        action: 'displayTodos', 
+                        todos: status.todos 
+                    });
+                }
+                
+                chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
+            };
+
+            setTimeout(poll, intervalMs);
         }
     });
 
@@ -466,32 +364,18 @@ $w.onReady(async function () {
                 }
             }
         } catch (error) {
-            await logToBackend('Project-Workspace', 'updatePageTitle', null, error.message || error);
+            logHandshake('page_title_error', { error: error.message });
         }
     }
 
     // Function to update page elements for returning users
     async function updatePageElements(projectStatus) {
         try {
-            // Update project name/title if available
             if (projectStatus?.projectData?.name) {
                 await updatePageTitle(projectStatus.projectData.name);
             }
-            
-            // TODO: Update other HTML elements based on project status
-            // Examples:
-            // - Show project progress indicators
-            // - Display current project phase
-            // - Update any status badges or indicators
-            
-            await logToBackend('Project-Workspace', 'updatePageElements', { 
-                message: 'Project status for page updates',
-                projectStatus: projectStatus
-            });
-            
-            // This is where we'll add more HTML element updates
         } catch (error) {
-            await logToBackend('Project-Workspace', 'updatePageElements', null, error.message || error);
+            logHandshake('page_elements_error', { error: error.message });
         }
     }
 
@@ -510,89 +394,21 @@ $w.onReady(async function () {
     async function pollForNewProjectResponse() {
         const maxAttempts = 30; // 30 attempts = 60 seconds max
         let attempts = 0;
-        const pollStartTime = Date.now();
-        
-        await logToBackend('Project-Workspace', 'pollForNewProjectResponse', {
-            message: 'POLLING START: Starting to poll for AI response',
-            maxAttempts: maxAttempts,
-            pollStartTime: pollStartTime,
-            projectId: projectId
-        });
         
         const poll = async () => {
             attempts++;
-            const pollAttemptStartTime = Date.now();
             
             try {
                 // Get updated chat history
                 const historyResult = await processUserRequest({ op: 'history', projectId, userId }).catch(() => null);
                 const currentHistory = historyResult?.history || [];
                 
-                // Check if we have an AI response (more than just the user message)
+                // Check if we have an AI response
                 const aiResponses = currentHistory.filter(msg => msg.role === 'assistant');
                 
-                debugLog(`POLLING ATTEMPT ${attempts}`, {
-                    historyLength: currentHistory.length,
-                    aiResponseCount: aiResponses.length,
-                    currentHistory: currentHistory.map(msg => ({ role: msg.role, length: msg.message?.length }))
-                });
-                
-                await logToBackend('Project-Workspace', 'pollForNewProjectResponse', {
-                    message: `POLLING ATTEMPT ${attempts}: Checking for AI response`,
-                    historyLength: currentHistory.length,
-                    aiResponseCount: aiResponses.length,
-                    attemptDurationMs: Date.now() - pollAttemptStartTime,
-                    totalPollingTimeMs: Date.now() - pollStartTime
-                });
-                
-                // Extract todos from chat history and check for project updates
-                const todosFromHistory = [];
-                currentHistory.forEach(msg => {
-                    if (msg.role === 'assistant' && msg.analysis && msg.analysis.todos) {
-                        todosFromHistory.push(...msg.analysis.todos);
-                    }
-                    // Also check gaps.todos for backward compatibility
-                    if (msg.role === 'assistant' && msg.analysis && msg.analysis.gaps && msg.analysis.gaps.todos) {
-                        todosFromHistory.push(...msg.analysis.gaps.todos);
-                    }
-                });
-                
-                // Remove duplicates based on id
-                const uniqueTodos = todosFromHistory.filter((todo, index, self) => 
-                    index === self.findIndex(t => t.id === todo.id)
-                );
-                
-                const hasTodos = uniqueTodos.length > 0;
-                const hasProjectName = currentHistory.some(msg => 
-                    msg.role === 'assistant' && msg.analysis && msg.analysis.updatedProjectData && 
-                    msg.analysis.updatedProjectData.name && msg.analysis.updatedProjectData.name !== 'Untitled Project'
-                );
-
                 if (aiResponses.length > 0) {
-                    // We have AI response(s), display them along with todos and project updates
-                    debugLog('POLLING SUCCESS: AI response found', {
-                        responseCount: aiResponses.length,
-                        responses: aiResponses.map(r => ({ length: r.message?.length, timestamp: r.timestamp })),
-                        hasTodos: hasTodos,
-                        hasProjectName: hasProjectName
-                    });
-                    
-                    await logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
-                        message: 'POLLING SUCCESS: AI response received, displaying content with todos',
-                        responseCount: aiResponses.length,
-                        hasTodos: hasTodos,
-                        todoCount: hasTodos ? currentStatus.todos.length : 0,
-                        totalPollingTimeMs: Date.now() - pollStartTime,
-                        totalAttempts: attempts
-                    });
-                    
-                    // Display the AI response(s)
-                    aiResponses.forEach((response, index) => {
-                        debugLog(`POLLING: Displaying AI response ${index + 1}`, {
-                            messageLength: response.message?.length,
-                            timestamp: response.timestamp
-                        });
-                        
+                    // Display AI responses
+                    aiResponses.forEach((response) => {
                         chatEl.postMessage({
                             action: 'displayMessage',
                             type: 'assistant',
@@ -601,13 +417,22 @@ $w.onReady(async function () {
                         });
                     });
                     
-                    // FIXED: Display todos separately from the AI response
-                    if (hasTodos) {
-                        debugLog('POLLING SUCCESS: Sending todos to chat UI', {
-                            todoCount: uniqueTodos.length,
-                            todosStructure: uniqueTodos.map(t => ({ id: t.id, title: t.title, completed: t.completed }))
-                        });
-                        
+                    // Extract and display todos
+                    const todosFromHistory = [];
+                    currentHistory.forEach(msg => {
+                        if (msg.role === 'assistant' && msg.analysis && msg.analysis.todos) {
+                            todosFromHistory.push(...msg.analysis.todos);
+                        }
+                        if (msg.role === 'assistant' && msg.analysis && msg.analysis.gaps && msg.analysis.gaps.todos) {
+                            todosFromHistory.push(...msg.analysis.gaps.todos);
+                        }
+                    });
+                    
+                    const uniqueTodos = todosFromHistory.filter((todo, index, self) => 
+                        index === self.findIndex(t => t.id === todo.id)
+                    );
+                    
+                    if (uniqueTodos.length > 0) {
                         chatEl.postMessage({
                             action: 'displayTodos',
                             todos: uniqueTodos
@@ -615,6 +440,11 @@ $w.onReady(async function () {
                     }
                     
                     // Update project name if it changed
+                    const hasProjectName = currentHistory.some(msg => 
+                        msg.role === 'assistant' && msg.analysis && msg.analysis.updatedProjectData && 
+                        msg.analysis.updatedProjectData.name && msg.analysis.updatedProjectData.name !== 'Untitled Project'
+                    );
+                    
                     if (hasProjectName) {
                         const projectNameMessage = currentHistory.find(msg => 
                             msg.role === 'assistant' && msg.analysis && msg.analysis.updatedProjectData && 
@@ -622,10 +452,6 @@ $w.onReady(async function () {
                         );
                         const newProjectName = projectNameMessage?.analysis?.updatedProjectData?.name;
                         
-                        await logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
-                            message: 'POLLING SUCCESS: Updating project name',
-                            newProjectName: newProjectName
-                        });
                         chatEl.postMessage({ 
                             action: 'updateProjectName', 
                             projectName: newProjectName 
@@ -633,24 +459,8 @@ $w.onReady(async function () {
                         await updatePageTitle(newProjectName);
                     }
                     
-                    // Set status to ready
                     chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
-                    
-                    await logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
-                        message: 'POLLING COMPLETE: New project initialization finished successfully',
-                        totalTransitionTimeMs: Date.now() - pageLoadStartTime,
-                        totalPollingTimeMs: Date.now() - pollStartTime
-                    });
                     return;
-                }
-                
-                // Log progress if we found todos but no AI response yet
-                if (hasTodos) {
-                    await logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
-                        message: 'POLLING: Found todos, waiting for AI response to display together',
-                        todoCount: uniqueTodos.length,
-                        attempts: attempts
-                    });
                 }
                 
                 // No response yet, continue polling if we haven't exceeded max attempts
@@ -658,7 +468,6 @@ $w.onReady(async function () {
                     setTimeout(poll, 2000); // Poll every 2 seconds
                 } else {
                     // Timeout
-                    await logToBackend('Project-Workspace', 'pollForNewProjectResponse', null, `POLLING TIMEOUT: No AI response after ${attempts} attempts (${Date.now() - pollStartTime}ms)`);
                     chatEl.postMessage({
                         action: 'displayMessage',
                         type: 'system',
@@ -669,7 +478,7 @@ $w.onReady(async function () {
                 }
                 
             } catch (error) {
-                await logToBackend('Project-Workspace', 'pollForNewProjectResponse', null, `POLLING ERROR: ${error.message} (Attempt ${attempts}, TotalTime: ${Date.now() - pollStartTime}ms)`);
+                logHandshake('polling_error', { error: error.message, attempts });
                 chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
             }
         };

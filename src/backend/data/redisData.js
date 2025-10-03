@@ -18,7 +18,6 @@ export const redisData = {
     
     // Load all data for a project and user in a single Redis operation
     async loadAllData(projectId, userId) {
-        const startTime = Date.now();
         try {
             const [
                 projectData,
@@ -36,17 +35,6 @@ export const redisData = {
                 getReflectionData(projectId, userId)
             ]);
             
-            Logger.info('dataManager', 'timing:loadAllDataMs', { ms: Date.now() - startTime });
-            
-            // Debug logging to see what we're getting from each function
-            Logger.info('dataManager', 'loadAllData:debug', {
-                projectId,
-                userId,
-                chatHistoryLength: chatHistory ? chatHistory.length : 0,
-                chatHistoryType: typeof chatHistory,
-                chatHistorySample: chatHistory && chatHistory.length > 0 ? chatHistory.slice(0, 2) : 'empty'
-            });
-            
             return {
                 projectData: projectData || this.createDefaultProjectData(projectId),
                 chatHistory: chatHistory || [],
@@ -57,7 +45,7 @@ export const redisData = {
             };
             
         } catch (error) {
-            Logger.error('dataManager', 'loadAllData:error', error);
+            Logger.error('redisData', 'loadAllData_error', { projectId, userId, error: error.message });
             // Return default data structures on error
             return {
                 projectData: this.createDefaultProjectData(projectId),
@@ -145,9 +133,7 @@ export const redisData = {
 
     // Save all data for a project and user in a single Redis operation
     async saveAllData(projectId, userId, allData) {
-        const startTime = Date.now();
         try {
-            
             await Promise.all([
                 saveProjectData(projectId, allData.projectData),
                 saveChatHistory(projectId, userId, allData.chatHistory),
@@ -159,10 +145,8 @@ export const redisData = {
                 this.saveTodos(projectId, userId, allData.todos || [])
             ]);
             
-            Logger.info('dataManager', 'timing:saveAllDataMs', { ms: Date.now() - startTime });
-            
         } catch (error) {
-            Logger.error('dataManager', 'saveAllData:error', error);
+            Logger.error('redisData', 'saveAllData_error', { projectId, userId, error: error.message });
             throw error;
         }
     },
@@ -171,13 +155,6 @@ export const redisData = {
     async saveTodos(projectId, userId, todos) {
         try {
             if (!todos || todos.length === 0) {
-                Logger.info('dataManager', 'saveTodos:skipped', { 
-                    projectId, 
-                    userId, 
-                    reason: 'No todos to save',
-                    todosType: typeof todos,
-                    todosLength: todos ? todos.length : 'undefined'
-                });
                 return;
             }
             
@@ -193,16 +170,9 @@ export const redisData = {
             };
             
             await redis.set(todoKey, JSON.stringify(todoData));
-            Logger.info('dataManager', 'saveTodos:success', { 
-                projectId, 
-                userId, 
-                todoCount: todos.length,
-                todoKey,
-                todosSample: todos.slice(0, 2).map(t => ({ id: t.id, title: t.title, completed: t.completed }))
-            });
             
         } catch (error) {
-            Logger.error('dataManager', 'saveTodos:error', error);
+            Logger.error('redisData', 'saveTodos_error', { projectId, userId, error: error.message });
             // Don't throw - todos are also saved in gap data
         }
     },
@@ -245,7 +215,7 @@ export const redisData = {
     },
 
     // Save processing status for polling
-    async saveProcessing(processingId, payload) {
+    async saveProcessingStatus(processingId, payload) {
         try {
             await saveProcessing(processingId, payload);
         } catch (error) {
@@ -254,7 +224,7 @@ export const redisData = {
     },
 
     // Get processing status for polling
-    async getProcessing(processingId) {
+    async getProcessingStatus(processingId) {
         try {
             return await getProcessing(processingId);
         } catch (error) {

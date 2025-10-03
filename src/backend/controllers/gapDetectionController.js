@@ -33,7 +33,6 @@ export const gapDetectionController = {
     // Main gap identification function
     async identifyGaps(projectId, analysis, projectData, existingGapData = null, template = null) {
         try {
-            Logger.info('gapDetectionController', 'identifyGaps:start', { projectId });
             // Template-driven missing areas (Phase 1): empty or absent area objects
             const areas = (template && template.areas) || [];
             const missingFields = areas
@@ -41,26 +40,13 @@ export const gapDetectionController = {
                 .map(a => a.id);
             
             // Try NLP first with confidence gate
-            const nlpStart = Date.now();
             const nlpResult = await this.tryNLPProcessing(projectData, analysis, missingFields);
-            Logger.info('gapDetectionController', 'timing:nlpProcessingMs', { ms: Date.now() - nlpStart });
             
             let gapAnalysisAndAction;
             if (nlpResult.success) {
-                Logger.info('gapDetectionController', 'nlpSuccess', { 
-                    intent: nlpResult.intent, 
-                    confidence: nlpResult.confidence,
-                    usedNLP: true 
-                });
-                
                 gapAnalysisAndAction = nlpResult.gapAnalysis;
             } else {
                 // Fallback to Haiku for low confidence or unknown intents
-                Logger.info('gapDetectionController', 'nlpFallback', { 
-                    reason: nlpResult.reason,
-                    usedNLP: false 
-                });
-                
                 gapAnalysisAndAction = await this.analyzeGapsAndDetermineAction(projectData, analysis, missingFields);
             }
             
@@ -71,21 +57,6 @@ export const gapDetectionController = {
             
             // Build todos from prioritized gaps (include completion state based on current projectData)
             const todos = this.buildTodosFromGaps(prioritizedGaps, gapAnalysis, nextAction, projectData);
-            
-            // CRITICAL DEBUG: Log todo generation
-            Logger.info('gapDetectionController', 'buildTodosFromGaps:result', {
-                projectId,
-                prioritizedGapsCount: prioritizedGaps.length,
-                todosGenerated: todos.length,
-                todos: todos.map(t => ({ id: t.id, title: t.title, completed: t.completed, priority: t.priority }))
-            });
-            
-            // CRITICAL DEBUG: Log that todos are being returned
-            Logger.info('gapDetectionController', 'buildTodosFromGaps:returning', {
-                projectId,
-                todosCount: todos.length,
-                todosIds: todos.map(t => t.id)
-            });
 
             // Create or update gap data structure
             const gapData = existingGapData || createGapData(projectId, {
@@ -104,7 +75,6 @@ export const gapDetectionController = {
             gapData.todos = todos;
             gapData.lastUpdated = new Date().toISOString();
             
-            Logger.info('gapDetectionController', 'identifyGaps:end', { next: nextAction.action, gaps: prioritizedGaps.length });
             return {
                 criticalGaps: prioritizedGaps,
                 priorityScore: gapData.priorityScore,
@@ -116,7 +86,7 @@ export const gapDetectionController = {
             };
             
         } catch (error) {
-            Logger.error('gapDetectionController', 'identifyGaps:error', error);
+            Logger.error('gapDetectionController', 'identifyGaps_error', { projectId, error: error.message });
             return {
                 criticalGaps: Object.values(PROJECT_FIELDS),
                 priorityScore: 1.0,
