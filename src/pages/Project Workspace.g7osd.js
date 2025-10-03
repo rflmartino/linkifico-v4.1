@@ -16,18 +16,18 @@ function logHandshake(operation, data = null) {
 $w.onReady(async function () {
     const chatEl = $w('#mainChatDisplay');
 
-    // Get projectId and userId from URL parameters
+    // Get projectId from URL parameters (or generate new one)
     const projectId = wixLocation.query.projectId || generateNewProjectId();
-    const userId = wixLocation.query.userId;
     
-    // Validate required parameters
-    if (!userId) {
-        logHandshake('navigation_error', 'Missing userId parameter');
-        wixLocation.to('/project-portfolio');
-        return;
-    }
+    // Hardcoded test user for testing job queue system
+    const TEST_USER_ID = 'test_user_123';
     
-    logHandshake('page_load', { projectId, userId, isNewProject: !wixLocation.query.projectId });
+    logHandshake('page_load', { 
+        projectId, 
+        userId: TEST_USER_ID, 
+        isNewProject: !wixLocation.query.projectId,
+        testingMode: true
+    });
 
     let sessionId = session.getItem('chatSessionId');
     if (!sessionId) {
@@ -41,9 +41,9 @@ $w.onReady(async function () {
 	let isNewProject = false;
 	
 	try {
-		// Get project status and history
-		const status = await processUserRequest({ op: 'status', projectId, userId }).catch(() => null);
-		const historyResult = await processUserRequest({ op: 'history', projectId, userId }).catch(() => null);
+		// Get project status and history using test user
+		const status = await processUserRequest({ op: 'status', projectId, userId: TEST_USER_ID }).catch(() => null);
+		const historyResult = await processUserRequest({ op: 'history', projectId, userId: TEST_USER_ID }).catch(() => null);
 		
 		existingHistory = historyResult?.history || [];
 		isNewSession = existingHistory.length === 0;
@@ -64,11 +64,11 @@ $w.onReady(async function () {
         const action = data.action;
 
         if (action === 'ready') {
-            // Get current project info
-            let currentProjectName = 'Project Chat';
+            // Get current project info using test user
+            let currentProjectName = 'Test Project';
             let currentProjectEmail = null;
             try {
-                const status = await processUserRequest({ op: 'status', projectId, userId }).catch(() => null);
+                const status = await processUserRequest({ op: 'status', projectId, userId: TEST_USER_ID }).catch(() => null);
                 
                 if (status?.projectData?.name) {
                     currentProjectName = status.projectData.name;
@@ -84,7 +84,7 @@ $w.onReady(async function () {
                 action: 'initialize',
                 sessionId,
                 projectId,
-                userId,
+                userId: TEST_USER_ID,
                 projectName: currentProjectName
             });
             
@@ -179,6 +179,7 @@ $w.onReady(async function () {
             const userMessage = (data.message || '').trim();
             if (!userMessage) return;
 
+            // Display user message immediately
             chatEl.postMessage({
                 action: 'displayMessage',
                 type: 'user',
@@ -188,162 +189,31 @@ $w.onReady(async function () {
 
             chatEl.postMessage({ action: 'updateStatus', status: 'processing' });
 
-            // Start processing and poll for completion
-            let start = await processUserRequest({
-                op: 'startProcessing',
+            // Submit job to queue using new job queue system
+            const job = await processUserRequest({
+                op: 'submitJob',
                 projectId,
-                userId,
+                userId: TEST_USER_ID,
                 sessionId,
-                payload: { message: userMessage }
+                payload: {
+                    jobType: 'sendMessage',
+                    message: userMessage
+                }
             }).catch(() => ({ success: false }));
 
-            // Retry once if start failed
-            if (!start || !start.success) {
-                await new Promise(r => setTimeout(r, 1000));
-                start = await processUserRequest({
-                    op: 'startProcessing',
-                    projectId,
-                    userId,
-                    sessionId,
-                    payload: { message: userMessage }
-                }).catch(() => ({ success: false }));
-            }
-
-            // If still failing, fallback to direct sendMessage
-            if (!start || !start.success) {
-                const direct = await processUserRequest({
-                    op: 'sendMessage',
-                    projectId,
-                    userId,
-                    sessionId,
-                    payload: { message: userMessage }
-                }).catch(() => null);
-                
-                if (direct && direct.success) {
-                    chatEl.postMessage({ 
-                        action: 'displayMessage', 
-                        type: 'assistant', 
-                        content: direct.message || 'Done.', 
-                        timestamp: new Date().toISOString() 
-                    });
-                    
-                    if (Array.isArray(direct.todos) && direct.todos.length) {
-                        chatEl.postMessage({ 
-                            action: 'displayTodos', 
-                            todos: direct.todos 
-                        });
-                    }
-                    
-                    if (direct.projectName && direct.projectName !== 'Project Chat') {
-                        chatEl.postMessage({ action: 'updateProjectName', projectName: direct.projectName });
-                        await updatePageTitle(direct.projectName);
-                    }
-                    
-                    if (direct.projectEmail) {
-                        chatEl.postMessage({ action: 'updateProjectEmail', projectEmail: direct.projectEmail });
-                    }
-                    
-                    chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
-                    return;
-                }
-                
+            if (!job || !job.success) {
                 chatEl.postMessage({ 
                     action: 'displayMessage', 
                     type: 'system', 
-                    content: 'Still working on it, please try again.', 
+                    content: 'Failed to submit job. Please try again.', 
                     timestamp: new Date().toISOString() 
                 });
                 chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
                 return;
             }
 
-            const processingId = start.processingId;
-            const startedAt = Date.now();
-            const intervalMs = 2000;
-            const timeoutMs = 90000;
-
-            const poll = async () => {
-                const status = await processUserRequest({ 
-                    op: 'getProcessingStatus', 
-                    projectId, 
-                    userId, 
-                    sessionId, 
-                    payload: { processingId } 
-                }).catch(() => null);
-                
-                if (!status) {
-                    if (Date.now() - startedAt > timeoutMs) {
-                        chatEl.postMessage({ 
-                            action: 'displayMessage', 
-                            type: 'system', 
-                            content: 'Processing timed out. Please try again.', 
-                            timestamp: new Date().toISOString() 
-                        });
-                        chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
-                        return;
-                    }
-                    setTimeout(poll, intervalMs);
-                    return;
-                }
-                
-                if (status.status === 'processing') {
-                    if (status.message) {
-                        chatEl.postMessage({ 
-                            action: 'displayMessage', 
-                            type: 'system', 
-                            content: status.message, 
-                            timestamp: new Date().toISOString() 
-                        });
-                    }
-                    if (Date.now() - startedAt > timeoutMs) {
-                        chatEl.postMessage({ 
-                            action: 'displayMessage', 
-                            type: 'system', 
-                            content: 'Processing timed out. Please try again.', 
-                            timestamp: new Date().toISOString() 
-                        });
-                        chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
-                        return;
-                    }
-                    setTimeout(poll, intervalMs);
-                    return;
-                }
-                
-                if (status.status === 'error') {
-                    chatEl.postMessage({ 
-                        action: 'displayMessage', 
-                        type: 'assistant', 
-                        content: (status.error ? `Error: ${status.error}` : 'Sorry, something went wrong.'), 
-                        timestamp: new Date().toISOString() 
-                    });
-                    chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
-                    return;
-                }
-                
-                // Complete - display messages and todos
-                const msgs = status.conversation?.messages || status.conversation || [];
-                (msgs || []).forEach((m) => {
-                    if (!m || !m.content) return;
-                    const type = m.type === 'system' ? 'system' : 'assistant';
-                    chatEl.postMessage({ 
-                        action: 'displayMessage', 
-                        type, 
-                        content: m.content, 
-                        timestamp: m.timestamp || new Date().toISOString() 
-                    });
-                });
-                
-                if (Array.isArray(status.todos) && status.todos.length) {
-                    chatEl.postMessage({ 
-                        action: 'displayTodos', 
-                        todos: status.todos 
-                    });
-                }
-                
-                chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
-            };
-
-            setTimeout(poll, intervalMs);
+            // Poll for job results
+            pollForJobResults(job.jobId);
         }
     });
 
@@ -353,6 +223,111 @@ $w.onReady(async function () {
         const timestamp = Date.now();
         const randomId = Math.random().toString(36).substring(2, 8);
         return `proj_${timestamp}_${randomId}`;
+    }
+
+    // Poll for job results - new job queue system
+    async function pollForJobResults(jobId) {
+        const maxAttempts = 45; // 45 attempts = 90 seconds max
+        let attempts = 0;
+        const startedAt = Date.now();
+        const intervalMs = 2000;
+        const timeoutMs = 90000;
+
+        const poll = async () => {
+            attempts++;
+            
+            try {
+                const results = await processUserRequest({
+                    op: 'getJobResults',
+                    payload: { jobId: jobId }
+                }).catch(() => null);
+                
+                if (!results) {
+                    if (Date.now() - startedAt > timeoutMs) {
+                        chatEl.postMessage({
+                            action: 'displayMessage',
+                            type: 'system',
+                            content: 'Processing timed out. Please try again.',
+                            timestamp: new Date().toISOString()
+                        });
+                        chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
+                        return;
+                    }
+                    setTimeout(poll, intervalMs);
+                    return;
+                }
+                
+                if (results.status === 'completed') {
+                    // Display complete results
+                    chatEl.postMessage({
+                        action: 'displayMessage',
+                        type: 'assistant',
+                        content: results.results.aiResponse,
+                        timestamp: new Date().toISOString()
+                    });
+                    
+                    // Display todos if available
+                    if (Array.isArray(results.results.todos) && results.results.todos.length) {
+                        chatEl.postMessage({
+                            action: 'displayTodos',
+                            todos: results.results.todos
+                        });
+                    }
+                    
+                    // Update project name if it changed
+                    if (results.results.projectData?.name && results.results.projectData.name !== 'Test Project') {
+                        chatEl.postMessage({ 
+                            action: 'updateProjectName', 
+                            projectName: results.results.projectData.name 
+                        });
+                        await updatePageTitle(results.results.projectData.name);
+                    }
+                    
+                    // Update project email if available
+                    if (results.results.projectData?.email) {
+                        chatEl.postMessage({ 
+                            action: 'updateProjectEmail', 
+                            projectEmail: results.results.projectData.email 
+                        });
+                    }
+                    
+                    chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
+                    return;
+                }
+                
+                if (results.status === 'failed') {
+                    chatEl.postMessage({
+                        action: 'displayMessage',
+                        type: 'system',
+                        content: `Processing failed: ${results.message}`,
+                        timestamp: new Date().toISOString()
+                    });
+                    chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
+                    return;
+                }
+                
+                // Still processing, continue polling
+                if (attempts < maxAttempts) {
+                    setTimeout(poll, intervalMs);
+                } else {
+                    // Timeout
+                    chatEl.postMessage({
+                        action: 'displayMessage',
+                        type: 'system',
+                        content: 'Processing is taking longer than expected. Please try again.',
+                        timestamp: new Date().toISOString()
+                    });
+                    chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
+                }
+                
+            } catch (error) {
+                logHandshake('polling_error', { error: error.message, attempts });
+                chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
+            }
+        };
+        
+        // Start polling
+        poll();
     }
 
     // Function to update page title with project name
@@ -399,8 +374,8 @@ $w.onReady(async function () {
             attempts++;
             
             try {
-                // Get updated chat history
-                const historyResult = await processUserRequest({ op: 'history', projectId, userId }).catch(() => null);
+                // Get updated chat history using test user
+                const historyResult = await processUserRequest({ op: 'history', projectId, userId: TEST_USER_ID }).catch(() => null);
                 const currentHistory = historyResult?.history || [];
                 
                 // Check if we have an AI response
