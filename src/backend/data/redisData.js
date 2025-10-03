@@ -343,7 +343,7 @@ export const redisData = {
             Logger.info('redisData', 'saveJob_data_saved', { jobId: job.id });
             
             // Add to queued jobs list
-            await client.lpush('jobs:queued', job.id);
+            await client.lPush('jobs:queued', job.id);
             Logger.info('redisData', 'saveJob_added_to_queue', { jobId: job.id });
             
             Logger.info('redisData', 'job_saved', { 
@@ -406,11 +406,11 @@ export const redisData = {
             
             // Move job between queues
             if (status === 'processing') {
-                await client.lrem('jobs:queued', 0, jobId);
-                await client.lpush('jobs:processing', jobId);
+                await client.lRem('jobs:queued', 0, jobId);
+                await client.lPush('jobs:processing', jobId);
             } else if (status === 'completed' || status === 'failed') {
-                await client.lrem('jobs:processing', 0, jobId);
-                await client.lpush('jobs:completed', jobId);
+                await client.lRem('jobs:processing', 0, jobId);
+                await client.lPush('jobs:completed', jobId);
             }
             
         } catch (error) {
@@ -471,7 +471,7 @@ export const redisData = {
     async getQueuedJobs(limit = 10) {
         try {
             const client = await getRedisClient();
-            const jobIds = await client.lrange('jobs:queued', 0, limit - 1);
+            const jobIds = await client.lRange('jobs:queued', 0, limit - 1);
             
             const jobs = [];
             for (const jobId of jobIds) {
@@ -496,7 +496,7 @@ export const redisData = {
             const cutoffTime = Date.now() - maxAge;
             
             // Get completed jobs
-            const completedJobIds = await client.lrange('jobs:completed', 0, -1);
+            const completedJobIds = await client.lRange('jobs:completed', 0, -1);
             
             for (const jobId of completedJobIds) {
                 const job = await this.getJob(jobId);
@@ -506,7 +506,7 @@ export const redisData = {
                     await Promise.all([
                         client.del(`jobs:${jobId}`),
                         client.del(`jobs:${jobId}:results`),
-                        client.lrem('jobs:completed', 0, jobId)
+                        client.lRem('jobs:completed', 0, jobId)
                     ]);
                 }
             }
