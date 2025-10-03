@@ -236,9 +236,13 @@ $w.onReady(async function () {
                 const results = await processUserRequest({
                     op: 'getJobResults',
                     payload: { jobId: jobId }
-                }).catch(() => null);
+                }).catch((error) => {
+                    logHandshake('pollForJobResults', 'getJobResults_error', { jobId, error: error.message });
+                    return null;
+                });
                 
                 if (!results) {
+                    logHandshake('pollForJobResults', 'no_results', { jobId, attempts, elapsed: Date.now() - startedAt });
                     if (Date.now() - startedAt > timeoutMs) {
                         logHandshake('pollForJobResults', 'timeout', { jobId, attempts, duration: Date.now() - startedAt });
                         chatEl.postMessage({
@@ -253,6 +257,13 @@ $w.onReady(async function () {
                     setTimeout(poll, intervalMs);
                     return;
                 }
+                
+                logHandshake('pollForJobResults', 'got_results', { 
+                    jobId, 
+                    attempts, 
+                    results: JSON.stringify(results, null, 2),
+                    elapsed: Date.now() - startedAt 
+                });
                 
                 logHandshake('pollForJobResults', 'statusCheck', { 
                     jobId, 

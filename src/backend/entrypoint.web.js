@@ -152,6 +152,11 @@ async function getJobResults(jobId) {
         }
         
         Logger.info('entrypoint', 'getJobResults_request', { jobId });
+        Logger.info('entrypoint', 'getJobResults_debug_start', { 
+            jobId, 
+            jobIdType: typeof jobId,
+            jobIdLength: jobId ? jobId.length : 0
+        });
         
         const job = await redisData.getJob(jobId);
         
@@ -164,6 +169,14 @@ async function getJobResults(jobId) {
             jobId, 
             status: job.status, 
             progress: job.progress || 0 
+        });
+        
+        // DEBUG: Log the full job object to see what we're getting
+        Logger.info('entrypoint', 'getJobResults_debug', { 
+            jobId, 
+            fullJob: JSON.stringify(job, null, 2),
+            jobStatusType: typeof job.status,
+            isQueued: job.status === 'queued'
         });
         
         // If job is queued, process it now (on-demand processing)
