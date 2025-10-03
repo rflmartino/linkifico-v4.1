@@ -14,10 +14,29 @@ import { Permissions, webMethod } from 'wix-web-module';
 import { Logger } from './utils/logger.js';
 import { getTemplate } from './templates/templatesRegistry.js';
 
+// Simple test function to verify backend is working
+export const testBackend = webMethod(Permissions.Anyone, async () => {
+    Logger.info('entrypoint', 'testBackend_called', { timestamp: Date.now() });
+    return { success: true, message: 'Backend is working', timestamp: Date.now() };
+});
+
 // Main job queue function - all operations go through job queue
+// VERSION: 2025-01-03-15:35 - Added debug logging
 export const processUserRequest = webMethod(Permissions.Anyone, async (requestData) => {
     const { op, projectId, userId, sessionId, payload = {} } = requestData || {};
+    
+    // CRITICAL DEBUG: Log every call to processUserRequest
+    Logger.info('entrypoint', 'processUserRequest_called', { 
+        op, 
+        projectId, 
+        userId, 
+        sessionId,
+        hasPayload: !!payload,
+        payloadKeys: payload ? Object.keys(payload) : []
+    });
+    
     if (!op || !projectId) {
+        Logger.warn('entrypoint', 'processUserRequest_invalid', { op, projectId, userId });
         return { success: false, message: 'Invalid request' };
     }
     
@@ -34,6 +53,7 @@ export const processUserRequest = webMethod(Permissions.Anyone, async (requestDa
         return await getJobStatus(payload?.jobId);
     }
     if (op === 'getJobResults') {
+        Logger.info('entrypoint', 'getJobResults_routing', { jobId: payload?.jobId });
         return await getJobResults(payload?.jobId);
     }
     if (op === 'processJobs') {

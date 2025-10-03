@@ -1,7 +1,7 @@
 // Project Workspace Page - Velo Frontend
 // Handles project workspace functionality - receives userId and projectId from URL
 
-import { processUserRequest } from 'backend/entrypoint.web.js';
+import { processUserRequest, testBackend } from 'backend/entrypoint.web.js';
 import wixLocation from 'wix-location';
 import { session } from 'wix-storage';
 import { logToBackend } from 'backend/utils/webLogger.web.js';
@@ -28,6 +28,14 @@ $w.onReady(async function () {
         isNewProject: !wixLocation.query.projectId,
         testingMode: true
     });
+
+    // Test backend connectivity
+    try {
+        const testResult = await testBackend();
+        logHandshake('backend_test', testResult);
+    } catch (error) {
+        logHandshake('backend_test_error', { error: error.message });
+    }
 
     let sessionId = session.getItem('chatSessionId');
     if (!sessionId) {
