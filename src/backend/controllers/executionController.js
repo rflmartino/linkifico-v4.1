@@ -331,7 +331,7 @@ export const executionController = {
         }
     },
     
-    // Generate intelligent project name from context
+    // Generate intelligent project name from context with NLP + OpenAI fallback
     async generateIntelligentProjectName(userMessage, extractedInfo, projectData) {
         try {
             // First try to extract from objectives/scope
@@ -345,6 +345,151 @@ export const executionController = {
                 return null; // Not enough context yet
             }
             
+            // Step 1: Try NLP-based project name generation first
+            const nlpResult = await this.tryNLPProjectNameGeneration(context);
+            
+            if (nlpResult.success && nlpResult.confidence >= 0.7) {
+                Logger.info('executionController', 'generateIntelligentProjectName:nlpSuccess', {
+                    confidence: nlpResult.confidence,
+                    generatedName: nlpResult.projectName,
+                    method: 'NLP'
+                });
+                return nlpResult.projectName;
+            }
+            
+            // Step 2: Fallback to OpenAI when NLP confidence < 70%
+            Logger.info('executionController', 'generateIntelligentProjectName:nlpFallback', {
+                nlpConfidence: nlpResult.confidence,
+                reason: nlpResult.reason,
+                method: 'OpenAI'
+            });
+            
+            const openaiResult = await this.generateProjectNameWithOpenAI(context);
+            
+            if (openaiResult) {
+                Logger.info('executionController', 'generateIntelligentProjectName:openaiSuccess', {
+                    generatedName: openaiResult,
+                    method: 'OpenAI'
+                });
+                return openaiResult;
+            }
+            
+            return null;
+            
+        } catch (error) {
+            Logger.error('executionController', 'generateIntelligentProjectName:error', error);
+            return null;
+        }
+    },
+    
+    // Try NLP-based project name generation
+    async tryNLPProjectNameGeneration(context) {
+        try {
+            const nlpResult = await nlpManager.processInput(context);
+            
+            if (!nlpResult || nlpResult.intent !== 'project.name_generate') {
+                return {
+                    success: false,
+                    reason: `Wrong intent: ${nlpResult?.intent || 'unknown'}`,
+                    confidence: nlpResult?.confidence || 0
+                };
+            }
+            
+            // Extract project name from context using NLP insights
+            const projectName = this.extractProjectNameFromContext(context, nlpResult);
+            
+            if (projectName) {
+                return {
+                    success: true,
+                    confidence: nlpResult.confidence,
+                    projectName: projectName
+                };
+            }
+            
+            return {
+                success: false,
+                reason: 'Could not extract project name from context',
+                confidence: nlpResult.confidence
+            };
+            
+        } catch (error) {
+            Logger.error('executionController', 'tryNLPProjectNameGeneration:error', error);
+            return {
+                success: false,
+                reason: `NLP error: ${error.message}`,
+                confidence: 0
+            };
+        }
+    },
+    
+    // Extract project name from context using NLP insights
+    extractProjectNameFromContext(context, nlpResult) {
+        try {
+            // Common business type patterns
+            const businessPatterns = [
+                { pattern: /(?:pet|animal|dog|cat)\s+store/i, name: 'Pet Store' },
+                { pattern: /coffee\s+shop/i, name: 'Coffee Shop' },
+                { pattern: /restaurant/i, name: 'Restaurant' },
+                { pattern: /bakery/i, name: 'Bakery' },
+                { pattern: /mobile\s+app/i, name: 'Mobile App' },
+                { pattern: /website/i, name: 'Website' },
+                { pattern: /e-commerce|online\s+store/i, name: 'E-commerce Platform' },
+                { pattern: /fitness\s+center|gym/i, name: 'Fitness Center' },
+                { pattern: /yoga\s+studio/i, name: 'Yoga Studio' },
+                { pattern: /tech\s+startup/i, name: 'Tech Startup' },
+                { pattern: /consulting\s+business/i, name: 'Consulting Business' },
+                { pattern: /marketing\s+campaign/i, name: 'Marketing Campaign' },
+                { pattern: /product\s+launch/i, name: 'Product Launch' },
+                { pattern: /food\s+truck/i, name: 'Food Truck' },
+                { pattern: /beauty\s+salon/i, name: 'Beauty Salon' },
+                { pattern: /hardware\s+store/i, name: 'Hardware Store' },
+                { pattern: /bookstore/i, name: 'Bookstore' },
+                { pattern: /pharmacy/i, name: 'Pharmacy' },
+                { pattern: /veterinary\s+clinic/i, name: 'Veterinary Clinic' },
+                { pattern: /dental\s+clinic/i, name: 'Dental Clinic' },
+                { pattern: /tutoring\s+service/i, name: 'Tutoring Service' },
+                { pattern: /cleaning\s+service/i, name: 'Cleaning Service' },
+                { pattern: /landscaping\s+business/i, name: 'Landscaping Business' },
+                { pattern: /photography\s+studio/i, name: 'Photography Studio' },
+                { pattern: /graphic\s+design\s+agency/i, name: 'Graphic Design Agency' },
+                { pattern: /wedding\s+planning/i, name: 'Wedding Planning' },
+                { pattern: /event\s+planning/i, name: 'Event Planning' },
+                { pattern: /real\s+estate\s+development/i, name: 'Real Estate Development' },
+                { pattern: /construction\s+project/i, name: 'Construction Project' },
+                { pattern: /home\s+renovation/i, name: 'Home Renovation' },
+                { pattern: /office\s+renovation/i, name: 'Office Renovation' }
+            ];
+            
+            // Try to match business patterns
+            for (const business of businessPatterns) {
+                if (business.pattern.test(context)) {
+                    return business.name;
+                }
+            }
+            
+            // Try to extract location-based names
+            const locationMatch = context.match(/(?:in|at|near|downtown|suburbs|mall|center|plaza|district)\s+([a-zA-Z\s]+)/i);
+            if (locationMatch) {
+                const location = locationMatch[1].trim();
+                // Try to combine with business type
+                for (const business of businessPatterns) {
+                    if (business.pattern.test(context)) {
+                        return `${location} ${business.name}`;
+                    }
+                }
+            }
+            
+            return null;
+            
+        } catch (error) {
+            Logger.error('executionController', 'extractProjectNameFromContext:error', error);
+            return null;
+        }
+    },
+    
+    // Generate project name using OpenAI as fallback
+    async generateProjectNameWithOpenAI(context) {
+        try {
             const prompt = `Based on this project description, generate a concise, professional project name (2-4 words max):
 
 "${context}"
@@ -380,7 +525,7 @@ Project name:`;
             return null;
             
         } catch (error) {
-            Logger.error('executionController', 'generateIntelligentProjectName:error', error);
+            Logger.error('executionController', 'generateProjectNameWithOpenAI:error', error);
             return null;
         }
     },

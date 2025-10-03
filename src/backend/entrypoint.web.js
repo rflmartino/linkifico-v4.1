@@ -106,7 +106,22 @@ async function processChatMessage(projectId, userId, message, sessionId, process
 
         // CRITICAL: Pass the updated chat history to processIntelligenceLoop
         // so it doesn't get overwritten when loading fresh data from Redis
+        Logger.info('entrypoint.web', 'processChatMessage:beforeIntelligenceLoop', {
+            projectId,
+            userId,
+            allDataKeys: Object.keys(allData),
+            chatHistoryLength: allData.chatHistory ? allData.chatHistory.length : 0
+        });
+        
         const response = await processIntelligenceLoop(projectId, userId, message, processingId, allData);
+        
+        Logger.info('entrypoint.web', 'processChatMessage:afterIntelligenceLoop', {
+            projectId,
+            userId,
+            hasResponse: !!response,
+            responseMessage: response ? response.message : 'NO RESPONSE',
+            responseMessageLength: response && response.message ? response.message.length : 0
+        });
 
         // Do not inline todos into the assistant message; keep narrative separate from structured todos
         const finalMessage = response.message;
@@ -172,13 +187,25 @@ async function processChatMessage(projectId, userId, message, sessionId, process
 
 // Intelligence processing loop
 async function processIntelligenceLoop(projectId, userId, message, processingId, existingAllData = null) {
-    Logger.info('entrypoint.web', 'processIntelligenceLoop:start', { projectId });
+    Logger.info('entrypoint.web', 'processIntelligenceLoop:start', { 
+        projectId, 
+        userId, 
+        hasExistingData: !!existingAllData,
+        existingDataKeys: existingAllData ? Object.keys(existingAllData) : 'none'
+    });
     const loopStart = Date.now();
     
     // Load all data in a single Redis operation (or use existing data if provided)
     const dataLoadStart = Date.now();
     let allData = existingAllData || await redisData.loadAllData(projectId, userId);
     Logger.info('entrypoint.web', 'timing:dataLoadMs', { ms: Date.now() - dataLoadStart });
+    
+    Logger.info('entrypoint.web', 'processIntelligenceLoop:dataLoaded', {
+        projectId,
+        userId,
+        allDataKeys: Object.keys(allData),
+        chatHistoryLength: allData.chatHistory ? allData.chatHistory.length : 0
+    });
     
     // Initialize default data structures if needed
     if (!allData.projectData) {
@@ -277,7 +304,16 @@ async function processIntelligenceLoop(projectId, userId, message, processingId,
     execution.analysis = execution.analysis || {};
     execution.analysis.gaps = gaps;
     
-    // CRITICAL DEBUG: Log final execution result with gaps
+    // Extract todos from gaps and ensure they're properly attached
+    const todos = gaps.todos || [];
+    execution.analysis.todos = todos;
+    
+    // Also ensure todos are in the gaps object for backward compatibility
+    if (!execution.analysis.gaps.todos && todos.length > 0) {
+        execution.analysis.gaps.todos = todos;
+    }
+    
+    // CRITICAL DEBUG: Log final execution result with gaps and todos
     Logger.info('entrypoint.web', 'processIntelligenceLoop:finalExecution', {
         projectId,
         userId,
@@ -285,7 +321,9 @@ async function processIntelligenceLoop(projectId, userId, message, processingId,
         finalAnalysis: execution.analysis,
         hasGaps: !!execution.analysis.gaps,
         hasTodos: !!(execution.analysis.gaps && execution.analysis.gaps.todos),
-        todoCount: execution.analysis.gaps && execution.analysis.gaps.todos ? execution.analysis.gaps.todos.length : 0
+        todoCount: execution.analysis.gaps && execution.analysis.gaps.todos ? execution.analysis.gaps.todos.length : 0,
+        todosExtracted: todos.length,
+        todosStructure: todos.length > 0 ? todos[0] : null
     });
     if (processingId) {
         await redisData.saveProcessing(processingId, { 
@@ -320,6 +358,17 @@ async function processIntelligenceLoop(projectId, userId, message, processingId,
             Logger.error('entrypoint.web', 'backgroundLearning:error', error);
         });
     
+    // Ensure todos are included in allData for Redis storage
+    if (todos && todos.length > 0) {
+        allData.todos = todos;
+        Logger.info('entrypoint.web', 'todosAddedToAllData', { 
+            projectId, 
+            userId, 
+            todoCount: todos.length,
+            todos: todos.map(t => ({ id: t.id, title: t.title, completed: t.completed }))
+        });
+    }
+    
     // Save all updated data in a single Redis operation
     const dataSaveStart = Date.now();
     await redisData.saveAllData(projectId, userId, allData);
@@ -348,7 +397,13 @@ async function startProcessing(projectId, userId, sessionId, message) {
     (async () => {
         const result = await processChatMessage(projectId, userId, message, sessionId, processingId);
         const payload = result.success
-            ? { status: 'complete', conversation: [{ type: 'assistant', content: result.message, timestamp: new Date().toISOString() }], projectData: result.projectData, analysis: result.analysis, todos: (result.analysis && result.analysis.gaps && result.analysis.gaps.todos) ? result.analysis.gaps.todos : [] }
+            ? { 
+                status: 'complete', 
+                conversation: [{ type: 'assistant', content: result.message, timestamp: new Date().toISOString() }], 
+                projectData: result.projectData, 
+                analysis: result.analysis, 
+                todos: result.todos || (result.analysis && result.analysis.gaps && result.analysis.gaps.todos) ? result.analysis.gaps.todos : []
+            }
             : { status: 'error', error: result.error || 'processing failed' };
         
         await redisData.saveProcessing(processingId, payload);
@@ -390,6 +445,31 @@ export async function initializeProject(projectId, userId, initialMessage, templ
         allData.projectData.name = projectName;
         allData.projectData.email = email;
         allData.projectData.emailId = emailId;
+        
+        // Try to generate intelligent project name from initial message if it's not just "Start"
+        if (initialMessage && initialMessage.trim() !== 'Start' && initialMessage.trim() !== '') {
+            try {
+                const generatedName = await executionController.generateIntelligentProjectName(
+                    initialMessage, 
+                    null, 
+                    allData.projectData
+                );
+                
+                if (generatedName && generatedName !== 'Untitled Project') {
+                    allData.projectData.name = generatedName;
+                    Logger.info('entrypoint.web', 'initializeProject:nameGenerated', {
+                        projectId,
+                        userId,
+                        initialMessage: initialMessage.substring(0, 100),
+                        generatedName,
+                        method: 'initialization'
+                    });
+                }
+            } catch (error) {
+                Logger.error('entrypoint.web', 'initializeProject:nameGenerationError', error);
+                // Don't fail initialization if name generation fails
+            }
+        }
         
         // Save project data (including empty chat history), email mapping, and add to user's project list atomically
         await Promise.all([
@@ -451,8 +531,20 @@ export async function getProjectStatus(projectId, userId) {
             };
         }
         
-        // Extract todos from gap data
-        const todos = gapData?.todos || [];
+        // Extract todos from gap data and also check for separately saved todos
+        const gapTodos = gapData?.todos || [];
+        const savedTodos = await redisData.getTodos(projectId, userId);
+        
+        // Use saved todos if available, otherwise fall back to gap todos
+        const todos = savedTodos.length > 0 ? savedTodos : gapTodos;
+        
+        Logger.info('entrypoint.web', 'getProjectStatus:todos', {
+            projectId,
+            userId,
+            gapTodosCount: gapTodos.length,
+            savedTodosCount: savedTodos.length,
+            finalTodosCount: todos.length
+        });
         
         return {
             success: true,

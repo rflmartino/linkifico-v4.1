@@ -63,6 +63,14 @@ export const gapDetectionController = {
             
             // Build todos from prioritized gaps (include completion state based on current projectData)
             const todos = this.buildTodosFromGaps(prioritizedGaps, gapAnalysis, nextAction, projectData);
+            
+            // CRITICAL DEBUG: Log todo generation
+            Logger.info('gapDetectionController', 'buildTodosFromGaps:result', {
+                projectId,
+                prioritizedGapsCount: prioritizedGaps.length,
+                todosGenerated: todos.length,
+                todos: todos.map(t => ({ id: t.id, title: t.title, completed: t.completed, priority: t.priority }))
+            });
 
             // Create or update gap data structure
             const gapData = existingGapData || createGapData(projectId, {

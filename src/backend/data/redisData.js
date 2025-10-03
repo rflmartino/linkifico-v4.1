@@ -154,7 +154,9 @@ export const redisData = {
                 saveKnowledgeData(projectId, userId, allData.knowledgeData),
                 saveGapData(projectId, userId, allData.gapData),
                 saveLearningData(userId, allData.learningData),
-                saveReflectionData(projectId, userId, allData.reflectionData)
+                saveReflectionData(projectId, userId, allData.reflectionData),
+                // Save todos separately for easy retrieval
+                this.saveTodos(projectId, userId, allData.todos || [])
             ]);
             
             Logger.info('dataManager', 'timing:saveAllDataMs', { ms: Date.now() - startTime });
@@ -162,6 +164,61 @@ export const redisData = {
         } catch (error) {
             Logger.error('dataManager', 'saveAllData:error', error);
             throw error;
+        }
+    },
+
+    // Save todos separately for easy retrieval by chat UI
+    async saveTodos(projectId, userId, todos) {
+        try {
+            if (!todos || todos.length === 0) return;
+            
+            const redis = await this.getRedisClient();
+            const todoKey = `todos:${userId}:${projectId}`;
+            
+            // Save todos with metadata
+            const todoData = {
+                todos: todos,
+                lastUpdated: new Date().toISOString(),
+                projectId: projectId,
+                userId: userId
+            };
+            
+            await redis.set(todoKey, JSON.stringify(todoData));
+            Logger.info('dataManager', 'saveTodos:success', { 
+                projectId, 
+                userId, 
+                todoCount: todos.length,
+                todoKey 
+            });
+            
+        } catch (error) {
+            Logger.error('dataManager', 'saveTodos:error', error);
+            // Don't throw - todos are also saved in gap data
+        }
+    },
+
+    // Get todos for a specific project and user
+    async getTodos(projectId, userId) {
+        try {
+            const redis = await this.getRedisClient();
+            const todoKey = `todos:${userId}:${projectId}`;
+            
+            const todoData = await redis.get(todoKey);
+            if (todoData) {
+                const parsed = JSON.parse(todoData);
+                Logger.info('dataManager', 'getTodos:success', { 
+                    projectId, 
+                    userId, 
+                    todoCount: parsed.todos?.length || 0 
+                });
+                return parsed.todos || [];
+            }
+            
+            return [];
+            
+        } catch (error) {
+            Logger.error('dataManager', 'getTodos:error', error);
+            return [];
         }
     },
 
