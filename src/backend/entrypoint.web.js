@@ -578,13 +578,19 @@ async function processIntelligenceLoopWithDataFlow(projectId, userId, message, a
             allData.projectData = execution.analysis.updatedProjectData;
         }
         
-        // Attach gaps and todos to response
+        // Regenerate gaps and todos with updated project data
+        const updatedGaps = await gapDetectionController.identifyGaps(projectId, analysis, allData.projectData, allData.gapData, template);
+        if (updatedGaps.gapData) {
+            allData.gapData = updatedGaps.gapData;
+        }
+        
+        // Attach updated gaps and todos to response
         const response = {
             message: execution.message,
             analysis: {
                 ...execution.analysis,
-                gaps: gaps.gapData,
-                todos: gaps.gapData?.todos || []
+                gaps: updatedGaps.gapData,
+                todos: updatedGaps.gapData?.todos || []
             }
         };
         
