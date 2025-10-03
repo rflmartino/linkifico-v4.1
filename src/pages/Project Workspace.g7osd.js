@@ -507,16 +507,25 @@ $w.onReady(async function () {
                     totalPollingTimeMs: Date.now() - pollStartTime
                 });
                 
+                // Check for todos and project updates on every polling attempt
+                const currentStatus = await processUserRequest({ op: 'status', projectId, userId }).catch(() => null);
+                const hasTodos = currentStatus?.todos && currentStatus.todos.length > 0;
+                const hasProjectName = currentStatus?.projectData?.name && currentStatus.projectData.name !== 'Untitled Project';
+
                 if (aiResponses.length > 0) {
-                    // We have AI response(s), display them
+                    // We have AI response(s), display them along with todos and project updates
                     debugLog('POLLING SUCCESS: AI response found', {
                         responseCount: aiResponses.length,
-                        responses: aiResponses.map(r => ({ length: r.message?.length, timestamp: r.timestamp }))
+                        responses: aiResponses.map(r => ({ length: r.message?.length, timestamp: r.timestamp })),
+                        hasTodos: hasTodos,
+                        hasProjectName: hasProjectName
                     });
                     
                     await logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
-                        message: 'POLLING SUCCESS: AI response received, displaying content',
+                        message: 'POLLING SUCCESS: AI response received, displaying content with todos',
                         responseCount: aiResponses.length,
+                        hasTodos: hasTodos,
+                        todoCount: hasTodos ? currentStatus.todos.length : 0,
                         totalPollingTimeMs: Date.now() - pollStartTime,
                         totalAttempts: attempts
                     });
@@ -536,11 +545,10 @@ $w.onReady(async function () {
                         });
                     });
                     
-                    // Load todos if available
-                    const currentStatus = await processUserRequest({ op: 'status', projectId, userId }).catch(() => null);
-                    if (currentStatus?.todos && currentStatus.todos.length > 0) {
+                    // Display todos together with the AI response
+                    if (hasTodos) {
                         await logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
-                            message: 'POLLING SUCCESS: Displaying todos',
+                            message: 'POLLING SUCCESS: Displaying todos with AI response',
                             todoCount: currentStatus.todos.length
                         });
                         chatEl.postMessage({
@@ -550,7 +558,7 @@ $w.onReady(async function () {
                     }
                     
                     // Update project name if it changed
-                    if (currentStatus?.projectData?.name && currentStatus.projectData.name !== 'Untitled Project') {
+                    if (hasProjectName) {
                         await logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
                             message: 'POLLING SUCCESS: Updating project name',
                             newProjectName: currentStatus.projectData.name
@@ -571,6 +579,15 @@ $w.onReady(async function () {
                         totalPollingTimeMs: Date.now() - pollStartTime
                     });
                     return;
+                }
+                
+                // Log progress if we found todos but no AI response yet
+                if (hasTodos) {
+                    await logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
+                        message: 'POLLING: Found todos, waiting for AI response to display together',
+                        todoCount: currentStatus.todos.length,
+                        attempts: attempts
+                    });
                 }
                 
                 // No response yet, continue polling if we haven't exceeded max attempts
