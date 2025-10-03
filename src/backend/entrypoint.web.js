@@ -174,11 +174,31 @@ async function processChatMessage(projectId, userId, message, sessionId, process
 
         const totalMs = Date.now() - totalStart;
         Logger.info('entrypoint.web', 'timing:processChatMessageMs', { ms: totalMs });
+        // CRITICAL: Extract todos from multiple sources to ensure we don't lose them
+        const todosFromAnalysis = (response.analysis && response.analysis.gaps && response.analysis.gaps.todos) ? response.analysis.gaps.todos : [];
+        const todosFromAllData = allData.todos || [];
+        const todosFromGaps = (response.analysis && response.analysis.todos) ? response.analysis.todos : [];
+        
+        // Use the first available source
+        const finalTodos = todosFromAnalysis.length > 0 ? todosFromAnalysis :
+                          todosFromAllData.length > 0 ? todosFromAllData :
+                          todosFromGaps;
+        
+        Logger.info('entrypoint.web', 'processChatMessage:finalTodos', {
+            projectId,
+            userId,
+            todosFromAnalysis: todosFromAnalysis.length,
+            todosFromAllData: todosFromAllData.length,
+            todosFromGaps: todosFromGaps.length,
+            finalTodos: finalTodos.length,
+            finalTodosSample: finalTodos.slice(0, 2).map(t => ({ id: t.id, title: t.title, completed: t.completed }))
+        });
+        
         const result = {
             success: true,
             message: finalMessage,
             analysis: response.analysis,
-            todos: (response.analysis && response.analysis.gaps && response.analysis.gaps.todos) ? response.analysis.gaps.todos : [],
+            todos: finalTodos,
             projectData: allData.projectData,
             projectName: allData.projectData?.name || 'Untitled Project',
             projectEmail: allData.projectData?.email || null
@@ -407,14 +427,18 @@ async function processIntelligenceLoop(projectId, userId, message, processingId,
                 projectId, 
                 userId, 
                 todoCount: todos.length,
-                todos: todos.map(t => ({ id: t.id, title: t.title, completed: t.completed }))
+                todos: todos.map(t => ({ id: t.id, title: t.title, completed: t.completed })),
+                allDataKeys: Object.keys(allData),
+                allDataTodosAfter: allData.todos ? allData.todos.length : 0
             });
         } else {
             Logger.info('entrypoint.web', 'todosAddedToAllData:noTodos', { 
                 projectId, 
                 userId, 
                 todosVariable: todos,
-                todosLength: todos ? todos.length : 'undefined'
+                todosLength: todos ? todos.length : 'undefined',
+                todosType: typeof todos,
+                todosIsArray: Array.isArray(todos)
             });
         }
     } catch (error) {
@@ -488,6 +512,15 @@ async function startProcessing(projectId, userId, sessionId, message) {
             }
             : { status: 'error', error: result.error || 'processing failed' };
         
+        // CRITICAL DEBUG: Log what we're saving to processing status
+        Logger.info('entrypoint.web', 'startProcessing:payload', {
+            projectId,
+            userId,
+            hasTodos: !!(payload.todos && payload.todos.length > 0),
+            todoCount: payload.todos ? payload.todos.length : 0,
+            todosSample: payload.todos ? payload.todos.slice(0, 2).map(t => ({ id: t.id, title: t.title, completed: t.completed })) : 'none'
+        });
+        
         await redisData.saveProcessing(processingId, payload);
     })();
     
@@ -504,6 +537,16 @@ async function getProcessingStatus(processingId) {
     if (!processingId) return { success: false, status: 'error', error: 'missing processingId' };
     const payload = await redisData.getProcessing(processingId);
     if (!payload) return { success: true, status: 'processing' };
+    
+    // CRITICAL DEBUG: Log what we're returning from processing status
+    Logger.info('entrypoint.web', 'getProcessingStatus:returning', {
+        processingId,
+        status: payload.status,
+        hasTodos: !!(payload.todos && payload.todos.length > 0),
+        todoCount: payload.todos ? payload.todos.length : 0,
+        todosSample: payload.todos ? payload.todos.slice(0, 2).map(t => ({ id: t.id, title: t.title, completed: t.completed })) : 'none'
+    });
+    
     return { success: true, ...payload };
 }
 
@@ -626,10 +669,22 @@ export async function getProjectStatus(projectId, userId) {
             };
         }
         
-        // Extract todos from multiple sources
+        // Extract todos from multiple sources with better debugging
         const gapTodos = gapData?.todos || [];
         const allDataTodos = allData.todos || [];
         const savedTodos = await redisData.getTodos(projectId, userId);
+        
+        // CRITICAL DEBUG: Log all todo sources
+        Logger.info('entrypoint.web', 'getProjectStatus:todoSources', {
+            projectId,
+            userId,
+            gapTodosCount: gapTodos.length,
+            allDataTodosCount: allDataTodos.length,
+            savedTodosCount: savedTodos.length,
+            gapTodosSample: gapTodos.slice(0, 2),
+            allDataTodosSample: allDataTodos.slice(0, 2),
+            savedTodosSample: savedTodos.slice(0, 2)
+        });
         
         // Use the first available source: allData.todos > savedTodos > gapTodos
         const todos = allDataTodos.length > 0 ? allDataTodos : 

@@ -170,7 +170,16 @@ export const redisData = {
     // Save todos separately for easy retrieval by chat UI
     async saveTodos(projectId, userId, todos) {
         try {
-            if (!todos || todos.length === 0) return;
+            if (!todos || todos.length === 0) {
+                Logger.info('dataManager', 'saveTodos:skipped', { 
+                    projectId, 
+                    userId, 
+                    reason: 'No todos to save',
+                    todosType: typeof todos,
+                    todosLength: todos ? todos.length : 'undefined'
+                });
+                return;
+            }
             
             const redis = await getRedisClient();
             const todoKey = `todos:${userId}:${projectId}`;
@@ -188,7 +197,8 @@ export const redisData = {
                 projectId, 
                 userId, 
                 todoCount: todos.length,
-                todoKey 
+                todoKey,
+                todosSample: todos.slice(0, 2).map(t => ({ id: t.id, title: t.title, completed: t.completed }))
             });
             
         } catch (error) {
@@ -203,17 +213,29 @@ export const redisData = {
             const redis = await getRedisClient();
             const todoKey = `todos:${userId}:${projectId}`;
             
+            Logger.info('dataManager', 'getTodos:attempt', { 
+                projectId, 
+                userId, 
+                todoKey 
+            });
+            
             const todoData = await redis.get(todoKey);
             if (todoData) {
                 const parsed = JSON.parse(todoData);
                 Logger.info('dataManager', 'getTodos:success', { 
                     projectId, 
                     userId, 
-                    todoCount: parsed.todos?.length || 0 
+                    todoCount: parsed.todos?.length || 0,
+                    todosSample: parsed.todos ? parsed.todos.slice(0, 2).map(t => ({ id: t.id, title: t.title, completed: t.completed })) : 'none'
                 });
                 return parsed.todos || [];
             }
             
+            Logger.info('dataManager', 'getTodos:notFound', { 
+                projectId, 
+                userId, 
+                todoKey 
+            });
             return [];
             
         } catch (error) {
