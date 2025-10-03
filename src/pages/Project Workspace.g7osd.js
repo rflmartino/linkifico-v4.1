@@ -34,7 +34,7 @@ $w.onReady(async function () {
     // Validate required parameters
     if (!userId) {
         debugLog('ERROR: Missing userId parameter');
-        await logToBackend('Project-Workspace', 'onReady', null, new Error('NAVIGATION ERROR: Missing userId parameter in URL'));
+        await logToBackend('Project-Workspace', 'onReady', null, 'NAVIGATION ERROR: Missing userId parameter in URL');
         wixLocation.to('/project-portfolio'); // Redirect back to portfolio
         return;
     }
@@ -113,7 +113,7 @@ $w.onReady(async function () {
             await updatePageElements(status);
         }
 	} catch (e) {
-		await logToBackend('Project-Workspace', 'checkProjectStatus', null, new Error(`BACKEND CHECK ERROR: ${e.message} (PageLoadTime: ${Date.now() - pageLoadStartTime}ms)`));
+		await logToBackend('Project-Workspace', 'checkProjectStatus', null, `BACKEND CHECK ERROR: ${e.message} (PageLoadTime: ${Date.now() - pageLoadStartTime}ms)`);
 	}
 
 	chatEl.onMessage(async (event) => {
@@ -154,7 +154,7 @@ $w.onReady(async function () {
                 });
                 
             } catch (e) {
-                await logToBackend('Project-Workspace', 'getProjectInfo', null, e);
+                await logToBackend('Project-Workspace', 'getProjectInfo', null, e.message || e);
             }
             
             chatEl.postMessage({
@@ -265,7 +265,7 @@ $w.onReady(async function () {
                                 });
                             }
                         } catch (error) {
-                            await logToBackend('Project-Workspace', 'loadExistingTodos', null, error);
+                            await logToBackend('Project-Workspace', 'loadExistingTodos', null, error.message || error);
                         }
                     }, 500);
                 }
@@ -428,7 +428,7 @@ $w.onReady(async function () {
                 }
             }
         } catch (error) {
-            await logToBackend('Project-Workspace', 'updatePageTitle', null, error);
+            await logToBackend('Project-Workspace', 'updatePageTitle', null, error.message || error);
         }
     }
 
@@ -453,7 +453,7 @@ $w.onReady(async function () {
             
             // This is where we'll add more HTML element updates
         } catch (error) {
-            await logToBackend('Project-Workspace', 'updatePageElements', null, error);
+            await logToBackend('Project-Workspace', 'updatePageElements', null, error.message || error);
         }
     }
 
@@ -578,7 +578,7 @@ $w.onReady(async function () {
                     setTimeout(poll, 2000); // Poll every 2 seconds
                 } else {
                     // Timeout
-                    await logToBackend('Project-Workspace', 'pollForNewProjectResponse', null, new Error(`POLLING TIMEOUT: No AI response after ${attempts} attempts (${Date.now() - pollStartTime}ms)`));
+                    await logToBackend('Project-Workspace', 'pollForNewProjectResponse', null, `POLLING TIMEOUT: No AI response after ${attempts} attempts (${Date.now() - pollStartTime}ms)`);
                     chatEl.postMessage({
                         action: 'displayMessage',
                         type: 'system',
@@ -589,7 +589,7 @@ $w.onReady(async function () {
                 }
                 
             } catch (error) {
-                await logToBackend('Project-Workspace', 'pollForNewProjectResponse', null, new Error(`POLLING ERROR: ${error.message} (Attempt ${attempts}, TotalTime: ${Date.now() - pollStartTime}ms)`));
+                await logToBackend('Project-Workspace', 'pollForNewProjectResponse', null, `POLLING ERROR: ${error.message} (Attempt ${attempts}, TotalTime: ${Date.now() - pollStartTime}ms)`);
                 chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
             }
         };

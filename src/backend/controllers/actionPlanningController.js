@@ -323,7 +323,7 @@ export const actionPlanningController = {
             };
             
         } catch (error) {
-            console.error('Error analyzing conversation context:', error);
+            Logger.error('actionPlanningController', 'analyzeConversationContext:error', error);
             return {
                 conversationStage: 'initial',
                 userEngagement: 'medium',
@@ -505,7 +505,7 @@ Generate an action plan in JSON format:
             await saveLearningData(userId, learningData);
             
         } catch (error) {
-            console.error('Error updating learning from planning:', error);
+            Logger.error('actionPlanningController', 'updateLearningFromPlanning:error', error);
         }
     },
     
@@ -571,7 +571,7 @@ Generate an action plan in JSON format:
             };
             
         } catch (error) {
-            console.error('Error getting action plan summary:', error);
+            Logger.error('actionPlanningController', 'getActionPlanSummary:error', error);
             return {
                 status: 'Action planning error',
                 recommendations: ['Check system status']

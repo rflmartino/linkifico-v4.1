@@ -684,7 +684,7 @@ Respond in JSON with template-aware fields (simple_waterfall):
             return updatedData;
             
         } catch (error) {
-            console.error('Error updating project data:', error);
+            Logger.error('executionController', 'updateProjectData:error', error);
             return projectData;
         }
     },
@@ -717,7 +717,7 @@ Respond in JSON with template-aware fields (simple_waterfall):
             return true;
             
         } catch (error) {
-            console.error('Error determining conversation continuation:', error);
+            Logger.error('executionController', 'shouldContinueConversation:error', error);
             return true;
         }
     },
@@ -742,7 +742,7 @@ Respond in JSON with template-aware fields (simple_waterfall):
             };
             
         } catch (error) {
-            console.error('Error getting execution summary:', error);
+            Logger.error('executionController', 'getExecutionSummary:error', error);
             return {
                 status: 'Execution error',
                 recommendations: ['Check system status']

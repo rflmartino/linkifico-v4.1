@@ -30,7 +30,7 @@ function setupHTMLCommunication() {
         const htmlElement = $w('#htmlNLPConsole');
         
         if (!htmlElement) {
-            logToBackend('PMaaS-Dashboard', 'setupHTMLCommunication', null, new Error('HTML element #htmlNLPConsole not found'));
+            logToBackend('PMaaS-Dashboard', 'setupHTMLCommunication', null, 'HTML element #htmlNLPConsole not found');
             return;
         }
         

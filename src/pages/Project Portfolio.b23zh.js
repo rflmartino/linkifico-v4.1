@@ -119,7 +119,7 @@ async function initializePortfolioEmbed() {
         portfolioHtmlElement = $w('#htmlPortfolioView');
         
         if (!portfolioHtmlElement) {
-            await logToBackend('Project-Portfolio', 'initializePortfolioEmbed', null, new Error('HTML element #htmlPortfolioView not found'));
+            await logToBackend('Project-Portfolio', 'initializePortfolioEmbed', null, 'HTML element #htmlPortfolioView not found');
             return;
         }
         
@@ -222,7 +222,7 @@ async function handleLoadPortfolio() {
         if (response.success) {
             await sendToEmbed('PORTFOLIO_DATA', response);
         } else {
-            await logToBackend('Project-Portfolio', 'handleLoadPortfolio', null, new Error('Failed to load portfolio: ' + (response.error || 'Unknown error')));
+            await logToBackend('Project-Portfolio', 'handleLoadPortfolio', null, 'Failed to load portfolio: ' + (response.error || 'Unknown error'));
             await sendToEmbed('PORTFOLIO_ERROR', null, response.error || 'Failed to load portfolio');
         }
         
@@ -299,12 +299,14 @@ async function handleCreateProject(templateName, userInput) {
             wixLocation.to('/project-workspace?projectId=' + newProjectId + '&userId=' + currentUser.id);
             
         } else {
-            await logToBackend('Project-Portfolio', 'handleCreateProject', null, new Error('BACKEND CALL FAILED: ' + (response.error || 'Unknown error') + ' (Duration: ' + backendDuration + 'ms, TransitionId: ' + transitionStartTime + ')'));
+            const errorMessage = 'BACKEND CALL FAILED: ' + (response.error || 'Unknown error') + ' (Duration: ' + backendDuration + 'ms, TransitionId: ' + transitionStartTime + ')';
+            await logToBackend('Project-Portfolio', 'handleCreateProject', null, errorMessage);
             await sendToEmbed('ERROR', null, response.error || 'Failed to create project');
         }
         
     } catch (error) {
-        await logToBackend('Project-Portfolio', 'handleCreateProject', null, new Error('TRANSITION ERROR: ' + error.message + ' (TransitionId: ' + transitionStartTime + ', Duration: ' + (Date.now() - transitionStartTime) + 'ms)'));
+        const errorMessage = 'TRANSITION ERROR: ' + error.message + ' (TransitionId: ' + transitionStartTime + ', Duration: ' + (Date.now() - transitionStartTime) + 'ms)';
+        await logToBackend('Project-Portfolio', 'handleCreateProject', null, errorMessage);
         await sendToEmbed('ERROR', null, error.message);
     }
 }
@@ -341,7 +343,7 @@ async function handleOpenProject(projectId) {
         wixLocation.to('/project-workspace?projectId=' + projectId + '&userId=' + currentUser.id);
         
     } catch (error) {
-        logToBackend('Project-Portfolio', 'handleOpenProject', null, new Error(`TRANSITION ERROR: ${error.message} (ProjectId: ${projectId}, TransitionId: ${transitionStartTime})`));
+        logToBackend('Project-Portfolio', 'handleOpenProject', null, `TRANSITION ERROR: ${error.message} (ProjectId: ${projectId}, TransitionId: ${transitionStartTime})`);
         await sendToEmbed('ERROR', null, error.message);
     }
 }
@@ -428,7 +430,7 @@ async function handleDeleteProject(projectId) {
 async function sendToEmbed(type, data, error = null) {
     try {
         if (!portfolioHtmlElement) {
-            await logToBackend('Project-Portfolio', 'sendToEmbed', null, new Error('Cannot send message - HTML element not initialized'));
+            await logToBackend('Project-Portfolio', 'sendToEmbed', null, 'Cannot send message - HTML element not initialized');
             return;
         }
         

@@ -481,7 +481,7 @@ Respond in JSON format:
             return this.getFallbackGapAnalysisAndAction(missingFields);
             
         } catch (error) {
-            console.error('Error in combined gap analysis:', error);
+            Logger.error('gapDetectionController', 'analyzeGapsAndPlanAction:error', error);
             // Fallback to simple logic
             return this.getFallbackGapAnalysisAndAction(missingFields);
         }
@@ -565,7 +565,7 @@ Respond in JSON format:
             };
             
         } catch (error) {
-            console.error('Error getting gap summary:', error);
+            Logger.error('gapDetectionController', 'getGapSummary:error', error);
             return {
                 criticalGaps: [],
                 priorityScore: 1.0,

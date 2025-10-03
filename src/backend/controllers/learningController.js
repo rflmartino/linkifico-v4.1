@@ -159,7 +159,7 @@ Respond in JSON format:
             return this.getFallbackAnalysisAndInsights(userMessage, execution, learningData);
             
         } catch (error) {
-            console.error('Error in combined learning analysis:', error);
+            Logger.error('learningController', 'analyzeAndLearn:error', error);
             // Fallback to simple logic
             return this.getFallbackAnalysisAndInsights(userMessage, execution, learningData);
         }
@@ -243,8 +243,7 @@ Respond in JSON format:
             return patterns;
             
         } catch (error) {
-            console.error('Error updating user patterns:', error);
-            Logger.info('learningController', 'timing:updateUserPatterns:errorMs', { ms: Date.now() - Date.now() });
+            Logger.error('learningController', 'updateUserPatterns:error', error);
             return learningData.userPatterns || {};
         }
     },
@@ -375,8 +374,7 @@ Respond in JSON format:
             };
             
         } catch (error) {
-            console.error('Error tracking question effectiveness:', error);
-            Logger.info('learningController', 'timing:trackQuestionEffectiveness:errorMs', { ms: Date.now() - Date.now() });
+            Logger.error('learningController', 'trackQuestionEffectiveness:error', error);
             return {
                 questionEffectiveness: learningData.questionEffectiveness || {},
                 interactionHistory: learningData.interactionHistory || []
@@ -448,8 +446,7 @@ Respond in JSON format:
             Logger.info('learningController', 'timing:updateReflectionLog:successMs', { ms: Date.now() - methodStart });
             
         } catch (error) {
-            console.error('Error updating reflection log:', error);
-            Logger.info('learningController', 'timing:updateReflectionLog:errorMs', { ms: Date.now() - Date.now() });
+            Logger.error('learningController', 'updateReflectionLog:error', error);
         }
     },
     
@@ -474,7 +471,7 @@ Respond in JSON format:
             };
             
         } catch (error) {
-            console.error('Error getting learning summary:', error);
+            Logger.error('learningController', 'getLearningSummary:error', error);
             return {
                 status: 'Learning error',
                 recommendations: ['Check system status']

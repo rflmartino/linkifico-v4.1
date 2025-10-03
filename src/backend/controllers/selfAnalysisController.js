@@ -192,7 +192,7 @@ Provide analysis in JSON format:
             };
             
         } catch (error) {
-            console.error('Error analyzing project context:', error);
+            Logger.error('selfAnalysisController', 'analyzeProjectContext:error', error);
             return {
                 projectType: 'unknown',
                 complexity: 'medium',
@@ -232,7 +232,7 @@ Provide analysis in JSON format:
             return Math.min(Math.max(confidence, 0.0), 1.0);
             
         } catch (error) {
-            console.error('Error calculating confidence:', error);
+            Logger.error('selfAnalysisController', 'calculateConfidence:error', error);
             return 0.0;
         }
     },
@@ -271,7 +271,7 @@ Provide analysis in JSON format:
             };
             
         } catch (error) {
-            console.error('Error assessing knowledge:', error);
+            Logger.error('selfAnalysisController', 'assessKnowledge:error', error);
             return {
                 knownFacts: [],
                 uncertainties: ['Knowledge assessment failed']
@@ -301,7 +301,7 @@ Provide analysis in JSON format:
             };
             
         } catch (error) {
-            console.error('Error getting analysis summary:', error);
+            Logger.error('selfAnalysisController', 'getAnalysisSummary:error', error);
             return {
                 confidence: 0.0,
                 status: 'Analysis error',
