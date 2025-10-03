@@ -254,18 +254,42 @@ $w.onReady(async function () {
                         history: existingHistory
                     });
                     
-                    // Also load existing todos if available
+                    // Extract todos from chat history (they're stored in assistant messages' analysis field)
                     setTimeout(async () => {
                         try {
-                            const currentStatus = await processUserRequest({ op: 'status', projectId, userId }).catch(() => null);
-                            if (currentStatus?.todos && currentStatus.todos.length > 0) {
+                            const todosFromHistory = [];
+                            
+                            // Look through all assistant messages for todos in their analysis
+                            existingHistory.forEach(msg => {
+                                if (msg.role === 'assistant' && msg.analysis && msg.analysis.todos) {
+                                    todosFromHistory.push(...msg.analysis.todos);
+                                }
+                                // Also check gaps.todos for backward compatibility
+                                if (msg.role === 'assistant' && msg.analysis && msg.analysis.gaps && msg.analysis.gaps.todos) {
+                                    todosFromHistory.push(...msg.analysis.gaps.todos);
+                                }
+                            });
+                            
+                            // Remove duplicates based on id
+                            const uniqueTodos = todosFromHistory.filter((todo, index, self) => 
+                                index === self.findIndex(t => t.id === todo.id)
+                            );
+                            
+                            if (uniqueTodos.length > 0) {
+                                debugLog('EXISTING PROJECT: Found todos in chat history', {
+                                    todoCount: uniqueTodos.length,
+                                    todos: uniqueTodos.map(t => ({ id: t.id, title: t.title, completed: t.completed }))
+                                });
+                                
                                 chatEl.postMessage({
                                     action: 'displayTodos',
-                                    todos: currentStatus.todos
+                                    todos: uniqueTodos
                                 });
+                            } else {
+                                debugLog('EXISTING PROJECT: No todos found in chat history');
                             }
                         } catch (error) {
-                            await logToBackend('Project-Workspace', 'loadExistingTodos', null, error.message || error);
+                            await logToBackend('Project-Workspace', 'extractTodosFromHistory', null, error.message || error);
                         }
                     }, 500);
                 }
@@ -521,10 +545,28 @@ $w.onReady(async function () {
                     totalPollingTimeMs: Date.now() - pollStartTime
                 });
                 
-                // Check for todos and project updates on every polling attempt
-                const currentStatus = await processUserRequest({ op: 'status', projectId, userId }).catch(() => null);
-                const hasTodos = currentStatus?.todos && currentStatus.todos.length > 0;
-                const hasProjectName = currentStatus?.projectData?.name && currentStatus.projectData.name !== 'Untitled Project';
+                // Extract todos from chat history and check for project updates
+                const todosFromHistory = [];
+                currentHistory.forEach(msg => {
+                    if (msg.role === 'assistant' && msg.analysis && msg.analysis.todos) {
+                        todosFromHistory.push(...msg.analysis.todos);
+                    }
+                    // Also check gaps.todos for backward compatibility
+                    if (msg.role === 'assistant' && msg.analysis && msg.analysis.gaps && msg.analysis.gaps.todos) {
+                        todosFromHistory.push(...msg.analysis.gaps.todos);
+                    }
+                });
+                
+                // Remove duplicates based on id
+                const uniqueTodos = todosFromHistory.filter((todo, index, self) => 
+                    index === self.findIndex(t => t.id === todo.id)
+                );
+                
+                const hasTodos = uniqueTodos.length > 0;
+                const hasProjectName = currentHistory.some(msg => 
+                    msg.role === 'assistant' && msg.analysis && msg.analysis.updatedProjectData && 
+                    msg.analysis.updatedProjectData.name && msg.analysis.updatedProjectData.name !== 'Untitled Project'
+                );
 
                 if (aiResponses.length > 0) {
                     // We have AI response(s), display them along with todos and project updates
@@ -562,27 +604,33 @@ $w.onReady(async function () {
                     // FIXED: Display todos separately from the AI response
                     if (hasTodos) {
                         debugLog('POLLING SUCCESS: Sending todos to chat UI', {
-                            todoCount: currentStatus.todos.length,
-                            todosStructure: currentStatus.todos.map(t => ({ id: t.id, title: t.title, completed: t.completed }))
+                            todoCount: uniqueTodos.length,
+                            todosStructure: uniqueTodos.map(t => ({ id: t.id, title: t.title, completed: t.completed }))
                         });
                         
                         chatEl.postMessage({
                             action: 'displayTodos',
-                            todos: currentStatus.todos
+                            todos: uniqueTodos
                         });
                     }
                     
                     // Update project name if it changed
                     if (hasProjectName) {
+                        const projectNameMessage = currentHistory.find(msg => 
+                            msg.role === 'assistant' && msg.analysis && msg.analysis.updatedProjectData && 
+                            msg.analysis.updatedProjectData.name && msg.analysis.updatedProjectData.name !== 'Untitled Project'
+                        );
+                        const newProjectName = projectNameMessage?.analysis?.updatedProjectData?.name;
+                        
                         await logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
                             message: 'POLLING SUCCESS: Updating project name',
-                            newProjectName: currentStatus.projectData.name
+                            newProjectName: newProjectName
                         });
                         chatEl.postMessage({ 
                             action: 'updateProjectName', 
-                            projectName: currentStatus.projectData.name 
+                            projectName: newProjectName 
                         });
-                        await updatePageTitle(currentStatus.projectData.name);
+                        await updatePageTitle(newProjectName);
                     }
                     
                     // Set status to ready
@@ -600,7 +648,7 @@ $w.onReady(async function () {
                 if (hasTodos) {
                     await logToBackend('Project-Workspace', 'pollForNewProjectResponse', { 
                         message: 'POLLING: Found todos, waiting for AI response to display together',
-                        todoCount: currentStatus.todos.length,
+                        todoCount: uniqueTodos.length,
                         attempts: attempts
                     });
                 }
