@@ -45,7 +45,7 @@ export const redisData = {
             };
             
         } catch (error) {
-            Logger.error('redisData', 'loadAllData_error', { projectId, userId, error: error.message });
+            Logger.error('redisData', 'loadAllData_error', error, { projectId, userId });
             // Return default data structures on error
             return {
                 projectData: this.createDefaultProjectData(projectId),
@@ -146,7 +146,7 @@ export const redisData = {
             ]);
             
         } catch (error) {
-            Logger.error('redisData', 'saveAllData_error', { projectId, userId, error: error.message });
+            Logger.error('redisData', 'saveAllData_error', error, { projectId, userId });
             throw error;
         }
     },
@@ -172,7 +172,7 @@ export const redisData = {
             await redis.set(todoKey, JSON.stringify(todoData));
             
         } catch (error) {
-            Logger.error('redisData', 'saveTodos_error', { projectId, userId, error: error.message });
+            Logger.error('redisData', 'saveTodos_error', error, { projectId, userId });
             // Don't throw - todos are also saved in gap data
         }
     },
@@ -319,13 +319,32 @@ export const redisData = {
     // Save a job to the queue
     async saveJob(job) {
         try {
+            Logger.info('redisData', 'saveJob_start', { 
+                jobId: job.id, 
+                jobType: job.type, 
+                projectId: job.projectId 
+            });
+            
+            // Test job serialization first
+            let jobJson;
+            try {
+                jobJson = JSON.stringify(job);
+                Logger.info('redisData', 'saveJob_serialization_success', { jobId: job.id, jsonLength: jobJson.length });
+            } catch (serializationError) {
+                Logger.error('redisData', 'saveJob_serialization_error', serializationError, { jobId: job.id });
+                throw new Error(`Job serialization failed: ${serializationError.message}`);
+            }
+            
             const client = await getRedisClient();
+            Logger.info('redisData', 'saveJob_client_obtained', { jobId: job.id });
             
             // Save job data
-            await client.set(`jobs:${job.id}`, JSON.stringify(job));
+            await client.set(`jobs:${job.id}`, jobJson);
+            Logger.info('redisData', 'saveJob_data_saved', { jobId: job.id });
             
             // Add to queued jobs list
             await client.lpush('jobs:queued', job.id);
+            Logger.info('redisData', 'saveJob_added_to_queue', { jobId: job.id });
             
             Logger.info('redisData', 'job_saved', { 
                 jobId: job.id, 
@@ -334,9 +353,10 @@ export const redisData = {
             });
             
         } catch (error) {
-            Logger.error('redisData', 'saveJob_error', { 
+            Logger.error('redisData', 'saveJob_error', error, { 
                 jobId: job.id, 
-                error: error.message 
+                errorType: typeof error,
+                errorConstructor: error.constructor?.name || 'Unknown'
             });
             throw error;
         }
@@ -355,7 +375,7 @@ export const redisData = {
             return null;
             
         } catch (error) {
-            Logger.error('redisData', 'getJob_error', { jobId, error: error.message });
+            Logger.error('redisData', 'getJob_error', error, { jobId });
             return null;
         }
     },
@@ -464,7 +484,7 @@ export const redisData = {
             return jobs;
             
         } catch (error) {
-            Logger.error('redisData', 'getQueuedJobs_error', { error: error.message });
+            Logger.error('redisData', 'getQueuedJobs_error', error);
             return [];
         }
     },
@@ -492,7 +512,7 @@ export const redisData = {
             }
             
         } catch (error) {
-            Logger.error('redisData', 'cleanupOldJobs_error', { error: error.message });
+            Logger.error('redisData', 'cleanupOldJobs_error', error);
         }
     }
 };

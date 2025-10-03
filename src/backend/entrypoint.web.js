@@ -62,6 +62,13 @@ export const processUserRequest = webMethod(Permissions.Anyone, async (requestDa
 // Submit a job to the queue - returns jobId immediately
 async function submitJob(projectId, userId, sessionId, payload) {
     try {
+        Logger.info('entrypoint', 'submitJob_start', { 
+            projectId,
+            userId,
+            sessionId, 
+            payload: JSON.stringify(payload, null, 2) 
+        });
+        
         const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         
         const job = {
@@ -76,6 +83,12 @@ async function submitJob(projectId, userId, sessionId, payload) {
             progress: 0
         };
         
+        Logger.info('entrypoint', 'submitJob_job_created', { 
+            jobId, 
+            jobType: job.type,
+            jobData: JSON.stringify(job, null, 2)
+        });
+        
         await redisData.saveJob(job);
         
         Logger.info('entrypoint', 'job_submitted', { jobId, projectId, userId, jobType: job.type });
@@ -87,11 +100,15 @@ async function submitJob(projectId, userId, sessionId, payload) {
         };
         
     } catch (error) {
-        Logger.error('entrypoint', 'submitJob_error', { projectId, userId, error: error.message });
+        Logger.error('entrypoint', 'submitJob_error', error, { 
+            projectId, 
+            userId, 
+            payload: JSON.stringify(payload, null, 2)
+        });
         return {
             success: false,
             message: 'Failed to submit job',
-            error: error.message
+            error: error.message || String(error)
         };
     }
 }
@@ -116,9 +133,9 @@ async function getJobStatus(jobId) {
             progress: job.progress || 0,
             message: job.message || 'Job in progress'
         };
-        
+
     } catch (error) {
-        Logger.error('entrypoint', 'getJobStatus_error', { jobId, error: error.message });
+        Logger.error('entrypoint', 'getJobStatus_error', error, { jobId });
         return {
             success: false,
             message: 'Failed to get job status',
@@ -203,9 +220,9 @@ async function getJobResults(jobId) {
             results: results,
             completedAt: job.completedAt
         };
-        
+
     } catch (error) {
-        Logger.error('entrypoint', 'getJobResults_error', { jobId, error: error.message });
+        Logger.error('entrypoint', 'getJobResults_error', error, { jobId });
         return {
             success: false,
             message: 'Failed to get job results',
@@ -292,8 +309,8 @@ async function processJobMessage(job) {
     
     Logger.info('entrypoint', 'processJobMessage_start', { 
         jobId: job.id, 
-        projectId, 
-        userId, 
+        projectId,
+        userId,
         messageLength: input.message?.length || 0 
     });
     
@@ -375,7 +392,7 @@ async function processJobMessage(job) {
     });
     
     // Return complete results
-    return {
+        return {
         aiResponse: response.message,
         todos: finalTodos,
         projectData: allData.projectData,
@@ -404,7 +421,7 @@ async function processJobInit(job) {
     // REDIS OPERATION 2: Save all data at the end
     await redisData.saveAllData(projectId, userId, allData);
     
-    return {
+    return { 
         message: response.message,
         projectData: allData.projectData,
         analysis: response.analysis
@@ -495,15 +512,15 @@ async function processIntelligenceLoopWithDataFlow(projectId, userId, message, a
                 redisData.saveAllData(projectId, userId, allData).catch(console.error);
             })
             .catch((error) => {
-                Logger.error('entrypoint', 'learning_error', { projectId, userId, error: error.message });
+                Logger.error('entrypoint', 'learning_error', error, { projectId, userId });
             });
         
         return response;
         
     } catch (error) {
         Logger.error('entrypoint', 'processIntelligenceLoopWithDataFlow_error', { 
-            projectId, 
-            userId, 
+            projectId,
+            userId,
             error: error.message,
             stack: error.stack
         });
@@ -560,7 +577,7 @@ async function processQueuedJobs(limit = 5) {
         };
         
     } catch (error) {
-        Logger.error('entrypoint', 'processQueuedJobs_error', { error: error.message });
+        Logger.error('entrypoint', 'processQueuedJobs_error', error);
         return {
             success: false,
             message: 'Failed to process queued jobs',
