@@ -41,20 +41,15 @@ $w.onReady(async function () {
 	let isNewProject = false;
 	
 	try {
-		// Get project status and history using test user
-		const status = await processUserRequest({ op: 'status', projectId, userId: TEST_USER_ID }).catch(() => null);
-		const historyResult = await processUserRequest({ op: 'history', projectId, userId: TEST_USER_ID }).catch(() => null);
-		
-		existingHistory = historyResult?.history || [];
-		isNewSession = existingHistory.length === 0;
+		// For job queue system, we don't need to load existing data on page load
+		// The job queue will handle all data loading when processing jobs
+		existingHistory = [];
+		isNewSession = true;
 		
         const projectJustCreated = isProjectJustCreated();
-        isNewProject = !status || status.success === false || (existingHistory.length <= 2 && projectJustCreated);
+        isNewProject = true; // Always treat as new project for job queue system
         
-        // Update page elements for returning users
-        if (!isNewSession && status?.success && !isNewProject) {
-            await updatePageElements(status);
-        }
+        // No need to update page elements on load - job queue will handle this
 	} catch (e) {
 		logHandshake('backend_check_error', { error: e.message });
 	}
@@ -64,36 +59,19 @@ $w.onReady(async function () {
         const action = data.action;
 
         if (action === 'ready') {
-            // Get current project info using test user
-            let currentProjectName = 'Test Project';
-            let currentProjectEmail = null;
-            try {
-                const status = await processUserRequest({ op: 'status', projectId, userId: TEST_USER_ID }).catch(() => null);
-                
-                if (status?.projectData?.name) {
-                    currentProjectName = status.projectData.name;
-                }
-                if (status?.projectEmail) {
-                    currentProjectEmail = status.projectEmail;
-                }
-            } catch (e) {
-                logHandshake('project_info_error', { error: e.message });
-            }
+            // For job queue system, project info will be updated when jobs complete
+            // No need to fetch status on ready
+            logHandshake('ready', 'status_ready', { projectId, userId: TEST_USER_ID });
             
             chatEl.postMessage({
                 action: 'initialize',
                 sessionId,
                 projectId,
                 userId: TEST_USER_ID,
-                projectName: currentProjectName
+                projectName: 'Test Project'
             });
             
-            // Send project email if available
-            if (currentProjectEmail) {
-                setTimeout(() => {
-                    chatEl.postMessage({ action: 'updateProjectEmail', projectEmail: currentProjectEmail });
-                }, 100);
-            }
+            // Project email will be updated when jobs complete
             
             // Send appropriate content based on session type
             setTimeout(async () => {
@@ -111,12 +89,9 @@ $w.onReady(async function () {
                         }
                     }
                     
-                    chatEl.postMessage({ action: 'updateStatus', status: 'processing' });
+                    chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
                     
-                    // Start polling for AI response
-                    setTimeout(() => {
-                        pollForNewProjectResponse();
-                    }, 1000);
+                    // No need to poll for AI response - job queue will handle this
                 } else if (isNewSession) {
                     // Send welcome message for new sessions
                     chatEl.postMessage({
@@ -412,100 +387,4 @@ $w.onReady(async function () {
         return false;
     }
 
-    // Poll for AI response on new projects
-    async function pollForNewProjectResponse() {
-        const maxAttempts = 30; // 30 attempts = 60 seconds max
-        let attempts = 0;
-        
-        const poll = async () => {
-            attempts++;
-            
-            try {
-                // Get updated chat history using test user
-                const historyResult = await processUserRequest({ op: 'history', projectId, userId: TEST_USER_ID }).catch(() => null);
-                const currentHistory = historyResult?.history || [];
-                
-                // Check if we have an AI response
-                const aiResponses = currentHistory.filter(msg => msg.role === 'assistant');
-                
-                if (aiResponses.length > 0) {
-                    // Display AI responses
-                    aiResponses.forEach((response) => {
-                        chatEl.postMessage({
-                            action: 'displayMessage',
-                            type: 'assistant',
-                            content: response.message,
-                            timestamp: response.timestamp
-                        });
-                    });
-                    
-                    // Extract and display todos
-                    const todosFromHistory = [];
-                    currentHistory.forEach(msg => {
-                        if (msg.role === 'assistant' && msg.analysis && msg.analysis.todos) {
-                            todosFromHistory.push(...msg.analysis.todos);
-                        }
-                        if (msg.role === 'assistant' && msg.analysis && msg.analysis.gaps && msg.analysis.gaps.todos) {
-                            todosFromHistory.push(...msg.analysis.gaps.todos);
-                        }
-                    });
-                    
-                    const uniqueTodos = todosFromHistory.filter((todo, index, self) => 
-                        index === self.findIndex(t => t.id === todo.id)
-                    );
-                    
-                    if (uniqueTodos.length > 0) {
-                        chatEl.postMessage({
-                            action: 'displayTodos',
-                            todos: uniqueTodos
-                        });
-                    }
-                    
-                    // Update project name if it changed
-                    const hasProjectName = currentHistory.some(msg => 
-                        msg.role === 'assistant' && msg.analysis && msg.analysis.updatedProjectData && 
-                        msg.analysis.updatedProjectData.name && msg.analysis.updatedProjectData.name !== 'Untitled Project'
-                    );
-                    
-                    if (hasProjectName) {
-                        const projectNameMessage = currentHistory.find(msg => 
-                            msg.role === 'assistant' && msg.analysis && msg.analysis.updatedProjectData && 
-                            msg.analysis.updatedProjectData.name && msg.analysis.updatedProjectData.name !== 'Untitled Project'
-                        );
-                        const newProjectName = projectNameMessage?.analysis?.updatedProjectData?.name;
-                        
-                        chatEl.postMessage({ 
-                            action: 'updateProjectName', 
-                            projectName: newProjectName 
-                        });
-                        await updatePageTitle(newProjectName);
-                    }
-                    
-                    chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
-                    return;
-                }
-                
-                // No response yet, continue polling if we haven't exceeded max attempts
-                if (attempts < maxAttempts) {
-                    setTimeout(poll, 2000); // Poll every 2 seconds
-                } else {
-                    // Timeout
-                    chatEl.postMessage({
-                        action: 'displayMessage',
-                        type: 'system',
-                        content: 'Processing is taking longer than expected. Please refresh the page or try again.',
-                        timestamp: new Date().toISOString()
-                    });
-                    chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
-                }
-                
-            } catch (error) {
-                logHandshake('polling_error', { error: error.message, attempts });
-                chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
-            }
-        };
-        
-        // Start polling
-        poll();
-    }
 });
