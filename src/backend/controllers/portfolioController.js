@@ -40,7 +40,7 @@ export const portfolioController = {
             const projectDataPromises = userProjects.map(async (projectInfo) => {
                 try {
                     const projectData = await getProjectData(projectInfo.projectId);
-                    const chatHistory = await getChatHistory(projectInfo.projectId);
+                    const chatHistory = await getChatHistory(projectInfo.projectId, userId);
                     
                     if (!projectData) {
                         Logger.warn('portfolioController', 'getUserPortfolio:missingProject', { 
