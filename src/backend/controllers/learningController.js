@@ -59,12 +59,7 @@ export const learningController = {
             learningData.lastUpdated = new Date().toISOString();
             
             // Update reflection log (don't save, just update in memory)
-            const t7 = Date.now();
             this.updateReflectionLog(projectId, learningInsights, interactionAnalysis, reflectionData);
-            Logger.info('learningController', 'timing:updateReflectionLogMs', { ms: Date.now() - t7 });
-            
-            const totalTime = Date.now() - totalStart;
-            Logger.info('learningController', 'timing:totalLearningMs', { ms: totalTime });
             
             const result = {
                 learningInsights: learningInsights,
