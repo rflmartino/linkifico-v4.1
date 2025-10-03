@@ -527,9 +527,9 @@ Respond in JSON format:
     },
     
     // Get gap summary
-    async getGapSummary(projectId) {
+    async getGapSummary(projectId, gapData) {
         try {
-            const gapData = await getGapData(projectId);
+            // Use provided gap data (no Redis call)
             if (!gapData) {
                 return {
                     criticalGaps: [],

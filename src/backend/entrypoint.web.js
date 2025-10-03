@@ -171,12 +171,9 @@ async function processChatMessage(projectId, userId, message, sessionId, process
     }
 }
 
-// Intelligence processing loop
-async function processIntelligenceLoop(projectId, userId, message, processingId, existingAllData = null) {
+// Intelligence processing loop - NO Redis calls, controllers pass data between each other
+async function processIntelligenceLoopWithDataFlow(projectId, userId, message, allData) {
     try {
-        // Load or use existing data
-        let allData = existingAllData || await redisData.loadAllData(projectId, userId);
-        
         // Initialize default data structures if needed
         if (!allData.projectData) {
             allData.projectData = redisData.createDefaultProjectData(projectId);
@@ -194,30 +191,33 @@ async function processIntelligenceLoop(projectId, userId, message, processingId,
             allData.reflectionData = redisData.createDefaultReflectionData(projectId);
         }
     
-        // 1. Self Analysis - Essential handshake point
+        // 1. Self Analysis - Pass data to controller, get updated data back
         const templateName = allData?.projectData?.templateName || 'simple_waterfall';
         const template = getTemplate(templateName);
         const analysis = await selfAnalysisController.analyzeProject(projectId, allData.projectData, allData.chatHistory, allData.knowledgeData, template);
         
+        // Update allData with analysis results
         if (analysis.knowledgeData) {
             allData.knowledgeData = analysis.knowledgeData;
         }
         
-        // 2. Gap Detection - Essential handshake point  
+        // 2. Gap Detection - Pass updated data to controller, get updated data back
         const gaps = await gapDetectionController.identifyGaps(projectId, analysis, allData.projectData, allData.gapData, template);
         
+        // Update allData with gap results
         if (gaps.gapData) {
             allData.gapData = gaps.gapData;
         }
         
-        // 3. Action Planning - Essential handshake point
+        // 3. Action Planning - Pass updated data to controller, get updated data back
         const actionPlan = await actionPlanningController.planAction(projectId, userId, gaps, analysis, allData.chatHistory, allData.learningData, template);
         
+        // Update allData with action planning results
         if (actionPlan.updatedLearningData) {
             allData.learningData = actionPlan.updatedLearningData;
         }
         
-        // 4. Execution - Essential handshake point
+        // 4. Execution - Pass updated data to controller, get final response
         const execution = await executionController.executeAction(projectId, userId, message, actionPlan, allData.projectData, template);
         
         // Attach gaps and todos to execution result
@@ -230,15 +230,12 @@ async function processIntelligenceLoop(projectId, userId, message, processingId,
             execution.analysis.gaps.todos = todos;
         }
         
-        // Save todos to allData for Redis storage
+        // Save todos to allData for final Redis save
         if (todos && todos.length > 0) {
             allData.todos = todos;
         }
         
-        // Save all data - essential handshake point
-        await redisData.saveAllData(projectId, userId, allData);
-        
-        // 5. Learning - Run in background (non-blocking)
+        // 5. Learning - Run in background (non-blocking, no Redis calls)
         learningController.learnFromInteraction(projectId, userId, message, execution, allData.chatHistory, allData.learningData, allData.reflectionData)
             .then((result) => {
                 // Update data with learning results (for next interaction)
@@ -249,7 +246,7 @@ async function processIntelligenceLoop(projectId, userId, message, processingId,
                     allData.reflectionData = result.updatedReflectionData;
                 }
                 
-                // Save updated learning data in background
+                // Save updated learning data in background (separate Redis call)
                 redisData.saveAllData(projectId, userId, allData).catch(console.error);
             })
             .catch((error) => {
@@ -257,6 +254,26 @@ async function processIntelligenceLoop(projectId, userId, message, processingId,
             });
         
         return execution;
+        
+    } catch (error) {
+        Logger.error('entrypoint', 'intelligence_loop_error', { projectId, userId, error: error.message });
+        
+        // Return a fallback response so the system doesn't completely break
+        return {
+            message: "I encountered an error while processing your request. Please try again.",
+            analysis: null
+        };
+    }
+}
+
+// Legacy intelligence processing loop (for backward compatibility)
+async function processIntelligenceLoop(projectId, userId, message, processingId, existingAllData = null) {
+    try {
+        // Load or use existing data
+        let allData = existingAllData || await redisData.loadAllData(projectId, userId);
+        
+        // Use the new data flow function
+        return await processIntelligenceLoopWithDataFlow(projectId, userId, message, allData);
         
     } catch (error) {
         Logger.error('entrypoint', 'intelligence_loop_error', { projectId, userId, error: error.message });
@@ -766,14 +783,11 @@ export async function processJob(jobId) {
     }
 }
 
-// Process message job
+// Process message job - EXACTLY 2 Redis operations (1 read, 1 save)
 async function processJobMessage(job) {
     const { projectId, userId, sessionId, input } = job;
     
-    // Update progress
-    await redisData.updateJobStatus(job.id, 'processing', 20, 'Loading project data...');
-    
-    // Load all data
+    // REDIS OPERATION 1: Load all data at the beginning
     let allData = await redisData.loadAllData(projectId, userId);
     if (!allData.projectData) {
         allData.projectData = redisData.createDefaultProjectData(projectId);
@@ -798,14 +812,8 @@ async function processJobMessage(job) {
     
     allData.chatHistory = chatHistory;
     
-    // Update progress
-    await redisData.updateJobStatus(job.id, 'processing', 40, 'Running intelligence analysis...');
-    
-    // Process through intelligence loop
-    const response = await processIntelligenceLoop(projectId, userId, input.message, job.id, allData);
-    
-    // Update progress
-    await redisData.updateJobStatus(job.id, 'processing', 80, 'Generating response...');
+    // Process through intelligence loop - controllers pass data between each other
+    const response = await processIntelligenceLoopWithDataFlow(projectId, userId, input.message, allData);
     
     // Add AI response to history
     chatHistory.push({
@@ -818,13 +826,7 @@ async function processJobMessage(job) {
     
     allData.chatHistory = chatHistory;
     
-    // Save all data
-    await redisData.saveAllData(projectId, userId, allData);
-    
-    // Update progress
-    await redisData.updateJobStatus(job.id, 'processing', 90, 'Finalizing results...');
-    
-    // Extract todos
+    // Extract todos from response
     const todosFromAnalysis = (response.analysis && response.analysis.gaps && response.analysis.gaps.todos) ? response.analysis.gaps.todos : [];
     const todosFromAllData = allData.todos || [];
     const todosFromGaps = (response.analysis && response.analysis.todos) ? response.analysis.todos : [];
@@ -832,6 +834,9 @@ async function processJobMessage(job) {
     const finalTodos = todosFromAnalysis.length > 0 ? todosFromAnalysis :
                       todosFromAllData.length > 0 ? todosFromAllData :
                       todosFromGaps;
+    
+    // REDIS OPERATION 2: Save all data at the end
+    await redisData.saveAllData(projectId, userId, allData);
     
     // Return complete results
     return {

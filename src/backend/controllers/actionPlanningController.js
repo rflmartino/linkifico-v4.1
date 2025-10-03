@@ -500,8 +500,8 @@ Generate an action plan in JSON format:
             // Update user patterns based on recent interactions
             learningData.userPatterns = this.updateUserPatterns(learningData);
             
-            // Save updated learning data
-            await saveLearningData(userId, learningData);
+            // Return updated learning data (no Redis save - handled by entry point)
+            return learningData;
             
         } catch (error) {
             Logger.error('actionPlanningController', 'updateLearningFromPlanning:error', error);
@@ -549,9 +549,9 @@ Generate an action plan in JSON format:
     },
     
     // Get action plan summary
-    async getActionPlanSummary(userId) {
+    async getActionPlanSummary(userId, learningData) {
         try {
-            const learningData = await getLearningData(userId);
+            // Use provided learning data (no Redis call)
             if (!learningData) {
                 return {
                     status: 'No learning data available',

@@ -287,9 +287,9 @@ Provide analysis in JSON format:
     },
     
     // Get analysis summary
-    async getAnalysisSummary(projectId) {
+    async getAnalysisSummary(projectId, knowledgeData) {
         try {
-            const knowledgeData = await getKnowledgeData(projectId);
+            // Use provided knowledge data (no Redis call)
             if (!knowledgeData) {
                 return {
                     confidence: 0.0,

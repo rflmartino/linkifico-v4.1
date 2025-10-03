@@ -449,9 +449,9 @@ Respond in JSON format:
     },
     
     // Get learning summary
-    async getLearningSummary(userId) {
+    async getLearningSummary(userId, learningData) {
         try {
-            const learningData = await getLearningData(userId);
+            // Use provided learning data (no Redis call)
             if (!learningData) {
                 return {
                     status: 'No learning data available',

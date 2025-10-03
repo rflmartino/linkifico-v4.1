@@ -269,8 +269,7 @@ export const executionController = {
                 // Update project data
                 projectData.name = generatedName;
                 
-                // Save to Redis
-                await saveProjectData(projectId, projectData);
+                // Return updated project data (no Redis save - handled by entry point)
                 
                 Logger.info('executionController', 'projectNameGenerated', { 
                     projectId, 
@@ -632,9 +631,7 @@ Respond in JSON with template-aware fields (simple_waterfall):
                 updatedData.updatedAt = new Date().toISOString();
             }
             
-            // Save updated project data
-            await saveProjectData(projectId, updatedData);
-            
+            // Return updated project data (no Redis save - handled by entry point)
             return updatedData;
             
         } catch (error) {
@@ -677,9 +674,9 @@ Respond in JSON with template-aware fields (simple_waterfall):
     },
     
     // Get execution summary
-    async getExecutionSummary(projectId) {
+    async getExecutionSummary(projectId, projectData) {
         try {
-            const projectData = await getProjectData(projectId);
+            // Use provided project data (no Redis call)
             if (!projectData) {
                 return {
                     status: 'No project data available',
