@@ -342,6 +342,15 @@ async function processIntelligenceLoop(projectId, userId, message, processingId,
         todosExtracted: todos.length,
         todosStructure: todos.length > 0 ? todos[0] : null
     });
+    
+    // DEBUG: Log that we're about to process todos
+    Logger.info('entrypoint.web', 'processIntelligenceLoop:aboutToProcessTodos', {
+        projectId,
+        userId,
+        todosLength: todos.length,
+        todosExists: !!todos,
+        allDataExists: !!allData
+    });
     if (processingId) {
         await redisData.saveProcessing(processingId, { 
             status: 'processing', 
@@ -351,6 +360,49 @@ async function processIntelligenceLoop(projectId, userId, message, processingId,
             progress: 90
         });
     }
+    
+    // DEBUG: Log that we're about to save todos
+    Logger.info('entrypoint.web', 'processIntelligenceLoop:aboutToSaveTodos', {
+        projectId,
+        userId,
+        todosLength: todos.length,
+        todosExists: !!todos,
+        allDataExists: !!allData
+    });
+    
+    // Ensure todos are included in allData for Redis storage BEFORE learning phase
+    try {
+        if (todos && todos.length > 0) {
+            allData.todos = todos;
+            Logger.info('entrypoint.web', 'todosAddedToAllData', { 
+                projectId, 
+                userId, 
+                todoCount: todos.length,
+                todos: todos.map(t => ({ id: t.id, title: t.title, completed: t.completed }))
+            });
+        } else {
+            Logger.info('entrypoint.web', 'todosAddedToAllData:noTodos', { 
+                projectId, 
+                userId, 
+                todosVariable: todos,
+                todosLength: todos ? todos.length : 'undefined'
+            });
+        }
+    } catch (error) {
+        Logger.error('entrypoint.web', 'todosAddedToAllData:error', error);
+    }
+    
+    // Save all updated data in a single Redis operation BEFORE learning phase
+    const dataSaveStart = Date.now();
+    await redisData.saveAllData(projectId, userId, allData);
+    Logger.info('entrypoint.web', 'timing:dataSaveMs', { ms: Date.now() - dataSaveStart });
+    
+    // DEBUG: Log that we're about to start learning phase
+    Logger.info('entrypoint.web', 'processIntelligenceLoop:aboutToStartLearning', {
+        projectId,
+        userId,
+        todosLength: todos.length
+    });
     
     // 5. Learning - Learn from interaction and adapt (run in background)
     const t5 = Date.now();
@@ -374,33 +426,6 @@ async function processIntelligenceLoop(projectId, userId, message, processingId,
         .catch((error) => {
             Logger.error('entrypoint.web', 'backgroundLearning:error', error);
         });
-    
-    // Ensure todos are included in allData for Redis storage
-    try {
-        if (todos && todos.length > 0) {
-            allData.todos = todos;
-            Logger.info('entrypoint.web', 'todosAddedToAllData', { 
-                projectId, 
-                userId, 
-                todoCount: todos.length,
-                todos: todos.map(t => ({ id: t.id, title: t.title, completed: t.completed }))
-            });
-        } else {
-            Logger.info('entrypoint.web', 'todosAddedToAllData:noTodos', { 
-                projectId, 
-                userId, 
-                todosVariable: todos,
-                todosLength: todos ? todos.length : 'undefined'
-            });
-        }
-    } catch (error) {
-        Logger.error('entrypoint.web', 'todosAddedToAllData:error', error);
-    }
-    
-    // Save all updated data in a single Redis operation
-    const dataSaveStart = Date.now();
-    await redisData.saveAllData(projectId, userId, allData);
-    Logger.info('entrypoint.web', 'timing:dataSaveMs', { ms: Date.now() - dataSaveStart });
     
     Logger.info('entrypoint.web', 'processIntelligenceLoop:end', { action: actionPlan?.action });
     Logger.info('entrypoint.web', 'timing:intelligenceLoopMs', { ms: Date.now() - loopStart });
