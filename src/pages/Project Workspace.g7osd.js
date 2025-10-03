@@ -190,6 +190,12 @@ $w.onReady(async function () {
             chatEl.postMessage({ action: 'updateStatus', status: 'processing' });
 
             // Submit job to queue using new job queue system
+            logHandshake('sendMessage', 'submittingJob', { 
+                projectId, 
+                userId: TEST_USER_ID, 
+                messageLength: userMessage.length 
+            });
+
             const job = await processUserRequest({
                 op: 'submitJob',
                 projectId,
@@ -202,6 +208,11 @@ $w.onReady(async function () {
             }).catch(() => ({ success: false }));
 
             if (!job || !job.success) {
+                logHandshake('sendMessage', 'jobSubmissionFailed', { 
+                    projectId, 
+                    userId: TEST_USER_ID, 
+                    error: job?.message || 'Unknown error' 
+                });
                 chatEl.postMessage({ 
                     action: 'displayMessage', 
                     type: 'system', 
@@ -211,6 +222,12 @@ $w.onReady(async function () {
                 chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
                 return;
             }
+
+            logHandshake('sendMessage', 'jobSubmitted', { 
+                projectId, 
+                userId: TEST_USER_ID, 
+                jobId: job.jobId 
+            });
 
             // Poll for job results
             pollForJobResults(job.jobId);
@@ -233,10 +250,14 @@ $w.onReady(async function () {
         const intervalMs = 2000;
         const timeoutMs = 90000;
 
+        logHandshake('pollForJobResults', 'start', { jobId, maxAttempts, intervalMs, timeoutMs });
+
         const poll = async () => {
             attempts++;
             
             try {
+                logHandshake('pollForJobResults', 'polling', { jobId, attempt: attempts, elapsed: Date.now() - startedAt });
+                
                 const results = await processUserRequest({
                     op: 'getJobResults',
                     payload: { jobId: jobId }
@@ -244,6 +265,7 @@ $w.onReady(async function () {
                 
                 if (!results) {
                     if (Date.now() - startedAt > timeoutMs) {
+                        logHandshake('pollForJobResults', 'timeout', { jobId, attempts, duration: Date.now() - startedAt });
                         chatEl.postMessage({
                             action: 'displayMessage',
                             type: 'system',
@@ -257,7 +279,23 @@ $w.onReady(async function () {
                     return;
                 }
                 
+                logHandshake('pollForJobResults', 'statusCheck', { 
+                    jobId, 
+                    attempts, 
+                    status: results.status, 
+                    progress: results.progress || 0,
+                    elapsed: Date.now() - startedAt 
+                });
+                
                 if (results.status === 'completed') {
+                    logHandshake('pollForJobResults', 'completed', { 
+                        jobId, 
+                        attempts, 
+                        duration: Date.now() - startedAt,
+                        hasResults: !!results.results,
+                        resultKeys: results.results ? Object.keys(results.results) : []
+                    });
+                    
                     // Display complete results
                     chatEl.postMessage({
                         action: 'displayMessage',
@@ -268,6 +306,7 @@ $w.onReady(async function () {
                     
                     // Display todos if available
                     if (Array.isArray(results.results.todos) && results.results.todos.length) {
+                        logHandshake('pollForJobResults', 'displayingTodos', { jobId, todoCount: results.results.todos.length });
                         chatEl.postMessage({
                             action: 'displayTodos',
                             todos: results.results.todos
@@ -276,6 +315,7 @@ $w.onReady(async function () {
                     
                     // Update project name if it changed
                     if (results.results.projectData?.name && results.results.projectData.name !== 'Test Project') {
+                        logHandshake('pollForJobResults', 'updatingProjectName', { jobId, projectName: results.results.projectData.name });
                         chatEl.postMessage({ 
                             action: 'updateProjectName', 
                             projectName: results.results.projectData.name 
@@ -285,6 +325,7 @@ $w.onReady(async function () {
                     
                     // Update project email if available
                     if (results.results.projectData?.email) {
+                        logHandshake('pollForJobResults', 'updatingProjectEmail', { jobId, projectEmail: results.results.projectData.email });
                         chatEl.postMessage({ 
                             action: 'updateProjectEmail', 
                             projectEmail: results.results.projectData.email 
@@ -296,6 +337,12 @@ $w.onReady(async function () {
                 }
                 
                 if (results.status === 'failed') {
+                    logHandshake('pollForJobResults', 'failed', { 
+                        jobId, 
+                        attempts, 
+                        duration: Date.now() - startedAt, 
+                        error: results.message 
+                    });
                     chatEl.postMessage({
                         action: 'displayMessage',
                         type: 'system',
@@ -310,7 +357,7 @@ $w.onReady(async function () {
                 if (attempts < maxAttempts) {
                     setTimeout(poll, intervalMs);
                 } else {
-                    // Timeout
+                    logHandshake('pollForJobResults', 'maxAttemptsReached', { jobId, attempts, duration: Date.now() - startedAt });
                     chatEl.postMessage({
                         action: 'displayMessage',
                         type: 'system',
@@ -321,7 +368,7 @@ $w.onReady(async function () {
                 }
                 
             } catch (error) {
-                logHandshake('polling_error', { error: error.message, attempts });
+                logHandshake('pollForJobResults', 'error', { jobId, attempts, error: error.message });
                 chatEl.postMessage({ action: 'updateStatus', status: 'ready' });
             }
         };

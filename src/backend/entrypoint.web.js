@@ -683,18 +683,33 @@ async function getJobResults(jobId) {
             return { success: false, message: 'Job ID required' };
         }
         
+        Logger.info('entrypoint', 'getJobResults_request', { jobId });
+        
         const job = await redisData.getJob(jobId);
         
         if (!job) {
+            Logger.warn('entrypoint', 'getJobResults_jobNotFound', { jobId });
             return { success: false, message: 'Job not found' };
         }
         
+        Logger.info('entrypoint', 'getJobResults_jobStatus', { 
+            jobId, 
+            status: job.status, 
+            progress: job.progress || 0 
+        });
+        
         // If job is queued, process it now (on-demand processing)
         if (job.status === 'queued') {
+            Logger.info('entrypoint', 'getJobResults_processingQueued', { jobId });
             await processJob(jobId);
             // Refresh job data after processing
             const updatedJob = await redisData.getJob(jobId);
             if (updatedJob.status !== 'completed') {
+                Logger.info('entrypoint', 'getJobResults_processingInProgress', { 
+                    jobId, 
+                    status: updatedJob.status, 
+                    progress: updatedJob.progress || 0 
+                });
                 return {
                     success: true,
                     jobId: jobId,
@@ -707,6 +722,11 @@ async function getJobResults(jobId) {
         
         // Only return results if job is 100% complete
         if (job.status !== 'completed') {
+            Logger.info('entrypoint', 'getJobResults_notComplete', { 
+                jobId, 
+                status: job.status, 
+                progress: job.progress || 0 
+            });
             return {
                 success: true,
                 jobId: jobId,
@@ -718,6 +738,12 @@ async function getJobResults(jobId) {
         
         // Get complete results
         const results = await redisData.getJobResults(jobId);
+        
+        Logger.info('entrypoint', 'getJobResults_complete', { 
+            jobId, 
+            hasResults: !!results,
+            resultsKeys: results ? Object.keys(results) : []
+        });
         
         return {
             success: true,
@@ -740,12 +766,21 @@ async function getJobResults(jobId) {
 // Process a single job - called by background worker
 export async function processJob(jobId) {
     try {
+        Logger.info('entrypoint', 'processJob_start', { jobId });
+        
         const job = await redisData.getJob(jobId);
         
         if (!job) {
             Logger.error('entrypoint', 'processJob_jobNotFound', { jobId });
             return;
         }
+        
+        Logger.info('entrypoint', 'processJob_jobDetails', { 
+            jobId, 
+            jobType: job.type, 
+            projectId: job.projectId, 
+            userId: job.userId 
+        });
         
         // Mark job as processing
         await redisData.updateJobStatus(jobId, 'processing', 10, 'Starting processing...');
@@ -755,17 +790,26 @@ export async function processJob(jobId) {
         // Route to appropriate processor based on job type
         switch (job.type) {
             case 'sendMessage':
+                Logger.info('entrypoint', 'processJob_processingMessage', { jobId });
                 result = await processJobMessage(job);
                 break;
             case 'init':
+                Logger.info('entrypoint', 'processJob_processingInit', { jobId });
                 result = await processJobInit(job);
                 break;
             case 'analyze':
+                Logger.info('entrypoint', 'processJob_processingAnalyze', { jobId });
                 result = await processJobAnalyze(job);
                 break;
             default:
                 throw new Error(`Unknown job type: ${job.type}`);
         }
+        
+        Logger.info('entrypoint', 'processJob_processingComplete', { 
+            jobId, 
+            hasResult: !!result,
+            resultKeys: result ? Object.keys(result) : []
+        });
         
         // Save complete results
         await redisData.saveJobResults(jobId, result);
@@ -773,10 +817,18 @@ export async function processJob(jobId) {
         // Mark job as completed
         await redisData.updateJobStatus(jobId, 'completed', 100, 'Processing complete');
         
-        Logger.info('entrypoint', 'job_completed', { jobId, jobType: job.type });
+        Logger.info('entrypoint', 'job_completed', { 
+            jobId, 
+            jobType: job.type,
+            completedAt: new Date().toISOString()
+        });
         
     } catch (error) {
-        Logger.error('entrypoint', 'processJob_error', { jobId, error: error.message });
+        Logger.error('entrypoint', 'processJob_error', { 
+            jobId, 
+            error: error.message,
+            stack: error.stack
+        });
         
         // Mark job as failed
         await redisData.updateJobStatus(jobId, 'failed', 0, `Processing failed: ${error.message}`);
@@ -787,11 +839,24 @@ export async function processJob(jobId) {
 async function processJobMessage(job) {
     const { projectId, userId, sessionId, input } = job;
     
+    Logger.info('entrypoint', 'processJobMessage_start', { 
+        jobId: job.id, 
+        projectId, 
+        userId, 
+        messageLength: input.message?.length || 0 
+    });
+    
     // REDIS OPERATION 1: Load all data at the beginning
     let allData = await redisData.loadAllData(projectId, userId);
     if (!allData.projectData) {
         allData.projectData = redisData.createDefaultProjectData(projectId);
     }
+    
+    Logger.info('entrypoint', 'processJobMessage_dataLoaded', { 
+        jobId: job.id, 
+        chatHistoryLength: allData.chatHistory?.length || 0,
+        hasProjectData: !!allData.projectData
+    });
     
     // Add user message to history
     let chatHistory = allData.chatHistory || [];
@@ -815,6 +880,13 @@ async function processJobMessage(job) {
     // Process through intelligence loop - controllers pass data between each other
     const response = await processIntelligenceLoopWithDataFlow(projectId, userId, input.message, allData);
     
+    Logger.info('entrypoint', 'processJobMessage_intelligenceComplete', { 
+        jobId: job.id, 
+        hasResponse: !!response,
+        responseLength: response?.message?.length || 0,
+        hasAnalysis: !!response?.analysis
+    });
+    
     // Add AI response to history
     chatHistory.push({
         role: 'assistant',
@@ -835,8 +907,21 @@ async function processJobMessage(job) {
                       todosFromAllData.length > 0 ? todosFromAllData :
                       todosFromGaps;
     
+    Logger.info('entrypoint', 'processJobMessage_todosExtracted', { 
+        jobId: job.id, 
+        todoCount: finalTodos.length,
+        todosFromAnalysis: todosFromAnalysis.length,
+        todosFromAllData: todosFromAllData.length,
+        todosFromGaps: todosFromGaps.length
+    });
+    
     // REDIS OPERATION 2: Save all data at the end
     await redisData.saveAllData(projectId, userId, allData);
+    
+    Logger.info('entrypoint', 'processJobMessage_dataSaved', { 
+        jobId: job.id, 
+        finalChatHistoryLength: chatHistory.length
+    });
     
     // Return complete results
     return {
