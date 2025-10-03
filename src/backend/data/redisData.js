@@ -107,6 +107,16 @@ export const redisData = {
         }
     },
 
+    // Get project data by project ID
+    async getProjectData(projectId) {
+        try {
+            return await getProjectData(projectId);
+        } catch (error) {
+            Logger.error('redisData', 'getProjectData:error', error, { projectId });
+            return null;
+        }
+    },
+
     // Save email-to-project mapping
     async saveEmailMapping(email, projectId) {
         try {
