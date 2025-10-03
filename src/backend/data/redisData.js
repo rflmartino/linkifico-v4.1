@@ -223,15 +223,6 @@ export const redisData = {
         }
     },
 
-    // Get processing status for polling
-    async getProcessingStatus(processingId) {
-        try {
-            return await getProcessing(processingId);
-        } catch (error) {
-            Logger.error('dataManager', 'getProcessing:error', error);
-            return null;
-        }
-    },
 
     // Delete project and clean up email mapping
     async deleteProject(projectId, userId) {

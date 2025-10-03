@@ -303,21 +303,27 @@ async function handleCreateProject(templateName, userInput) {
                     initialMessage: userInput
                 });
                 
-                // Start async processing - don't await, let it run in background
+                // Submit job to queue - don't await, let it run in background
                 processUserRequest({
-                    op: 'startProcessing',
+                    op: 'submitJob',
                     projectId: newProjectId,
                     userId: currentUser.id,
                     sessionId: `create_${Date.now()}`,
-                    payload: { message: userInput }
-                }).then(() => {
+                    payload: { 
+                        jobType: 'init',
+                        initialMessage: userInput,
+                        templateName: 'simple_waterfall',
+                        projectName: projectName
+                    }
+                }).then((result) => {
                     logToBackend('Project-Portfolio', 'handleCreateProject', { 
-                        message: 'AI PROCESSING STARTED: Async intelligence loop initiated',
-                        projectId: newProjectId
+                        message: 'JOB SUBMITTED: Project initialization job queued',
+                        projectId: newProjectId,
+                        jobId: result.jobId
                     });
                 }).catch((aiError) => {
                     logToBackend('Project-Portfolio', 'handleCreateProject', null, 
-                        `AI PROCESSING ERROR: ${aiError.message} (ProjectId: ${newProjectId})`);
+                        `JOB SUBMISSION ERROR: ${aiError.message} (ProjectId: ${newProjectId})`);
                 });
                 
             } catch (aiError) {
