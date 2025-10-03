@@ -504,14 +504,19 @@
                 const statusTexts = {
                     'ready': 'Ready',
                     'processing': 'Processing...',
+                    'analyzing_project...': 'Analyzing project...',
+                    'identifying_gaps...': 'Identifying gaps...',
+                    'planning_actions...': 'Planning actions...',
+                    'generating_response...': 'Generating response...',
                     'typing': 'AI is typing...',
                     'error': 'Error'
                 };
                 
-                this.status.textContent = statusTexts[status] || status;
+                this.status.textContent = statusTexts[status] || status.replace(/_/g, ' ').replace(/\.\.\./g, '...');
                 
-                // Only show typing indicator when AI is processing
-                if (status === 'processing') {
+                // Show typing indicator for any processing state
+                const processingStates = ['processing', 'analyzing_project...', 'identifying_gaps...', 'planning_actions...', 'generating_response...'];
+                if (processingStates.includes(status) || status.includes('...')) {
                     this.typingIndicator.classList.add('show');
                     this.sendButton.disabled = true;
                 } else {

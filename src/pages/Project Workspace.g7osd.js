@@ -76,7 +76,7 @@ $w.onReady(async function () {
                 sessionId,
                 projectId,
                 userId: TEST_USER_ID,
-                projectName: 'Test Project'
+                projectName: 'New Project'
             });
             
             // Project email will be updated when jobs complete
@@ -281,6 +281,17 @@ $w.onReady(async function () {
                     elapsed: Date.now() - startedAt 
                 });
                 
+                // Update status based on job status to show proper animations
+                if (results.status === 'queued') {
+                    chatEl.postMessage({ action: 'updateStatus', status: 'processing' });
+                } else if (results.status === 'processing') {
+                    // Use the message from the job status as the status
+                    const statusMessage = results.message || 'Processing...';
+                    chatEl.postMessage({ action: 'updateStatus', status: statusMessage.toLowerCase().replace(/\s+/g, '_') });
+                } else if (results.status === 'failed') {
+                    chatEl.postMessage({ action: 'updateStatus', status: 'error' });
+                }
+                
                 if (results.status === 'completed') {
                     logHandshake('pollForJobResults', 'completed', { 
                         jobId, 
@@ -308,7 +319,7 @@ $w.onReady(async function () {
                     }
                     
                     // Update project name if it changed
-                    if (results.results.projectData?.name && results.results.projectData.name !== 'Test Project') {
+                    if (results.results.projectData?.name && results.results.projectData.name !== 'New Project') {
                         logHandshake('pollForJobResults', 'updatingProjectName', { jobId, projectName: results.results.projectData.name });
                         chatEl.postMessage({ 
                             action: 'updateProjectName', 
