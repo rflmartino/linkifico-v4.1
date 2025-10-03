@@ -21,11 +21,11 @@ export async function getRedisClient() {
 // Redis Key Structure
 export const REDIS_KEYS = {
     PROJECT: (projectId) => `project:${projectId}`,
-    KNOWLEDGE: (projectId) => `knowledge:${projectId}`,
-    GAPS: (projectId) => `gaps:${projectId}`,
+    KNOWLEDGE: (userId, projectId) => `knowledge:${userId}:${projectId}`,
+    GAPS: (userId, projectId) => `gaps:${userId}:${projectId}`,
     LEARNING: (userId) => `learning:${userId}`,
-    REFLECTION: (projectId) => `reflection:${projectId}`,
-    CHAT_HISTORY: (projectId) => `chat:${projectId}`,
+    REFLECTION: (userId, projectId) => `reflection:${userId}:${projectId}`,
+    CHAT_HISTORY: (userId, projectId) => `chat:${userId}:${projectId}`,
     PROCESSING: (processingId) => `processing:${processingId}`,
     USER_PROJECTS: (userId) => `user:${userId}:projects`
 };
@@ -117,38 +117,38 @@ export async function getProjectData(projectId) {
     return data ? JSON.parse(data) : null;
 }
 
-export async function saveKnowledgeData(projectId, knowledgeData) {
+export async function saveKnowledgeData(projectId, userId, knowledgeData) {
     const t = Date.now();
     const client = await getRedisClient();
-    const key = REDIS_KEYS.KNOWLEDGE(projectId);
+    const key = REDIS_KEYS.KNOWLEDGE(userId, projectId);
     await client.set(key, JSON.stringify(knowledgeData));
     const ms = Date.now() - t;
     try { Logger.info('projectData', 'timing:saveKnowledgeDataMs', { ms }); } catch {}
 }
 
-export async function getKnowledgeData(projectId) {
+export async function getKnowledgeData(projectId, userId) {
     const t = Date.now();
     const client = await getRedisClient();
-    const key = REDIS_KEYS.KNOWLEDGE(projectId);
+    const key = REDIS_KEYS.KNOWLEDGE(userId, projectId);
     const data = await client.get(key);
     const ms = Date.now() - t;
     try { Logger.info('projectData', 'timing:getKnowledgeDataMs', { ms }); } catch {}
     return data ? JSON.parse(data) : null;
 }
 
-export async function saveGapData(projectId, gapData) {
+export async function saveGapData(projectId, userId, gapData) {
     const t = Date.now();
     const client = await getRedisClient();
-    const key = REDIS_KEYS.GAPS(projectId);
+    const key = REDIS_KEYS.GAPS(userId, projectId);
     await client.set(key, JSON.stringify(gapData));
     const ms = Date.now() - t;
     try { Logger.info('projectData', 'timing:saveGapDataMs', { ms }); } catch {}
 }
 
-export async function getGapData(projectId) {
+export async function getGapData(projectId, userId) {
     const t = Date.now();
     const client = await getRedisClient();
-    const key = REDIS_KEYS.GAPS(projectId);
+    const key = REDIS_KEYS.GAPS(userId, projectId);
     const data = await client.get(key);
     const ms = Date.now() - t;
     try { Logger.info('projectData', 'timing:getGapDataMs', { ms }); } catch {}
@@ -174,33 +174,33 @@ export async function getLearningData(userId) {
     return data ? JSON.parse(data) : null;
 }
 
-export async function saveReflectionData(projectId, reflectionData) {
+export async function saveReflectionData(projectId, userId, reflectionData) {
     const t = Date.now();
     const client = await getRedisClient();
-    const key = REDIS_KEYS.REFLECTION(projectId);
+    const key = REDIS_KEYS.REFLECTION(userId, projectId);
     await client.set(key, JSON.stringify(reflectionData));
     const ms = Date.now() - t;
     try { Logger.info('projectData', 'timing:saveReflectionDataMs', { ms }); } catch {}
 }
 
-export async function getReflectionData(projectId) {
+export async function getReflectionData(projectId, userId) {
     const t = Date.now();
     const client = await getRedisClient();
-    const key = REDIS_KEYS.REFLECTION(projectId);
+    const key = REDIS_KEYS.REFLECTION(userId, projectId);
     const data = await client.get(key);
     const ms = Date.now() - t;
     try { Logger.info('projectData', 'timing:getReflectionDataMs', { ms }); } catch {}
     return data ? JSON.parse(data) : null;
 }
 
-export async function saveChatHistory(projectId, chatHistory) {
+export async function saveChatHistory(projectId, userId, chatHistory) {
     const t = Date.now();
     const client = await getRedisClient();
-    const key = REDIS_KEYS.CHAT_HISTORY(projectId);
+    const key = REDIS_KEYS.CHAT_HISTORY(userId, projectId);
     
     // Skip saving if chatHistory is undefined (not initialized yet)
     if (chatHistory === undefined) {
-        try { Logger.info('projectData', 'saveChatHistory:skipped', { projectId, reason: 'undefined' }); } catch {}
+        try { Logger.info('projectData', 'saveChatHistory:skipped', { projectId, userId, reason: 'undefined' }); } catch {}
         return;
     }
     
@@ -208,6 +208,7 @@ export async function saveChatHistory(projectId, chatHistory) {
     try {
         Logger.info('projectData', 'saveChatHistory:input', {
             projectId,
+            userId,
             chatHistoryType: typeof chatHistory,
             chatHistoryIsArray: Array.isArray(chatHistory),
             chatHistoryValue: chatHistory,
@@ -223,6 +224,7 @@ export async function saveChatHistory(projectId, chatHistory) {
     try {
         Logger.info('projectData', 'saveChatHistory:output', {
             projectId,
+            userId,
             redisKey: key,
             safeHistoryType: typeof safeChatHistory,
             safeHistoryIsArray: Array.isArray(safeChatHistory),
@@ -237,10 +239,10 @@ export async function saveChatHistory(projectId, chatHistory) {
     try { Logger.info('projectData', 'timing:saveChatHistoryMs', { ms }); } catch {}
 }
 
-export async function getChatHistory(projectId) {
+export async function getChatHistory(projectId, userId) {
     const t = Date.now();
     const client = await getRedisClient();
-    const key = REDIS_KEYS.CHAT_HISTORY(projectId);
+    const key = REDIS_KEYS.CHAT_HISTORY(userId, projectId);
     const data = await client.get(key);
     const ms = Date.now() - t;
     
@@ -249,6 +251,7 @@ export async function getChatHistory(projectId) {
         Logger.info('projectData', 'timing:getChatHistoryMs', { ms }); 
         Logger.info('projectData', 'getChatHistory:debug', {
             projectId,
+            userId,
             redisKey: key,
             hasData: !!data,
             dataLength: data ? data.length : 0,
@@ -265,6 +268,7 @@ export async function getChatHistory(projectId) {
                 if (!Array.isArray(parsedData)) {
                     Logger.warn('projectData', 'getChatHistory:invalidFormat', {
                         projectId,
+                        userId,
                         expectedType: 'array',
                         actualType: typeof parsedData,
                         rawData: data
@@ -274,6 +278,7 @@ export async function getChatHistory(projectId) {
             } catch (parseError) {
                 Logger.error('projectData', 'getChatHistory:parseError', {
                     projectId,
+                    userId,
                     parseError: parseError.message,
                     rawData: data
                 });
@@ -283,13 +288,14 @@ export async function getChatHistory(projectId) {
         
         Logger.info('projectData', 'getChatHistory:parsed', {
             projectId,
+            userId,
             parsedLength: parsedData.length,
             parsedType: typeof parsedData,
             isArray: Array.isArray(parsedData),
             parsedSample: parsedData.length > 0 ? parsedData.slice(0, 2) : 'empty'
         });
     } catch (logError) {
-        Logger.error('projectData', 'getChatHistory:logError', { projectId, logError: logError.message });
+        Logger.error('projectData', 'getChatHistory:logError', { projectId, userId, logError: logError.message });
     }
     
     // Return parsed data or empty array
@@ -300,6 +306,7 @@ export async function getChatHistory(projectId) {
         } catch (parseError) {
             Logger.error('projectData', 'getChatHistory:returnParseError', {
                 projectId,
+                userId,
                 parseError: parseError.message,
                 rawData: data
             });

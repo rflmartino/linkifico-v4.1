@@ -442,6 +442,7 @@ export async function getProjectStatus(projectId, userId) {
         const allData = await redisData.loadAllData(projectId, userId);
         const pData = allData.projectData;
         const chatHistory = allData.chatHistory;
+        const gapData = allData.gapData;
         
         if (!pData) {
             return {
@@ -450,12 +451,16 @@ export async function getProjectStatus(projectId, userId) {
             };
         }
         
+        // Extract todos from gap data
+        const todos = gapData?.todos || [];
+        
         return {
             success: true,
             projectData: pData,
             projectEmail: pData?.email || null,
             chatHistory: chatHistory,
-            messageCount: chatHistory.length
+            messageCount: chatHistory.length,
+            todos: todos
         };
         
     } catch (error) {

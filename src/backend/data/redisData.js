@@ -29,11 +29,11 @@ export const redisData = {
                 reflectionData
             ] = await Promise.all([
                 getProjectData(projectId),
-                getChatHistory(projectId),
-                getKnowledgeData(projectId),
-                getGapData(projectId),
+                getChatHistory(projectId, userId),
+                getKnowledgeData(projectId, userId),
+                getGapData(projectId, userId),
                 getLearningData(userId),
-                getReflectionData(projectId)
+                getReflectionData(projectId, userId)
             ]);
             
             Logger.info('dataManager', 'timing:loadAllDataMs', { ms: Date.now() - startTime });
@@ -150,11 +150,11 @@ export const redisData = {
             
             await Promise.all([
                 saveProjectData(projectId, allData.projectData),
-                saveChatHistory(projectId, allData.chatHistory),
-                saveKnowledgeData(projectId, allData.knowledgeData),
-                saveGapData(projectId, allData.gapData),
+                saveChatHistory(projectId, userId, allData.chatHistory),
+                saveKnowledgeData(projectId, userId, allData.knowledgeData),
+                saveGapData(projectId, userId, allData.gapData),
                 saveLearningData(userId, allData.learningData),
-                saveReflectionData(projectId, allData.reflectionData)
+                saveReflectionData(projectId, userId, allData.reflectionData)
             ]);
             
             Logger.info('dataManager', 'timing:saveAllDataMs', { ms: Date.now() - startTime });
