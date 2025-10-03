@@ -289,11 +289,42 @@ async function handleCreateProject(templateName, userInput) {
         
         if (response.success) {
             await logToBackend('Project-Portfolio', 'handleCreateProject', { 
-                message: 'BACKEND CALL SUCCESS: Project created, preparing navigation',
+                message: 'BACKEND CALL SUCCESS: Project created, starting AI processing',
                 projectId: newProjectId,
                 backendDurationMs: backendDuration,
                 transitionId: transitionStartTime
             });
+            
+            // Start AI processing asynchronously (non-blocking)
+            try {
+                await logToBackend('Project-Portfolio', 'handleCreateProject', { 
+                    message: 'AI PROCESSING START: Starting async intelligence loop',
+                    projectId: newProjectId,
+                    initialMessage: userInput
+                });
+                
+                // Start async processing - don't await, let it run in background
+                processUserRequest({
+                    op: 'startProcessing',
+                    projectId: newProjectId,
+                    userId: currentUser.id,
+                    sessionId: `create_${Date.now()}`,
+                    payload: { message: userInput }
+                }).then(() => {
+                    logToBackend('Project-Portfolio', 'handleCreateProject', { 
+                        message: 'AI PROCESSING STARTED: Async intelligence loop initiated',
+                        projectId: newProjectId
+                    });
+                }).catch((aiError) => {
+                    logToBackend('Project-Portfolio', 'handleCreateProject', null, 
+                        `AI PROCESSING ERROR: ${aiError.message} (ProjectId: ${newProjectId})`);
+                });
+                
+            } catch (aiError) {
+                await logToBackend('Project-Portfolio', 'handleCreateProject', null, 
+                    `AI PROCESSING SETUP ERROR: ${aiError.message} (ProjectId: ${newProjectId})`);
+                // Continue with navigation even if AI processing setup fails
+            }
             
             // Navigate to workspace with the new project (using single quotes for Wix compatibility)
             wixLocation.to('/project-workspace?projectId=' + newProjectId + '&userId=' + currentUser.id);

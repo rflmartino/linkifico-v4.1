@@ -556,8 +556,21 @@ export async function initializeProject(projectId, userId, initialMessage, templ
         
         await redisData.saveAllData(projectId, userId, allData);
         
-        // Process initial message (this will add AI response to existing chat history)
-        return await processChatMessage(projectId, userId, initialMessage, sessionId, null);
+        // Return success immediately - let frontend handle AI processing via polling
+        Logger.info('entrypoint.web', 'initializeProject:success', {
+            projectId,
+            userId,
+            projectName: allData.projectData.name,
+            chatHistoryLength: allData.chatHistory.length
+        });
+        
+        return {
+            success: true,
+            message: "Project initialized successfully. AI processing will begin shortly.",
+            projectData: allData.projectData,
+            projectName: allData.projectData.name,
+            projectEmail: allData.projectData.email
+        };
         
     } catch (error) {
         Logger.error('entrypoint.web', 'initializeProject', error);
