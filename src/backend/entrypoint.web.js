@@ -301,12 +301,14 @@ async function processIntelligenceLoop(projectId, userId, message, processingId,
     });
     
     // Attach gaps (including todos) into analysis for rendering inline checklist
+    // Extract todos from gaps first (outside try-catch for scope)
+    const todos = gaps.todos || [];
+    
     try {
         execution.analysis = execution.analysis || {};
         execution.analysis.gaps = gaps;
         
-        // Extract todos from gaps and ensure they're properly attached
-        const todos = gaps.todos || [];
+        // Ensure todos are properly attached
         execution.analysis.todos = todos;
         
         // Also ensure todos are in the gaps object for backward compatibility
