@@ -71,6 +71,13 @@ export const gapDetectionController = {
                 todosGenerated: todos.length,
                 todos: todos.map(t => ({ id: t.id, title: t.title, completed: t.completed, priority: t.priority }))
             });
+            
+            // CRITICAL DEBUG: Log that todos are being returned
+            Logger.info('gapDetectionController', 'buildTodosFromGaps:returning', {
+                projectId,
+                todosCount: todos.length,
+                todosIds: todos.map(t => t.id)
+            });
 
             // Create or update gap data structure
             const gapData = existingGapData || createGapData(projectId, {

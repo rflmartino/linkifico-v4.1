@@ -262,6 +262,15 @@ async function processIntelligenceLoop(projectId, userId, message, processingId,
     const gaps = await gapDetectionController.identifyGaps(projectId, analysis, allData.projectData, allData.gapData, template);
     Logger.info('entrypoint.web', 'timing:gapDetectionMs', { ms: Date.now() - t2 });
     
+    // CRITICAL DEBUG: Log gaps received from gap detection
+    Logger.info('entrypoint.web', 'processIntelligenceLoop:gapsReceived', {
+        projectId,
+        userId,
+        gapsKeys: gaps ? Object.keys(gaps) : [],
+        hasTodos: !!(gaps && gaps.todos),
+        todosCount: gaps && gaps.todos ? gaps.todos.length : 0
+    });
+    
     // Update gap data from analysis
     if (gaps.gapData) {
         allData.gapData = gaps.gapData;
@@ -314,6 +323,15 @@ async function processIntelligenceLoop(projectId, userId, message, processingId,
     // Attach gaps (including todos) into analysis for rendering inline checklist
     // Extract todos from gaps first (outside try-catch for scope)
     const todos = gaps.todos || [];
+    
+    // CRITICAL DEBUG: Log todos received from gap detection
+    Logger.info('entrypoint.web', 'processIntelligenceLoop:todosReceived', {
+        projectId,
+        userId,
+        todosCount: todos.length,
+        todosIds: todos.map(t => t.id),
+        gapsKeys: gaps ? Object.keys(gaps) : []
+    });
     
     try {
         execution.analysis = execution.analysis || {};
