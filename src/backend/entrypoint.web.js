@@ -14,7 +14,7 @@ import { Permissions, webMethod } from 'wix-web-module';
 import { Logger } from './utils/logger.js';
 import { getTemplate } from './templates/templatesRegistry.js';
 
-// Main chat processing function
+// Main job queue function - all operations go through job queue
 export const processUserRequest = webMethod(Permissions.Anyone, async (requestData) => {
     const { op, projectId, userId, sessionId, payload = {} } = requestData || {};
     if (!op || !projectId) {
@@ -26,13 +26,27 @@ export const processUserRequest = webMethod(Permissions.Anyone, async (requestDa
         Logger.info('entrypoint', 'operation_start', { op, projectId, userId });
     }
     
+    // Job queue operations
+    if (op === 'submitJob') {
+        return await submitJob(projectId, userId, sessionId, payload);
+    }
+    if (op === 'getJobStatus') {
+        return await getJobStatus(payload?.jobId);
+    }
+    if (op === 'getJobResults') {
+        return await getJobResults(payload?.jobId);
+    }
+    if (op === 'processJobs') {
+        return await processQueuedJobs(payload?.limit || 5);
+    }
+    
+    // Legacy operations (for backward compatibility during transition)
     if (op === 'startProcessing') {
         return await startProcessing(projectId, userId, sessionId, payload?.message || '');
     }
     if (op === 'getProcessingStatus') {
         return await getProcessingStatus(payload?.processingId);
     }
-
     if (op === 'sendMessage') {
         const message = (payload && payload.message) || '';
         return await processChatMessage(projectId, userId, message, sessionId, null);
@@ -561,10 +575,395 @@ export async function triggerAnalysis(projectId, userId) {
         };
         
     } catch (error) {
-        Logger.error('entrypoint.web', 'triggerAnalysis', error);
+        Logger.error('entrypoint', 'triggerAnalysis_error', { projectId, userId, error: error.message });
         return {
             success: false,
             message: "Error running analysis",
+            error: error.message
+        };
+    }
+}
+
+// ============================================================================
+// JOB QUEUE FUNCTIONS - New architecture for predictable processing
+// ============================================================================
+
+// Submit a job to the queue - returns jobId immediately
+async function submitJob(projectId, userId, sessionId, payload) {
+    try {
+        const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        
+        // Create job in queue
+        const job = {
+            id: jobId,
+            type: payload.jobType || 'sendMessage',
+            projectId: projectId,
+            userId: userId,
+            sessionId: sessionId,
+            input: payload,
+            status: 'queued',
+            createdAt: Date.now(),
+            progress: 0
+        };
+        
+        await redisData.saveJob(job);
+        
+        Logger.info('entrypoint', 'job_submitted', { jobId, projectId, userId, jobType: job.type });
+        
+        return {
+            success: true,
+            jobId: jobId,
+            status: 'queued',
+            message: 'Job submitted successfully'
+        };
+        
+    } catch (error) {
+        Logger.error('entrypoint', 'submitJob_error', { projectId, userId, error: error.message });
+        return {
+            success: false,
+            message: 'Failed to submit job',
+            error: error.message
+        };
+    }
+}
+
+// Get job status - for polling
+async function getJobStatus(jobId) {
+    try {
+        if (!jobId) {
+            return { success: false, message: 'Job ID required' };
+        }
+        
+        const job = await redisData.getJob(jobId);
+        
+        if (!job) {
+            return { success: false, message: 'Job not found' };
+        }
+        
+        return {
+            success: true,
+            jobId: jobId,
+            status: job.status,
+            progress: job.progress || 0,
+            message: job.message || 'Processing...',
+            createdAt: job.createdAt
+        };
+        
+    } catch (error) {
+        Logger.error('entrypoint', 'getJobStatus_error', { jobId, error: error.message });
+        return {
+            success: false,
+            message: 'Failed to get job status',
+            error: error.message
+        };
+    }
+}
+
+// Get job results - only returns results when job is 100% complete
+async function getJobResults(jobId) {
+    try {
+        if (!jobId) {
+            return { success: false, message: 'Job ID required' };
+        }
+        
+        const job = await redisData.getJob(jobId);
+        
+        if (!job) {
+            return { success: false, message: 'Job not found' };
+        }
+        
+        // If job is queued, process it now (on-demand processing)
+        if (job.status === 'queued') {
+            await processJob(jobId);
+            // Refresh job data after processing
+            const updatedJob = await redisData.getJob(jobId);
+            if (updatedJob.status !== 'completed') {
+                return {
+                    success: true,
+                    jobId: jobId,
+                    status: updatedJob.status,
+                    progress: updatedJob.progress || 0,
+                    message: updatedJob.status === 'failed' ? updatedJob.error : 'Job processing...'
+                };
+            }
+        }
+        
+        // Only return results if job is 100% complete
+        if (job.status !== 'completed') {
+            return {
+                success: true,
+                jobId: jobId,
+                status: job.status,
+                progress: job.progress || 0,
+                message: job.status === 'failed' ? job.error : 'Job not yet complete'
+            };
+        }
+        
+        // Get complete results
+        const results = await redisData.getJobResults(jobId);
+        
+        return {
+            success: true,
+            jobId: jobId,
+            status: 'completed',
+            results: results,
+            completedAt: job.completedAt
+        };
+        
+    } catch (error) {
+        Logger.error('entrypoint', 'getJobResults_error', { jobId, error: error.message });
+        return {
+            success: false,
+            message: 'Failed to get job results',
+            error: error.message
+        };
+    }
+}
+
+// Process a single job - called by background worker
+export async function processJob(jobId) {
+    try {
+        const job = await redisData.getJob(jobId);
+        
+        if (!job) {
+            Logger.error('entrypoint', 'processJob_jobNotFound', { jobId });
+            return;
+        }
+        
+        // Mark job as processing
+        await redisData.updateJobStatus(jobId, 'processing', 10, 'Starting processing...');
+        
+        let result;
+        
+        // Route to appropriate processor based on job type
+        switch (job.type) {
+            case 'sendMessage':
+                result = await processJobMessage(job);
+                break;
+            case 'init':
+                result = await processJobInit(job);
+                break;
+            case 'analyze':
+                result = await processJobAnalyze(job);
+                break;
+            default:
+                throw new Error(`Unknown job type: ${job.type}`);
+        }
+        
+        // Save complete results
+        await redisData.saveJobResults(jobId, result);
+        
+        // Mark job as completed
+        await redisData.updateJobStatus(jobId, 'completed', 100, 'Processing complete');
+        
+        Logger.info('entrypoint', 'job_completed', { jobId, jobType: job.type });
+        
+    } catch (error) {
+        Logger.error('entrypoint', 'processJob_error', { jobId, error: error.message });
+        
+        // Mark job as failed
+        await redisData.updateJobStatus(jobId, 'failed', 0, `Processing failed: ${error.message}`);
+    }
+}
+
+// Process message job
+async function processJobMessage(job) {
+    const { projectId, userId, sessionId, input } = job;
+    
+    // Update progress
+    await redisData.updateJobStatus(job.id, 'processing', 20, 'Loading project data...');
+    
+    // Load all data
+    let allData = await redisData.loadAllData(projectId, userId);
+    if (!allData.projectData) {
+        allData.projectData = redisData.createDefaultProjectData(projectId);
+    }
+    
+    // Add user message to history
+    let chatHistory = allData.chatHistory || [];
+    const userMessageExists = chatHistory.some(msg => 
+        msg.role === 'user' && 
+        msg.message === input.message && 
+        msg.sessionId === sessionId
+    );
+    
+    if (!userMessageExists) {
+        chatHistory.push({
+            role: 'user',
+            message: input.message,
+            timestamp: new Date().toISOString(),
+            sessionId: sessionId
+        });
+    }
+    
+    allData.chatHistory = chatHistory;
+    
+    // Update progress
+    await redisData.updateJobStatus(job.id, 'processing', 40, 'Running intelligence analysis...');
+    
+    // Process through intelligence loop
+    const response = await processIntelligenceLoop(projectId, userId, input.message, job.id, allData);
+    
+    // Update progress
+    await redisData.updateJobStatus(job.id, 'processing', 80, 'Generating response...');
+    
+    // Add AI response to history
+    chatHistory.push({
+        role: 'assistant',
+        message: response.message,
+        timestamp: new Date().toISOString(),
+        sessionId: sessionId,
+        analysis: response.analysis
+    });
+    
+    allData.chatHistory = chatHistory;
+    
+    // Save all data
+    await redisData.saveAllData(projectId, userId, allData);
+    
+    // Update progress
+    await redisData.updateJobStatus(job.id, 'processing', 90, 'Finalizing results...');
+    
+    // Extract todos
+    const todosFromAnalysis = (response.analysis && response.analysis.gaps && response.analysis.gaps.todos) ? response.analysis.gaps.todos : [];
+    const todosFromAllData = allData.todos || [];
+    const todosFromGaps = (response.analysis && response.analysis.todos) ? response.analysis.todos : [];
+    
+    const finalTodos = todosFromAnalysis.length > 0 ? todosFromAnalysis :
+                      todosFromAllData.length > 0 ? todosFromAllData :
+                      todosFromGaps;
+    
+    // Return complete results
+    return {
+        aiResponse: response.message,
+        todos: finalTodos,
+        projectData: allData.projectData,
+        analysis: response.analysis,
+        chatHistory: chatHistory
+    };
+}
+
+// Process init job
+async function processJobInit(job) {
+    const { projectId, userId, input } = job;
+    
+    await redisData.updateJobStatus(job.id, 'processing', 30, 'Initializing project...');
+    
+    // Generate unique project email
+    const { emailId, email } = await redisData.generateUniqueProjectEmail();
+    
+    const allData = {
+        projectData: redisData.createDefaultProjectData(projectId),
+        chatHistory: [],
+        knowledgeData: redisData.createDefaultKnowledgeData(projectId),
+        gapData: redisData.createDefaultGapData(projectId),
+        learningData: redisData.createDefaultLearningData(userId),
+        reflectionData: redisData.createDefaultReflectionData(projectId)
+    };
+    
+    // Set project details
+    allData.projectData.templateName = input.templateName || 'simple_waterfall';
+    allData.projectData.name = input.projectName || 'Untitled Project';
+    allData.projectData.email = email;
+    allData.projectData.emailId = emailId;
+    
+    await redisData.updateJobStatus(job.id, 'processing', 60, 'Saving project data...');
+    
+    // Save project data and add to user's project list
+    await Promise.all([
+        redisData.saveAllData(projectId, userId, allData),
+        redisData.saveEmailMapping(email, projectId),
+        addProjectToUser(userId, projectId, 'active')
+    ]);
+    
+    // Add user message to chat history
+    const userMessage = {
+        role: 'user',
+        message: input.initialMessage || 'Start',
+        timestamp: new Date().toISOString(),
+        sessionId: `session_${Date.now()}`
+    };
+    
+    allData.chatHistory.push(userMessage);
+    await redisData.saveAllData(projectId, userId, allData);
+    
+    return {
+        projectData: allData.projectData,
+        projectName: allData.projectData.name,
+        projectEmail: allData.projectData.email,
+        chatHistory: allData.chatHistory
+    };
+}
+
+// Process analyze job
+async function processJobAnalyze(job) {
+    const { projectId, userId } = job;
+    
+    await redisData.updateJobStatus(job.id, 'processing', 50, 'Running analysis...');
+    
+    const allData = await redisData.loadAllData(projectId, userId);
+    const pData = allData.projectData;
+    const chatHistory = allData.chatHistory;
+    
+    if (!pData) {
+        throw new Error('Project not found');
+    }
+    
+    // Run analysis
+    const analysis = await selfAnalysisController.analyzeProject(projectId, pData, chatHistory);
+    const gaps = await gapDetectionController.identifyGaps(projectId, analysis, pData);
+    
+    return {
+        analysis: analysis,
+        gaps: gaps,
+        message: 'Analysis completed'
+    };
+}
+
+// Process queued jobs - can be called internally or externally
+async function processQueuedJobs(limit = 5) {
+    try {
+        // Get queued jobs
+        const queuedJobs = await redisData.getQueuedJobs(limit);
+        
+        if (queuedJobs.length === 0) {
+            return { 
+                success: true, 
+                message: 'No jobs to process',
+                processed: 0
+            };
+        }
+        
+        Logger.info('entrypoint', 'processing_jobs', { 
+            jobCount: queuedJobs.length,
+            jobIds: queuedJobs.map(j => j.id)
+        });
+        
+        // Process jobs in parallel
+        const processingPromises = queuedJobs.map(job => processJob(job.id));
+        const results = await Promise.allSettled(processingPromises);
+        
+        // Count successful and failed jobs
+        const successful = results.filter(r => r.status === 'fulfilled').length;
+        const failed = results.filter(r => r.status === 'rejected').length;
+        
+        // Clean up old completed jobs (run occasionally)
+        if (Math.random() < 0.1) { // 10% chance
+            await redisData.cleanupOldJobs();
+        }
+        
+        return {
+            success: true,
+            processed: queuedJobs.length,
+            successful: successful,
+            failed: failed,
+            jobIds: queuedJobs.map(j => j.id)
+        };
+        
+    } catch (error) {
+        Logger.error('entrypoint', 'processQueuedJobs_error', { error: error.message });
+        return {
+            success: false,
             error: error.message
         };
     }

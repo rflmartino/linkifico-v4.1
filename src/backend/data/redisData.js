@@ -319,5 +319,189 @@ export const redisData = {
             decisionLog: [],
             improvementSuggestions: []
         });
+    },
+
+    // ============================================================================
+    // JOB QUEUE FUNCTIONS - For predictable processing architecture
+    // ============================================================================
+
+    // Save a job to the queue
+    async saveJob(job) {
+        try {
+            const client = await getRedisClient();
+            
+            // Save job data
+            await client.set(`jobs:${job.id}`, JSON.stringify(job));
+            
+            // Add to queued jobs list
+            await client.lpush('jobs:queued', job.id);
+            
+            Logger.info('redisData', 'job_saved', { 
+                jobId: job.id, 
+                jobType: job.type, 
+                projectId: job.projectId 
+            });
+            
+        } catch (error) {
+            Logger.error('redisData', 'saveJob_error', { 
+                jobId: job.id, 
+                error: error.message 
+            });
+            throw error;
+        }
+    },
+
+    // Get a job by ID
+    async getJob(jobId) {
+        try {
+            const client = await getRedisClient();
+            const jobData = await client.get(`jobs:${jobId}`);
+            
+            if (jobData) {
+                return JSON.parse(jobData);
+            }
+            
+            return null;
+            
+        } catch (error) {
+            Logger.error('redisData', 'getJob_error', { jobId, error: error.message });
+            return null;
+        }
+    },
+
+    // Update job status and progress
+    async updateJobStatus(jobId, status, progress = null, message = null) {
+        try {
+            const client = await getRedisClient();
+            const job = await this.getJob(jobId);
+            
+            if (!job) {
+                throw new Error(`Job ${jobId} not found`);
+            }
+            
+            // Update job status
+            job.status = status;
+            if (progress !== null) job.progress = progress;
+            if (message !== null) job.message = message;
+            
+            if (status === 'processing') {
+                job.startedAt = Date.now();
+            } else if (status === 'completed' || status === 'failed') {
+                job.completedAt = Date.now();
+            }
+            
+            // Save updated job
+            await client.set(`jobs:${jobId}`, JSON.stringify(job));
+            
+            // Move job between queues
+            if (status === 'processing') {
+                await client.lrem('jobs:queued', 0, jobId);
+                await client.lpush('jobs:processing', jobId);
+            } else if (status === 'completed' || status === 'failed') {
+                await client.lrem('jobs:processing', 0, jobId);
+                await client.lpush('jobs:completed', jobId);
+            }
+            
+        } catch (error) {
+            Logger.error('redisData', 'updateJobStatus_error', { 
+                jobId, 
+                status, 
+                error: error.message 
+            });
+            throw error;
+        }
+    },
+
+    // Save job results
+    async saveJobResults(jobId, results) {
+        try {
+            const client = await getRedisClient();
+            
+            const jobResults = {
+                jobId: jobId,
+                results: results,
+                savedAt: Date.now()
+            };
+            
+            await client.set(`jobs:${jobId}:results`, JSON.stringify(jobResults));
+            
+        } catch (error) {
+            Logger.error('redisData', 'saveJobResults_error', { 
+                jobId, 
+                error: error.message 
+            });
+            throw error;
+        }
+    },
+
+    // Get job results
+    async getJobResults(jobId) {
+        try {
+            const client = await getRedisClient();
+            const resultsData = await client.get(`jobs:${jobId}:results`);
+            
+            if (resultsData) {
+                const parsed = JSON.parse(resultsData);
+                return parsed.results;
+            }
+            
+            return null;
+            
+        } catch (error) {
+            Logger.error('redisData', 'getJobResults_error', { 
+                jobId, 
+                error: error.message 
+            });
+            return null;
+        }
+    },
+
+    // Get queued jobs for processing
+    async getQueuedJobs(limit = 10) {
+        try {
+            const client = await getRedisClient();
+            const jobIds = await client.lrange('jobs:queued', 0, limit - 1);
+            
+            const jobs = [];
+            for (const jobId of jobIds) {
+                const job = await this.getJob(jobId);
+                if (job) {
+                    jobs.push(job);
+                }
+            }
+            
+            return jobs;
+            
+        } catch (error) {
+            Logger.error('redisData', 'getQueuedJobs_error', { error: error.message });
+            return [];
+        }
+    },
+
+    // Clean up old completed jobs
+    async cleanupOldJobs(maxAge = 24 * 60 * 60 * 1000) { // 24 hours
+        try {
+            const client = await getRedisClient();
+            const cutoffTime = Date.now() - maxAge;
+            
+            // Get completed jobs
+            const completedJobIds = await client.lrange('jobs:completed', 0, -1);
+            
+            for (const jobId of completedJobIds) {
+                const job = await this.getJob(jobId);
+                
+                if (job && job.completedAt && job.completedAt < cutoffTime) {
+                    // Remove old job data
+                    await Promise.all([
+                        client.del(`jobs:${jobId}`),
+                        client.del(`jobs:${jobId}:results`),
+                        client.lrem('jobs:completed', 0, jobId)
+                    ]);
+                }
+            }
+            
+        } catch (error) {
+            Logger.error('redisData', 'cleanupOldJobs_error', { error: error.message });
+        }
     }
 };
