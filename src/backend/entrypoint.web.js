@@ -352,34 +352,56 @@ async function processJobMessage(job) {
     
     // REDIS OPERATION 1: Load all data at the beginning
     let allData = await redisData.loadAllData(projectId, userId);
-    if (!allData.projectData) {
-        allData.projectData = redisData.createDefaultProjectData(projectId);
-        
-        // Generate project email if not already set
-        if (!allData.projectData.email) {
-            try {
-                const emailData = await redisData.generateUniqueProjectEmail();
-                allData.projectData.email = emailData.email;
-                allData.projectData.emailId = emailData.emailId;
-                
-                // Save email mapping
-                await redisData.saveEmailMapping(emailData.email, projectId);
-                
-                Logger.info('entrypoint', 'processJobMessage_emailGenerated', { 
-                    jobId: job.id, 
-                    projectId, 
-                    email: emailData.email,
-                    emailId: emailData.emailId
-                });
-            } catch (error) {
-                Logger.error('entrypoint', 'processJobMessage_emailGenerationFailed', { 
-                    jobId: job.id, 
-                    projectId, 
-                    error: error.message 
-                });
-                // Continue without email - don't fail the whole process
-            }
+    
+    // Check if this is a truly new project (no existing data in Redis)
+    const existingProjectData = await redisData.getProjectData(projectId);
+    const isNewProject = !existingProjectData;
+    
+    Logger.info('entrypoint', 'processJobMessage_projectCheck', { 
+        jobId: job.id, 
+        projectId, 
+        isNewProject,
+        hasExistingData: !!existingProjectData
+    });
+    
+    // Generate project email if not already set (regardless of whether project data existed)
+    Logger.info('entrypoint', 'processJobMessage_emailCheck', { 
+        jobId: job.id, 
+        projectId, 
+        hasEmail: !!allData.projectData.email,
+        emailValue: allData.projectData.email,
+        emailType: typeof allData.projectData.email
+    });
+    
+    if (!allData.projectData.email) {
+        try {
+            const emailData = await redisData.generateUniqueProjectEmail();
+            allData.projectData.email = emailData.email;
+            allData.projectData.emailId = emailData.emailId;
+            
+            // Save email mapping
+            await redisData.saveEmailMapping(emailData.email, projectId);
+            
+            Logger.info('entrypoint', 'processJobMessage_emailGenerated', { 
+                jobId: job.id, 
+                projectId, 
+                email: emailData.email,
+                emailId: emailData.emailId
+            });
+        } catch (error) {
+            Logger.error('entrypoint', 'processJobMessage_emailGenerationFailed', { 
+                jobId: job.id, 
+                projectId, 
+                error: error.message 
+            });
+            // Continue without email - don't fail the whole process
         }
+    } else {
+        Logger.info('entrypoint', 'processJobMessage_emailAlreadyExists', { 
+            jobId: job.id, 
+            projectId, 
+            existingEmail: allData.projectData.email
+        });
     }
     
     Logger.info('entrypoint', 'processJobMessage_dataLoaded', { 
@@ -550,6 +572,11 @@ async function processIntelligenceLoopWithDataFlow(projectId, userId, message, a
         
         // 4. Execution - Pass updated data to controller, get final response
         const execution = await executionController.executeAction(projectId, userId, message, actionPlan, allData.projectData, template);
+        
+        // Update project data with any changes made by execution controller
+        if (execution.analysis?.updatedProjectData) {
+            allData.projectData = execution.analysis.updatedProjectData;
+        }
         
         // Attach gaps and todos to response
         const response = {
