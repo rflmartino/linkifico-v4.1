@@ -172,7 +172,7 @@ export const redisData = {
         try {
             if (!todos || todos.length === 0) return;
             
-            const redis = await this.getRedisClient();
+            const redis = await getRedisClient();
             const todoKey = `todos:${userId}:${projectId}`;
             
             // Save todos with metadata
@@ -200,7 +200,7 @@ export const redisData = {
     // Get todos for a specific project and user
     async getTodos(projectId, userId) {
         try {
-            const redis = await this.getRedisClient();
+            const redis = await getRedisClient();
             const todoKey = `todos:${userId}:${projectId}`;
             
             const todoData = await redis.get(todoKey);

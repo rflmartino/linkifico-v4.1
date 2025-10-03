@@ -301,16 +301,31 @@ async function processIntelligenceLoop(projectId, userId, message, processingId,
     });
     
     // Attach gaps (including todos) into analysis for rendering inline checklist
-    execution.analysis = execution.analysis || {};
-    execution.analysis.gaps = gaps;
-    
-    // Extract todos from gaps and ensure they're properly attached
-    const todos = gaps.todos || [];
-    execution.analysis.todos = todos;
-    
-    // Also ensure todos are in the gaps object for backward compatibility
-    if (!execution.analysis.gaps.todos && todos.length > 0) {
-        execution.analysis.gaps.todos = todos;
+    try {
+        execution.analysis = execution.analysis || {};
+        execution.analysis.gaps = gaps;
+        
+        // Extract todos from gaps and ensure they're properly attached
+        const todos = gaps.todos || [];
+        execution.analysis.todos = todos;
+        
+        // Also ensure todos are in the gaps object for backward compatibility
+        if (!execution.analysis.gaps.todos && todos.length > 0) {
+            execution.analysis.gaps.todos = todos;
+        }
+        
+        Logger.info('entrypoint.web', 'processIntelligenceLoop:gapsAttached', {
+            projectId,
+            userId,
+            hasGaps: !!gaps,
+            gapsKeys: gaps ? Object.keys(gaps) : [],
+            todosExtracted: todos.length,
+            todosStructure: todos.length > 0 ? todos[0] : null
+        });
+        
+    } catch (error) {
+        Logger.error('entrypoint.web', 'processIntelligenceLoop:gapsAttachmentError', error);
+        // Continue execution even if gap attachment fails
     }
     
     // CRITICAL DEBUG: Log final execution result with gaps and todos
@@ -359,14 +374,25 @@ async function processIntelligenceLoop(projectId, userId, message, processingId,
         });
     
     // Ensure todos are included in allData for Redis storage
-    if (todos && todos.length > 0) {
-        allData.todos = todos;
-        Logger.info('entrypoint.web', 'todosAddedToAllData', { 
-            projectId, 
-            userId, 
-            todoCount: todos.length,
-            todos: todos.map(t => ({ id: t.id, title: t.title, completed: t.completed }))
-        });
+    try {
+        if (todos && todos.length > 0) {
+            allData.todos = todos;
+            Logger.info('entrypoint.web', 'todosAddedToAllData', { 
+                projectId, 
+                userId, 
+                todoCount: todos.length,
+                todos: todos.map(t => ({ id: t.id, title: t.title, completed: t.completed }))
+            });
+        } else {
+            Logger.info('entrypoint.web', 'todosAddedToAllData:noTodos', { 
+                projectId, 
+                userId, 
+                todosVariable: todos,
+                todosLength: todos ? todos.length : 'undefined'
+            });
+        }
+    } catch (error) {
+        Logger.error('entrypoint.web', 'todosAddedToAllData:error', error);
     }
     
     // Save all updated data in a single Redis operation
