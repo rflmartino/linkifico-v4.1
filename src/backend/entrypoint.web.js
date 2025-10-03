@@ -158,8 +158,19 @@ async function processChatMessage(projectId, userId, message, sessionId, process
             lastMessage: chatHistory[chatHistory.length - 1]
         });
 
-        // Save final chat history (will be saved by data manager in processIntelligenceLoop)
+        // Save final chat history with AI response
         allData.chatHistory = chatHistory;
+        
+        // CRITICAL: Save the updated chat history with AI response
+        await redisData.saveAllData(projectId, userId, allData);
+        
+        Logger.info('entrypoint.web', 'processChatMessage:afterSave', {
+            projectId,
+            userId,
+            chatHistoryLength: chatHistory.length,
+            lastMessageRole: chatHistory[chatHistory.length - 1]?.role,
+            lastMessageLength: chatHistory[chatHistory.length - 1]?.message?.length
+        });
 
         const totalMs = Date.now() - totalStart;
         Logger.info('entrypoint.web', 'timing:processChatMessageMs', { ms: totalMs });
@@ -597,19 +608,24 @@ export async function getProjectStatus(projectId, userId) {
             };
         }
         
-        // Extract todos from gap data and also check for separately saved todos
+        // Extract todos from multiple sources
         const gapTodos = gapData?.todos || [];
+        const allDataTodos = allData.todos || [];
         const savedTodos = await redisData.getTodos(projectId, userId);
         
-        // Use saved todos if available, otherwise fall back to gap todos
-        const todos = savedTodos.length > 0 ? savedTodos : gapTodos;
+        // Use the first available source: allData.todos > savedTodos > gapTodos
+        const todos = allDataTodos.length > 0 ? allDataTodos : 
+                     savedTodos.length > 0 ? savedTodos : gapTodos;
         
         Logger.info('entrypoint.web', 'getProjectStatus:todos', {
             projectId,
             userId,
             gapTodosCount: gapTodos.length,
+            allDataTodosCount: allDataTodos.length,
             savedTodosCount: savedTodos.length,
-            finalTodosCount: todos.length
+            finalTodosCount: todos.length,
+            todosSource: allDataTodos.length > 0 ? 'allData' : 
+                        savedTodos.length > 0 ? 'saved' : 'gap'
         });
         
         return {
