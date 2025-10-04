@@ -14,7 +14,7 @@ import nlpManager from 'backend/nlp/nlpManager.js';
 async function callClaude(prompt, systemPrompt = null) {
     return await askClaude({
         user: prompt,
-        system: systemPrompt || "You are an expert project management strategist. Plan optimal actions based on gaps, user patterns, and project context.",
+        system: systemPrompt || "You are a PMaaS (Project Management as a Service) strategist. Focus on practical project management: budget, timeline, deliverables, resources. Ask actionable questions that help create concrete project plans.",
         model: 'claude-3-5-haiku-latest',
         maxTokens: 1000
     });
@@ -364,32 +364,45 @@ export const actionPlanningController = {
     // Generate action plan using AI
     async generateActionPlan(gaps, learningData, conversationContext, analysis) {
         try {
-            const prompt = `Plan the optimal next action for this project management conversation:
+            const prompt = `Plan the optimal next PMaaS (Project Management as a Service) action:
 
 Gap Analysis: ${JSON.stringify(gaps, null, 2)}
 User Learning Patterns: ${JSON.stringify(learningData, null, 2)}
 Conversation Context: ${JSON.stringify(conversationContext, null, 2)}
 Project Analysis: ${JSON.stringify(analysis, null, 2)}
 
-Consider:
-1. What's the most critical gap to address?
-2. What's the user's preferred communication style?
-3. What's the appropriate timing for this question?
-4. How can we maintain engagement without overwhelming?
+FOCUS ON PRACTICAL PROJECT MANAGEMENT:
+1. What's the most critical missing project information?
+2. What question will help create actionable project plans?
+3. Prioritize: budget, timeline, deliverables, resources
+4. AVOID: Business strategy, competitive advantage, philosophical goals
 
 Generate an action plan in JSON format:
 {
     "action": "ask_about_[field]",
-    "question": "Specific, targeted question",
-    "reasoning": "Why this action is optimal now",
+    "question": "Direct, practical project management question",
+    "reasoning": "Why this action helps create concrete project plans",
     "timing": "immediate|delayed|contextual",
     "confidence": 0.0-1.0,
     "alternativeActions": ["alternative1", "alternative2"],
-    "expectedResponse": "What kind of response we expect"
+    "expectedResponse": "What specific project information we expect"
 }`;
             const parsed = await askClaudeJSON({
                 user: prompt,
-                system: "You are an expert project management strategist. Return ONLY valid JSON with the requested fields.",
+                system: `You are a PMaaS (Project Management as a Service) action planning system.
+
+ROLE: Plan questions that gather concrete project management information:
+- Budget amounts and financial constraints  
+- Specific deadlines and timelines
+- Deliverable requirements and outputs
+- Resource availability and team members
+- Task dependencies and blockers
+
+AVOID: Abstract business strategy questions, market analysis, competitive positioning.
+
+FOCUS: Actionable project details that enable concrete planning with timelines, budgets, and deliverables.
+
+Return ONLY valid JSON with the requested fields. Ask practical questions that help create real project plans.`,
                 model: 'claude-3-5-haiku-latest',
                 maxTokens: 1000
             });
@@ -425,19 +438,19 @@ Generate an action plan in JSON format:
         
         const questions = {
             scope: {
-                direct: "What exactly are you trying to accomplish with this project?",
-                detailed: "Could you describe in detail what you want to achieve with this project?",
-                exploratory: "Tell me about your project - what's the main goal you're working towards?"
+                direct: "What specific deliverables do you need from this project?",
+                detailed: "What are the key outputs and results you expect to be delivered?",
+                exploratory: "What should be completed when this project is finished?"
             },
             timeline: {
                 direct: "When do you need this project completed?",
                 detailed: "What's your target completion date, and are there any important milestones along the way?",
-                exploratory: "How does the timeline look for this project?"
+                exploratory: "What's your timeline for this project?"
             },
             budget: {
-                direct: "What budget do you have available for this project?",
-                detailed: "What financial resources are allocated for this project, and are there any budget constraints?",
-                exploratory: "What's the budget situation for this project?"
+                direct: "What's your budget for this project?",
+                detailed: "What total budget do you have available, and are there any spending constraints?",
+                exploratory: "What financial resources can you allocate to this project?"
             },
             deliverables: {
                 direct: "What specific outputs do you need from this project?",

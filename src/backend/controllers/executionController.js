@@ -15,7 +15,7 @@ import nlpManager from 'backend/nlp/nlpManager.js';
 async function callClaude(prompt, systemPrompt = null) {
     return await askClaude({
         user: prompt,
-        system: systemPrompt || "You are an expert project management assistant. Process user responses and extract actionable project information.",
+        system: systemPrompt || "You are a PMaaS (Project Management as a Service) tool. Ask practical project management questions about budget, timeline, deliverables, and resources. Focus on actionable project planning, not business strategy or philosophical goals.",
         model: 'claude-3-5-haiku-latest',
         maxTokens: 1000
     });
@@ -501,28 +501,34 @@ Project name:`;
     generateActionAwareResponse(nlpResponse, action, userMessage) {
         const actionQuestions = {
             'ask_about_objectives': [
-                "What specific goals do you want to achieve with this project?",
-                "What are your main objectives for this venture?", 
-                "What do you hope to accomplish with this project?",
-                "What are the key outcomes you're looking for?"
+                "What specific deliverables do you need from this project?",
+                "What are the main outputs you're expecting?", 
+                "What should be completed when this project is done?",
+                "What concrete results do you need delivered?"
             ],
             'ask_about_budget': [
-                "What budget do you have available for this project?",
-                "What financial resources can you allocate to this?",
-                "Do you have a budget range in mind?",
-                "What's your investment capacity for this project?"
+                "What's your budget for this project?",
+                "How much funding do you have available?",
+                "What's your spending limit?",
+                "What total budget can you allocate?"
             ],
             'ask_about_tasks': [
-                "What are the key tasks or milestones you need to complete?",
-                "What's your timeline for getting this done?",
-                "What deliverables do you need to produce?",
-                "When do you need this project completed?"
+                "What specific work needs to be done?",
+                "What are the main tasks to complete?",
+                "What activities need to happen?",
+                "What work needs to be completed?"
             ],
             'ask_about_people': [
-                "Who will be involved in this project?",
-                "Do you have a team in place, or will you need to build one?",
-                "Who are the key stakeholders for this project?",
-                "What expertise will you need on your team?"
+                "Who will be working on this project?",
+                "What team members do you have?",
+                "Who needs to approve decisions?",
+                "Who's involved in this project?"
+            ],
+            'ask_about_timeline': [
+                "When do you need this completed?",
+                "What's your target deadline?",
+                "How much time do you have?",
+                "What's your timeline for this project?"
             ]
         };
         
@@ -530,7 +536,7 @@ Project name:`;
         if (questions && questions.length > 0) {
             // Pick a random question for variety
             const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
-            return `${nlpResponse} ${randomQuestion}`;
+            return `${nlpResponse}\n\n${randomQuestion}`;
         }
         
         return nlpResponse; // Return original if no specific action question
@@ -539,10 +545,13 @@ Project name:`;
     // Get specific instructions for each action type
     getActionInstructions(action) {
         const instructions = {
-            'ask_about_objectives': 'IMPORTANT: After acknowledging their project, ask a specific follow-up question about their objectives, goals, or what they want to achieve. Be conversational and helpful.',
-            'ask_about_budget': 'IMPORTANT: After acknowledging their input, ask a specific follow-up question about their budget, funding, or financial resources available.',
-            'ask_about_tasks': 'IMPORTANT: After acknowledging their input, ask a specific follow-up question about their tasks, timeline, deliverables, or what work needs to be done.',
-            'ask_about_people': 'IMPORTANT: After acknowledging their input, ask a specific follow-up question about their team, stakeholders, or who will be involved.',
+            'ask_about_objectives': 'IMPORTANT: Ask what specific deliverables or outcomes they want from this project. Focus on concrete results, not abstract goals.',
+            'ask_about_budget': 'IMPORTANT: Ask for their budget range or total project budget. Be direct about financial constraints.',
+            'ask_about_tasks': 'IMPORTANT: Ask what specific tasks need to be completed or what work needs to be done.',
+            'ask_about_people': 'IMPORTANT: Ask who will be working on this project or who needs to approve decisions.',
+            'ask_about_timeline': 'IMPORTANT: Ask when they need this project completed or what their target timeline is.',
+            'ask_about_deliverables': 'IMPORTANT: Ask what specific outputs, products, or results they need delivered.',
+            'acknowledge_input': 'IMPORTANT: Acknowledge their input and ask the next logical project management question.',
             'request_clarification': 'IMPORTANT: Ask for clarification about something specific that was unclear or ambiguous in their message.',
             'provide_recommendation': 'IMPORTANT: Provide specific recommendations or next steps based on the information they\'ve provided.',
             'continue_planning': 'IMPORTANT: Continue the planning conversation by building on what they\'ve shared and asking about the next logical step.'
@@ -586,7 +595,19 @@ Respond in JSON with template-aware fields (simple_waterfall):
 
             const response = await askClaude({
                 user: prompt,
-                system: "Extract project info and generate action-aware responses. Follow the action instructions to ask the right follow-up questions.",
+                system: `You are a PMaaS (Project Management as a Service) tool focused on practical project planning.
+
+ROLE: Ask direct, actionable project management questions about:
+- Budget: "What's your budget?" "How much can you spend?"
+- Timeline: "When do you need this completed?" "What's your deadline?"
+- Deliverables: "What specific outputs do you need?" "What should be delivered?"
+- Resources: "Who's working on this?" "What resources do you have?"
+
+AVOID: Abstract business strategy questions, philosophical discussions, competitive advantage questions.
+
+FOCUS: Concrete project details that help create actionable plans with timelines, budgets, and deliverables.
+
+Extract project information and generate action-aware responses that gather practical project management details.`,
                 model: 'claude-3-5-haiku-latest',
                 maxTokens: 800
             });

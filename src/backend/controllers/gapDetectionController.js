@@ -22,7 +22,7 @@ import nlpManager from 'backend/nlp/nlpManager.js';
 async function callClaude(prompt, systemPrompt = null) {
     return await askClaude({
         user: prompt,
-        system: systemPrompt || "You are an expert project management analyst. Identify critical gaps and prioritize them by impact on project success.",
+        system: systemPrompt || "You are a PMaaS (Project Management as a Service) gap analysis system. Identify missing project management information: budget, timeline, deliverables, resources. Focus on actionable gaps that block project execution.",
         model: 'claude-3-5-haiku-latest',
         maxTokens: 1000
     });
@@ -416,17 +416,23 @@ export const gapDetectionController = {
     // Combined method: Analyze gaps and determine next action in one API call
     async analyzeGapsAndDetermineAction(projectData, analysis, missingFields) {
         try {
-            const prompt = `Analyze these project gaps, determine their criticality, prioritize them, and determine the next action:
+            const prompt = `Analyze these PMaaS (Project Management as a Service) gaps, determine their criticality, prioritize them, and determine the next action:
 
 Project Data: ${JSON.stringify(projectData, null, 2)}
 Analysis: ${JSON.stringify(analysis, null, 2)}
 Missing Fields: ${JSON.stringify(missingFields, null, 2)}
 
+FOCUS ON PRACTICAL PROJECT MANAGEMENT GAPS:
+- Budget: Missing financial constraints and spending limits
+- Timeline: Missing deadlines and milestone dates
+- Deliverables: Missing specific outputs and results
+- Resources: Missing team members and responsibilities
+
 For each missing field, provide:
 1. Criticality level (critical|high|medium|low)
-2. Impact on project success (blocks_everything|blocks_planning|blocks_execution|minor_impact)
+2. Impact on project execution (blocks_everything|blocks_planning|blocks_execution|minor_impact)
 3. Dependencies (what other gaps this depends on)
-4. Reasoning (why this gap matters)
+4. Reasoning (why this gap blocks project management)
 
 Then prioritize the gaps and determine the next action.
 
@@ -435,25 +441,36 @@ Respond in JSON format:
     "gapAnalysis": {
         "gaps": [
             {
-                "field": "scope",
+                "field": "objectives",
                 "criticality": "critical",
-                "impact": "blocks_everything",
+                "impact": "blocks_planning",
                 "dependencies": [],
-                "reasoning": "Without scope, cannot plan timeline, budget, or deliverables"
+                "reasoning": "Without deliverables, cannot plan timeline, budget, or resources"
             }
         ]
     },
-    "prioritizedGaps": ["scope", "budget", "timeline"],
+    "prioritizedGaps": ["objectives", "budget", "timeline"],
     "nextAction": {
-        "action": "ask_about_scope",
-        "question": "What is the scope of your project?",
-        "reasoning": "Scope is critical and blocks all other planning"
+        "action": "ask_about_objectives",
+        "question": "What specific deliverables do you need from this project?",
+        "reasoning": "Deliverables are critical for project planning"
     }
 }`;
 
             const parsed = await askClaudeJSON({
                 user: prompt,
-                system: "You are an expert project management analyst. Return ONLY valid JSON with the requested structure.",
+                system: `You are a PMaaS (Project Management as a Service) gap analysis system.
+
+ROLE: Identify missing project management information that blocks execution:
+- Budget amounts and financial constraints
+- Specific deadlines and milestone dates  
+- Deliverable requirements and outputs
+- Resource availability and team assignments
+
+FOCUS: Actionable gaps that prevent concrete project planning.
+AVOID: Abstract business strategy gaps, market analysis gaps.
+
+Return ONLY valid JSON with the requested structure. Focus on practical project management gaps.`,
                 model: 'claude-3-5-haiku-latest',
                 maxTokens: 1200
             });
