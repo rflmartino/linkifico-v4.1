@@ -103,7 +103,7 @@ export const executionController = {
     // Try NLP processing first with confidence gate
     async tryNLPProcessing(userMessage, actionPlan, projectData) {
         try {
-            const confidenceThreshold = 0.8; // 80% confidence threshold
+            const confidenceThreshold = 0.9; // 90% confidence threshold - force Haiku for better extraction
             
             // Get complete analysis from NLP (includes intent, confidence, and response)
             const nlpResult = await nlpManager.processInput(userMessage);
@@ -158,14 +158,17 @@ export const executionController = {
         
         switch (intent) {
             case 'scope.define':
-                extractedInfo.extractedFields = { templateArea: 'objectives', objectives: { description: userMessage } };
+                // Use new format - direct fields
+                extractedInfo.templateArea = 'objectives';
+                extractedInfo.objectives = { description: userMessage };
                 break;
                 
             case 'project.rename':
                 // Extract new project name from message
                 const newProjectName = this.extractProjectNameFromMessage(userMessage);
                 if (newProjectName) {
-                    extractedInfo.extractedFields = { templateArea: 'project_name', projectName: newProjectName };
+                    extractedInfo.templateArea = 'project_name';
+                    extractedInfo.projectName = newProjectName;
                 }
                 break;
                 
@@ -173,36 +176,47 @@ export const executionController = {
                 // Extract budget numbers from message
                 const budgetMatch = userMessage.match(/\$?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/);
                 if (budgetMatch) {
-                    extractedInfo.extractedFields = { templateArea: 'budget', budget: { total: budgetMatch[1] } };
+                    extractedInfo.templateArea = 'budget';
+                    extractedInfo.budget = { total: budgetMatch[1] };
                 }
                 break;
                 
             case 'timeline.set':
-                extractedInfo.extractedFields = { templateArea: 'tasks', tasks: { deadline: userMessage } };
+                extractedInfo.templateArea = 'tasks';
+                extractedInfo.tasks = { deadline: userMessage };
                 break;
                 
             case 'deliverables.define':
-                extractedInfo.extractedFields = { templateArea: 'tasks', tasks: { tasks: [userMessage] } };
+                extractedInfo.templateArea = 'tasks';
+                extractedInfo.tasks = { tasks: [userMessage] };
                 break;
                 
             case 'dependencies.define':
-                extractedInfo.extractedFields = { templateArea: 'tasks', tasks: { dependencies: [userMessage] } };
+                extractedInfo.templateArea = 'tasks';
+                extractedInfo.tasks = { dependencies: [userMessage] };
                 break;
                 
             case 'response.positive':
-                extractedInfo.extractedFields = {};
                 extractedInfo.confirmation = true;
                 break;
                 
             case 'response.negative':
-                extractedInfo.extractedFields = {};
                 extractedInfo.confirmation = false;
                 break;
                 
             default:
-                // For other intents, leave to template-aware combined extraction
-                extractedInfo.extractedFields = {};
-                extractedInfo.additionalInfo = userMessage;
+                // For other intents, try to extract objectives from general project description
+                if (userMessage.toLowerCase().includes('project') || 
+                    userMessage.toLowerCase().includes('business') || 
+                    userMessage.toLowerCase().includes('plan') ||
+                    userMessage.toLowerCase().includes('want to') ||
+                    userMessage.toLowerCase().includes('need to') ||
+                    userMessage.toLowerCase().includes('going to')) {
+                    extractedInfo.templateArea = 'objectives';
+                    extractedInfo.objectives = { description: userMessage };
+                } else {
+                    extractedInfo.additionalInfo = userMessage;
+                }
                 break;
         }
         
