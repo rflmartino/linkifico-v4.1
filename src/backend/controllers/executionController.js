@@ -548,14 +548,20 @@ Verbosity: ${verbosityInstruction} (${verbosityInstruction === 'terse' ? 'max 50
 
 ${actionInstructions}
 
-CRITICAL: Extract ALL numbers, amounts, and specific details from the user's message. If they mention budget amounts, dollar amounts, or financial figures, extract them into the appropriate fields.
+CRITICAL: Extract ALL information from the user's message. A single message can contain multiple types of information:
+- Project objectives/goals/scope (what they want to accomplish)
+- Budget amounts, dollar figures, financial information
+- Tasks, deliverables, timeline information
+- People, team, stakeholders information
+
+IMPORTANT: Fill in ALL relevant fields, not just one. If the user mentions both objectives AND budget, extract BOTH.
 
 Respond in JSON with template-aware fields (simple_waterfall):
 {
   "extractedInfo": {
     "confidence": 0.8,
     "templateArea": "objectives|tasks|budget|people|unknown",
-    "objectives": { "description": "...", "goals": [], "acceptanceCriteria": [] },
+    "objectives": { "description": "extract project goals/scope/objectives", "goals": [], "acceptanceCriteria": [] },
     "tasks": { "tasks": [], "deadline": null, "dependencies": [] },
     "budget": { "total": "extract any dollar amounts mentioned", "spent": null, "lineItems": [] },
     "people": { "stakeholders": [], "team": [] },
@@ -600,8 +606,9 @@ Respond in JSON with template-aware fields (simple_waterfall):
             const updatedData = { ...projectData };
             updatedData.templateData = { ...(updatedData.templateData || {}) };
             
-            if (extractedInfo && extractedInfo.extractedFields) {
-                const fields = extractedInfo.extractedFields;
+            if (extractedInfo) {
+                // Handle both old format (extractedFields) and new format (direct fields)
+                const fields = extractedInfo.extractedFields || extractedInfo;
                 const areaId = fields.templateArea || (actionPlan?.targetArea) || null;
                 
                 // Handle project name changes directly
@@ -614,19 +621,55 @@ Respond in JSON with template-aware fields (simple_waterfall):
                     });
                 }
                 
-                if (areaId && areaId !== 'project_name') {
-                    const areaUpdate = {};
-                    // Merge known area payloads
-                    if (fields.objectives) areaUpdate.objectives = { ...(updatedData.templateData.objectives || {}), ...fields.objectives };
-                    if (fields.tasks) areaUpdate.tasks = { ...(updatedData.templateData.tasks || {}), ...fields.tasks };
-                    if (fields.budget) areaUpdate.budget = { ...(updatedData.templateData.budget || {}), ...fields.budget };
-                    if (fields.people) areaUpdate.people = { ...(updatedData.templateData.people || {}), ...fields.people };
+                // Update all extracted areas (new multi-area extraction)
+                const areaUpdate = {};
+                
+                // Handle objectives
+                if (fields.objectives && (fields.objectives.description || fields.objectives.goals || fields.objectives.acceptanceCriteria)) {
+                    areaUpdate.objectives = { ...(updatedData.templateData.objectives || {}), ...fields.objectives };
+                    Logger.info('executionController', 'objectivesUpdated', { 
+                        projectId, 
+                        description: fields.objectives.description,
+                        hasGoals: !!(fields.objectives.goals && fields.objectives.goals.length > 0)
+                    });
+                }
+                
+                // Handle tasks
+                if (fields.tasks && (fields.tasks.tasks || fields.tasks.deadline || fields.tasks.dependencies)) {
+                    areaUpdate.tasks = { ...(updatedData.templateData.tasks || {}), ...fields.tasks };
+                    Logger.info('executionController', 'tasksUpdated', { 
+                        projectId, 
+                        taskCount: fields.tasks.tasks ? fields.tasks.tasks.length : 0,
+                        hasDeadline: !!fields.tasks.deadline
+                    });
+                }
+                
+                // Handle budget
+                if (fields.budget && (fields.budget.total || fields.budget.spent || fields.budget.lineItems)) {
+                    areaUpdate.budget = { ...(updatedData.templateData.budget || {}), ...fields.budget };
+                    Logger.info('executionController', 'budgetUpdated', { 
+                        projectId, 
+                        total: fields.budget.total,
+                        spent: fields.budget.spent
+                    });
+                }
+                
+                // Handle people
+                if (fields.people && (fields.people.stakeholders || fields.people.team)) {
+                    areaUpdate.people = { ...(updatedData.templateData.people || {}), ...fields.people };
+                    Logger.info('executionController', 'peopleUpdated', { 
+                        projectId, 
+                        stakeholderCount: fields.people.stakeholders ? fields.people.stakeholders.length : 0,
+                        teamCount: fields.people.team ? fields.people.team.length : 0
+                    });
+                }
+                
+                // Apply all updates
+                if (Object.keys(areaUpdate).length > 0) {
+                    Object.assign(updatedData.templateData, areaUpdate);
+                } else if (areaId && areaId !== 'project_name') {
                     // Fallback: if no structured area object but areaId exists, attach additionalInfo minimally
-                    if (Object.keys(areaUpdate).length === 0) {
-                        updatedData.templateData[areaId] = { ...(updatedData.templateData[areaId] || {}), note: extractedInfo.additionalInfo || '' };
-                    } else {
-                        Object.assign(updatedData.templateData, areaUpdate);
-                    }
+                    updatedData.templateData[areaId] = { ...(updatedData.templateData[areaId] || {}), note: extractedInfo.additionalInfo || '' };
                 }
                 
                 // Update timestamp
