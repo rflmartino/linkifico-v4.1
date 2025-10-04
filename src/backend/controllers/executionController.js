@@ -548,6 +548,8 @@ Verbosity: ${verbosityInstruction} (${verbosityInstruction === 'terse' ? 'max 50
 
 ${actionInstructions}
 
+CRITICAL: Extract ALL numbers, amounts, and specific details from the user's message. If they mention budget amounts, dollar amounts, or financial figures, extract them into the appropriate fields.
+
 Respond in JSON with template-aware fields (simple_waterfall):
 {
   "extractedInfo": {
@@ -555,7 +557,7 @@ Respond in JSON with template-aware fields (simple_waterfall):
     "templateArea": "objectives|tasks|budget|people|unknown",
     "objectives": { "description": "...", "goals": [], "acceptanceCriteria": [] },
     "tasks": { "tasks": [], "deadline": null, "dependencies": [] },
-    "budget": { "total": null, "spent": null, "lineItems": [] },
+    "budget": { "total": "extract any dollar amounts mentioned", "spent": null, "lineItems": [] },
     "people": { "stakeholders": [], "team": [] },
     "needsClarification": []
   },
